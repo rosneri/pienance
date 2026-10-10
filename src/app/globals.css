@@ -1,0 +1,150 @@
+:root {
+  --bg: #fdf8f1;
+  --fg: #2b2118;
+  --muted: #7a6a5c;
+  --card: #ffffff;
+  --border: #eadfd2;
+  --needs: #d9822b;
+  --wants: #c2410c;
+  --savings: #4d7c0f;
+  --extra: #7c3aed;
+  --eaten: #ece3d8;
+  --tight: #b45309;
+  --overflows: #b91c1c;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1713;
+    --fg: #f3ebe2;
+    --muted: #b3a493;
+    --card: #26201b;
+    --border: #3a3029;
+    --eaten: #3a3029;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+main {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  display: grid;
+  gap: 1.25rem;
+}
+
+h1 {
+  margin: 0;
+}
+
+h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.lead {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--muted);
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  padding: 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.pie {
+  width: min(16rem, 70vw);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  justify-self: center;
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.servings,
+.bites {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.servings li,
+.bites li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.servings span,
+.bites li span:last-child {
+  color: var(--muted);
+}
+
+input,
+select,
+button {
+  font: inherit;
+  padding: 0.6rem 0.8rem;
+  border-radius: 0.6rem;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+button {
+  background: var(--needs);
+  border-color: var(--needs);
+  color: #fff;
+  cursor: pointer;
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--fg);
+  border-color: var(--border);
+}
+
+button:disabled {
+  opacity: 0.6;
+}
+
+.row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.verdict {
+  margin: 0;
+}
+
+.verdict.fits {
+  color: var(--savings);
+}
+
+.verdict.tight {
+  color: var(--tight);
+}
+
+.verdict.overflows {
+  color: var(--overflows);
+}
