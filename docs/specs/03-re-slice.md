@@ -9,10 +9,10 @@ and the repository then returns the newest pie, so this month's bites silently d
 
 ## Language
 
-| Term         | Meaning                                                                        |
-| ------------ | ------------------------------------------------------------------------------ |
+| Term         | Meaning                                                                           |
+| ------------ | --------------------------------------------------------------------------------- |
 | **Re-slice** | Change the pie's income or its slices (names, shares, adding, removing) in place. |
-| **Retired**  | A removed slice: it keeps its past bites but no longer takes a share.          |
+| **Retired**  | A removed slice: it keeps its past bites but no longer takes a share.             |
 
 ## Behaviour
 

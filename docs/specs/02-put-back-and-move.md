@@ -9,9 +9,9 @@ good, and the pie lies from then on.
 
 ## Language
 
-| Term         | Meaning                                                    |
-| ------------ | ---------------------------------------------------------- |
-| **Put back** | Remove a bite from the pie, as if it was never taken.      |
+| Term         | Meaning                                                        |
+| ------------ | -------------------------------------------------------------- |
+| **Put back** | Remove a bite from the pie, as if it was never taken.          |
 | **Move**     | Take a bite out of one slice and into another of the same pie. |
 
 Editing a bite is a put back followed by a new bite. No separate "edit" verb.

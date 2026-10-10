@@ -9,9 +9,9 @@ it over a few months. Weighing should answer "what if I spread it?".
 
 ## Language
 
-| Term       | Meaning                                                                 |
-| ---------- | ----------------------------------------------------------------------- |
-| **Spread** | One expense split into equal bites over several months, starting now.   |
+| Term       | Meaning                                                               |
+| ---------- | --------------------------------------------------------------------- |
+| **Spread** | One expense split into equal bites over several months, starting now. |
 
 ## Behaviour
 

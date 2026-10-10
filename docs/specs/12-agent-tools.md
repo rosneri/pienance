@@ -20,24 +20,24 @@ fits best.
 
 ## Catalogue
 
-| Tool               | Spec                 | Read-only |
-| ------------------ | -------------------- | --------- |
-| `bake_pie`         | existing             | no        |
-| `read_pie`         | existing, extended   | yes       |
-| `weigh_bite`       | existing, extended   | yes       |
-| `take_bite`        | existing, extended   | no        |
-| `find_room`        | this spec            | yes       |
-| `put_back_bite`    | Put back and move    | no        |
-| `move_bite`        | Put back and move    | no        |
-| `reslice_pie`      | Re-slice             | no        |
-| `preview_reslice`  | Re-slice             | yes       |
-| `stock_staple`     | Staples              | no        |
-| `drop_staple`      | Staples              | no        |
-| `put_back_spread`  | Spread               | no        |
-| `read_shelf`       | Shelf, Appetite      | yes       |
-| `carry_over`       | Carry over           | no        |
-| `drop_carry`       | Carry over           | no        |
-| `set_sweep`        | Sweep                | no        |
+| Tool              | Spec               | Read-only |
+| ----------------- | ------------------ | --------- |
+| `bake_pie`        | existing           | no        |
+| `read_pie`        | existing, extended | yes       |
+| `weigh_bite`      | existing, extended | yes       |
+| `take_bite`       | existing, extended | no        |
+| `find_room`       | this spec          | yes       |
+| `put_back_bite`   | Put back and move  | no        |
+| `move_bite`       | Put back and move  | no        |
+| `reslice_pie`     | Re-slice           | no        |
+| `preview_reslice` | Re-slice           | yes       |
+| `stock_staple`    | Staples            | no        |
+| `drop_staple`     | Staples            | no        |
+| `put_back_spread` | Spread             | no        |
+| `read_shelf`      | Shelf, Appetite    | yes       |
+| `carry_over`      | Carry over         | no        |
+| `drop_carry`      | Carry over         | no        |
+| `set_sweep`       | Sweep              | no        |
 
 Extensions to existing tools: `read_pie` gains `month`, pace, staples, carry and bite ids;
 `weigh_bite` and `take_bite` gain `months` and `currency`.

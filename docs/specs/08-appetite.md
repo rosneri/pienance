@@ -9,9 +9,9 @@ sentences about how each slice is usually eaten.
 
 ## Language
 
-| Term         | Meaning                                                           |
-| ------------ | ----------------------------------------------------------------- |
-| **Appetite** | How much of a slice is usually eaten by the end of a month.       |
+| Term         | Meaning                                                     |
+| ------------ | ----------------------------------------------------------- |
+| **Appetite** | How much of a slice is usually eaten by the end of a month. |
 
 ## Behaviour
 

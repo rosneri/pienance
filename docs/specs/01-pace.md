@@ -9,12 +9,12 @@ person whether they are eating a slice faster or slower than the month is passin
 
 ## Language
 
-| Term     | Meaning                                                                          |
-| -------- | -------------------------------------------------------------------------------- |
-| **Pace** | How fast a slice is eaten compared with how much of the month is gone.           |
-| `fast`   | Eaten well ahead of the month.                                                   |
-| `steady` | Eaten about as fast as the month passes.                                         |
-| `slow`   | Eaten well behind the month.                                                     |
+| Term     | Meaning                                                                |
+| -------- | ---------------------------------------------------------------------- |
+| **Pace** | How fast a slice is eaten compared with how much of the month is gone. |
+| `fast`   | Eaten well ahead of the month.                                         |
+| `steady` | Eaten about as fast as the month passes.                               |
+| `slow`   | Eaten well behind the month.                                           |
 
 ## Behaviour
 

@@ -9,10 +9,10 @@ typed in each month, and until they are, weighing says a slice has room it does 
 
 ## Language
 
-| Term       | Meaning                                                                    |
-| ---------- | -------------------------------------------------------------------------- |
-| **Staple** | A bite that comes back every month, e.g. rent from Needs.                  |
-| **Pantry** | All of a pie's staples.                                                    |
+| Term       | Meaning                                                   |
+| ---------- | --------------------------------------------------------- |
+| **Staple** | A bite that comes back every month, e.g. rent from Needs. |
+| **Pantry** | All of a pie's staples.                                   |
 
 ## Behaviour
 

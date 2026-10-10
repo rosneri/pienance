@@ -9,11 +9,11 @@ picture, and one shared login loses who ate what.
 
 ## Language
 
-| Term       | Meaning                                                            |
-| ---------- | ------------------------------------------------------------------ |
-| **Baker**  | The person who baked the pie. Can re-slice and invite.             |
-| **Guest**  | A person invited to a pie. Can weigh, take and see every bite.     |
-| **Invite** | A single-use link that makes the person who opens it a guest.      |
+| Term       | Meaning                                                        |
+| ---------- | -------------------------------------------------------------- |
+| **Baker**  | The person who baked the pie. Can re-slice and invite.         |
+| **Guest**  | A person invited to a pie. Can weigh, take and see every bite. |
+| **Invite** | A single-use link that makes the person who opens it a guest.  |
 
 ## Behaviour
 

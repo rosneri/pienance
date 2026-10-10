@@ -9,9 +9,9 @@ leftovers piling up in Savings, in proportions.
 
 ## Language
 
-| Term      | Meaning                                                                         |
-| --------- | ------------------------------------------------------------------------------- |
-| **Sweep** | The difference between a bite and its rounded-up amount, put into one slice.    |
+| Term      | Meaning                                                                      |
+| --------- | ---------------------------------------------------------------------------- |
+| **Sweep** | The difference between a bite and its rounded-up amount, put into one slice. |
 
 "Crumb" stays a rough size word, so it is not reused here.
 

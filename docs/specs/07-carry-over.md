@@ -9,9 +9,9 @@ rewarded, usually by putting it into Savings.
 
 ## Language
 
-| Term      | Meaning                                                                       |
-| --------- | ----------------------------------------------------------------------------- |
-| **Carry** | Last month's leftover, added to one slice of this month's pie.                |
+| Term      | Meaning                                                        |
+| --------- | -------------------------------------------------------------- |
+| **Carry** | Last month's leftover, added to one slice of this month's pie. |
 
 ## Behaviour
 
