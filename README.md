@@ -151,7 +151,16 @@ moon installs a pre-commit hook that lints and format-checks staged changes.
 
 ## Deploying to Vercel
 
-1. Import the repository in Vercel and set the **Root Directory** to `apps/web`.
-2. Connect a Prisma Postgres database (Storage tab / Marketplace) so `DATABASE_URL` is set, and
-   add `BETTER_AUTH_SECRET` (`openssl rand -base64 32`) to the project's environment variables.
-3. Deploy. Vercel runs `vercel-build`: `prisma migrate deploy`, then `next build`.
+The repository deploys as is: `vercel.json` declares the web app as a Vercel service rooted at
+`apps/web`, so no Root Directory setting is needed. Each build runs `apps/web/scripts/vercel-build.mjs`,
+which applies pending Prisma migrations and then builds Next.js.
+
+Environment:
+
+- **Database**: connect Prisma Postgres to the project. The app takes the first direct
+  `postgres://` URL among `DATABASE_URL`, `POSTGRES_URL`, `POSTGRES_PRISMA_URL`.
+- **Auth secret**: set `BETTER_AUTH_SECRET` (`openssl rand -base64 32`) to sign sessions and JWTs.
+  Without it, a secret is derived from the database URL (server-only; whoever holds it can read
+  every pie anyway). Rotating it signs everyone out.
+- **URLs**: on Vercel the production, branch and deployment URLs are picked up automatically;
+  set `BETTER_AUTH_URL` for a custom domain.
