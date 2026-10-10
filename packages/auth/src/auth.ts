@@ -8,6 +8,8 @@ export interface AuthSettings {
   readonly secret: string;
   /** Where the app is served, e.g. "https://pienance.app". */
   readonly baseURL: string;
+  /** Other origins allowed to call the auth endpoints, e.g. a deployment's other URLs. */
+  readonly trustedOrigins?: readonly string[];
   /** Framework glue, e.g. Next.js's `nextCookies()`; it must come last. */
   readonly plugins?: NonNullable<BetterAuthOptions["plugins"]>;
 }
@@ -23,6 +25,7 @@ export function createAuth(settings: AuthSettings) {
     database: settings.database,
     secret: settings.secret,
     baseURL: settings.baseURL,
+    trustedOrigins: [...(settings.trustedOrigins ?? [])],
     emailAndPassword: { enabled: true, minPasswordLength: 8, autoSignIn: true },
     session: {
       cookieCache: { enabled: true, maxAge: 5 * 60, strategy: "jwt" },
