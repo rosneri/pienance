@@ -2,7 +2,7 @@ import { startTestDatabase, type TestDatabase } from "@pienance/db/testing";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { createLocalJWKSet, decodeJwt, jwtVerify, type JSONWebKeySet } from "jose";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { createAuth, ownerOf, type Auth } from "./auth";
+import { createAuth, ownerOf, viewerOf, type Auth } from "./auth";
 
 const baseURL = "http://localhost:3000";
 
@@ -37,11 +37,19 @@ function request(path: string, init: RequestInit = {}): Promise<Response> {
   return auth.handler(new Request(`${baseURL}/api/auth${path}`, init));
 }
 
-async function signUp(email: string, password = "correct horse battery") {
+async function signUp(email: string, password = "correct horse battery", extra = {}) {
   return request("/sign-up/email", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ email, password, name: email.split("@")[0] }),
+    body: JSON.stringify({ email, password, name: email.split("@")[0], ...extra }),
+  });
+}
+
+async function signIn(email: string, password = "correct horse battery") {
+  return request("/sign-in/email", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email, password }),
   });
 }
 
@@ -127,5 +135,63 @@ describe("auth (Better Auth on Postgres)", () => {
     );
 
     expect(await ownerOf(auth, fresh)).toBeNull();
+  });
+
+  describe("roles", () => {
+    it("makes every new user a member", async () => {
+      const viewer = await viewerOf(auth, cookiesOf(await signUp("mary@example.com")));
+
+      const stored = await database.prisma.user.findUnique({
+        where: { email: "mary@example.com" },
+      });
+
+      expect(viewer?.role).toBe("member");
+      expect(stored?.role).toBe("member");
+    });
+
+    it("never lets sign-up choose a role", async () => {
+      const response = await signUp("mallory@example.com", "correct horse battery", {
+        role: "admin",
+      });
+
+      const stored = await database.prisma.user.findUnique({
+        where: { email: "mallory@example.com" },
+      });
+
+      expect(stored?.role ?? "member").toBe("member");
+      expect(response.ok ? (await viewerOf(auth, cookiesOf(response)))?.role : "member").toBe(
+        "member",
+      );
+    });
+
+    it("never lets a user promote themselves", async () => {
+      const session = cookiesOf(await signUp("eve@example.com"));
+
+      await request("/update-user", {
+        method: "POST",
+        headers: new Headers([...session, ["content-type", "application/json"]]),
+        body: JSON.stringify({ role: "admin" }),
+      });
+
+      const stored = await database.prisma.user.findUnique({ where: { email: "eve@example.com" } });
+
+      expect(stored?.role).toBe("member");
+    });
+
+    it("reads a role granted in the database at the next sign-in", async () => {
+      await signUp("barbara@example.com");
+      await database.prisma.user.update({
+        where: { email: "barbara@example.com" },
+        data: { role: "admin" },
+      });
+
+      const viewer = await viewerOf(auth, cookiesOf(await signIn("barbara@example.com")));
+
+      expect(viewer?.role).toBe("admin");
+    });
+
+    it("knows no viewer without a session", async () => {
+      expect(await viewerOf(auth, new Headers())).toBeNull();
+    });
   });
 });

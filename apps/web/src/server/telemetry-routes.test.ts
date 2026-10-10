@@ -4,13 +4,17 @@ import { ingestBeacon, maintenanceRoute } from "./telemetry-routes";
 
 const now = new Date("2026-10-10T12:00:00Z");
 
-function ingest(owner: string | null = "owner-1") {
+function ingest(owner: string | null | Error = "owner-1") {
   const writer = new InMemoryTelemetryWriter();
   const deferred: Array<() => Promise<void>> = [];
 
   const handle = ingestBeacon({
     writer: () => writer,
-    owner: async () => owner,
+    owner: async () => {
+      if (owner instanceof Error) throw owner;
+
+      return owner;
+    },
     now: () => now,
     deployment: "dpl_1",
     defer: (work) => void deferred.push(work),
@@ -68,6 +72,16 @@ describe("ingestBeacon", () => {
       deployment: "dpl_1",
     });
     expect(writer.storedVitals[0]).toMatchObject({ name: "CLS", value: 0.02 });
+  });
+
+  it("stores the beacon as anonymous when the session cannot be read", async () => {
+    const { writer, handle, flush } = ingest(new Error("Connection terminated unexpectedly"));
+
+    expect((await handle(post(JSON.stringify(beacon)))).status).toBe(204);
+
+    await flush();
+
+    expect(writer.storedEvents[0]?.userId).toBeNull();
   });
 
   it("rejects malformed beacons", async () => {

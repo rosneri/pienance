@@ -34,6 +34,10 @@ tasks:
     preset: "server"
     deps: ["~:build"]
 
+  # Lint follows imports (import/no-cycle) into the generated Prisma client: wait for it.
+  lint:
+    deps: ["db:generate"]
+
   typecheck:
     deps: ["db:generate"]
 

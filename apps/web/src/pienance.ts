@@ -10,6 +10,7 @@ import { databaseUrlFrom, PrismaPieRepository, prisma } from "@pienance/db";
 import type { ProductEvent } from "@pienance/telemetry/contract";
 import {
   discardingWriter,
+  PostgresTelemetryReader,
   PostgresTelemetryWriter,
   productEventRow,
   startTracing,
@@ -18,6 +19,7 @@ import {
   traced,
   WriterSpanExporter,
   type Queryable,
+  type TelemetryReader,
   type TelemetryWriter,
 } from "@pienance/telemetry/server";
 import { PrismaInstrumentation } from "@prisma/instrumentation";
@@ -155,4 +157,11 @@ export function track(event: ProductEvent, ownerId: string): void {
       .events([row])
       .catch(() => undefined),
   );
+}
+
+/** Reads telemetry for the admin pages, or null without a database. */
+export function telemetryReader(): TelemetryReader | null {
+  const database = telemetryDatabase();
+
+  return database ? new PostgresTelemetryReader(database) : null;
 }

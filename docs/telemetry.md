@@ -176,7 +176,7 @@ FROM telemetry.events e JOIN telemetry.spans s ON s.trace_id = e.trace_id AND s.
 WHERE e.source = 'server' AND e.time >= now() - interval '1 day';
 ```
 
-Reading: any SQL client, or Grafana or Metabase pointed at a read-only role. Grafana's Traces panel
+Reading: the app's own `/admin` panel (§5.6), any SQL client, or Grafana or Metabase pointed at a read-only role. Grafana's Traces panel
 can render `telemetry.spans` rows aliased to `traceID`, `spanID`, `parentSpanID`, `serviceName`,
 `startTime` and `duration`. All of these are optional and live outside the deployment.
 
@@ -295,6 +295,15 @@ Browser traces (the OTel web SDK, ~60 KB) are left out on purpose.
 rollups). It requires `Authorization: Bearer $CRON_SECRET` and stays shut
 when the secret is unset. It runs `maintain_partitions(3, 14)` and refreshes both rollups for yesterday and today; every step is idempotent. On AWS, an EventBridge schedule can call the same URL.
 
+### 5.6 Admin panel
+
+`/admin` reads the raw tables through `PostgresTelemetryReader` for the last day, week or two
+weeks. Only users whose role may `read` `Telemetry` (admins, a CASL ability in `@pienance/auth`; see the README's Roles) get in: anyone else gets a 404, and signed-out visitors go to sign-in.
+It shows totals, requests by route (median, p95, errors), failed and slowest requests, web vitals
+at p75 with web.dev's verdicts, the product funnel by people, and top pages and clicks.
+`/admin/traces/[traceId]` draws a trace as a waterfall, with failed spans named in words. Every
+query is bounded by time or a limit.
+
 ## 6. Tests
 
 | Where                           | What                                                                                       |
@@ -304,7 +313,8 @@ when the secret is unset. It runs `maintain_partitions(3, 14)` and refreshes bot
 | `telemetry/src/server`          | tail sampling decisions, span → row mapping, `traced`; ingest mapping, clock skew, devices |
 | `telemetry/src/server` (PGlite) | writer round trip, idempotent retry, jsonb escaping, rollups, partition create/drop        |
 | `web/src/server`                | ingestion route (owner from session, 400/403/413), cron auth, product events in actions    |
-| `web/src/components`            | `<Telemetry />` sends pageview and tracked clicks                                          |
+| `web/src/components`            | `<Telemetry />` sends pageview and tracked clicks; admin overview, waterfall, formatting   |
+| `telemetry/src/server` (PGlite) | `PostgresTelemetryReader`: totals, routes, vitals, events, failures, traces, bad ids       |
 
 An end-to-end run (`next start` on a PGlite database) stores Next.js spans, beacon events and
 vitals, and the rollups, as described.
