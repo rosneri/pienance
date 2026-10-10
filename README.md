@@ -149,6 +149,11 @@ moon installs a pre-commit hook that lints and format-checks staged changes.
    for UI changes, runs a Hallmark audit. Needs the `ANTHROPIC_API_KEY` repository secret; skipped
    on drafts.
 
+## Telemetry
+
+Traces, web vitals, product analytics and clickstream go through OpenTelemetry into the same
+Postgres, with no collector or daemon. The design is in [docs/telemetry.md](docs/telemetry.md).
+
 ## Deploying to Vercel
 
 The repository deploys as is: `vercel.json` declares the web app as a Vercel service rooted at
