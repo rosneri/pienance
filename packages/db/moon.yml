@@ -16,18 +16,16 @@ tasks:
     inputs: ["prisma/schema.prisma", "prisma.config.ts"]
     outputs: ["src/generated"]
 
+  # Local and deploy-time only: `moon check` and `moon ci` skip "run" tasks.
   migrate:
     command: "prisma migrate dev"
-    options:
-      cache: false
-      runInCI: false
-      interactive: true
+    type: "run"
+    preset: "utility"
 
   migrate-deploy:
     command: "prisma migrate deploy"
-    options:
-      cache: false
-      runInCI: false
+    type: "run"
+    preset: "utility"
 
   typecheck:
     deps: ["~:generate"]

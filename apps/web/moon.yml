@@ -13,6 +13,7 @@ dependsOn: ["core", "db"]
 tasks:
   dev:
     command: "next dev"
+    type: "run"
     preset: "server"
     deps: ["db:generate"]
 
@@ -29,6 +30,7 @@ tasks:
 
   start:
     command: "next start"
+    type: "run"
     preset: "server"
     deps: ["~:build"]
 
