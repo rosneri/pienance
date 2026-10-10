@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // No DOM and no Node: the core must run on any JavaScript runtime, including React Native.
+    "lib": ["ES2024"],
+    "types": []
+  },
+  "include": ["src"],
+  // Tests pull in Vitest's Node types, so they are checked by tsconfig.test.json instead.
+  "exclude": ["src/**/*.test.ts"]
+}

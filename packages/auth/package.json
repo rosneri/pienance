@@ -1,0 +1,19 @@
+{
+  "name": "@pienance/auth",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authentication for pienance: Better Auth with email and password, JWT sessions and JWKS.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "better-auth": "1.7.7"
+  },
+  "devDependencies": {
+    "@pienance/db": "workspace:*",
+    "@types/node": "^22.20.5",
+    "jose": "^6.2.12",
+    "vitest": "^5.0.3"
+  }
+}

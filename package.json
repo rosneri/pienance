@@ -1,0 +1,25 @@
+{
+  "name": "pienance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "moon run web:dev",
+    "build": "moon run web:build",
+    "check": "moon check --all",
+    "lint": "oxlint",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
+  },
+  "devDependencies": {
+    "@oxlint/plugins": "1.87.0",
+    "@types/node": "^22.20.5",
+    "oxfmt": "^0.72.0",
+    "oxlint": "1.87.0",
+    "typescript": "^7.0.2"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "packageManager": "pnpm@10.28.0"
+}

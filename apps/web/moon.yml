@@ -1,0 +1,41 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+layer: "application"
+stack: "frontend"
+tags: ["next", "tested"]
+
+project:
+  title: "Web"
+  description: "The pienance web app (Next.js), deployed to Vercel."
+
+dependsOn: ["core", "db", "ui", "auth"]
+
+tasks:
+  dev:
+    command: "next dev"
+    type: "run"
+    preset: "server"
+    deps: ["db:generate"]
+
+  build:
+    command: "next build"
+    deps: ["db:generate"]
+    inputs:
+      - "@group(sources)"
+      - "@group(configs)"
+    outputs:
+      - ".next"
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+
+  start:
+    command: "next start"
+    type: "run"
+    preset: "server"
+    deps: ["~:build"]
+
+  typecheck:
+    deps: ["db:generate"]
+
+  test:
+    deps: ["db:generate"]

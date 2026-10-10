@@ -1,0 +1,39 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+layer: "library"
+stack: "backend"
+tags: ["server", "tested"]
+
+project:
+  title: "Database"
+  description: "Prisma schema, migrations and the Prisma pie repository."
+
+dependsOn: ["core"]
+
+tasks:
+  generate:
+    command: "prisma generate"
+    inputs: ["prisma/schema.prisma", "prisma.config.ts"]
+    outputs: ["src/generated"]
+
+  # Local and deploy-time only: `moon check` and `moon ci` skip "run" tasks.
+  migrate:
+    command: "prisma migrate dev"
+    type: "run"
+    preset: "utility"
+
+  migrate-deploy:
+    command: "prisma migrate deploy"
+    type: "run"
+    preset: "utility"
+
+  typecheck:
+    deps: ["~:generate"]
+
+  # Integration tests against a real Postgres (PGlite), with the migrations applied.
+  test:
+    deps: ["~:generate"]
+    inputs:
+      - "@group(sources)"
+      - "prisma/**/*"
+      - "vitest.config.ts"

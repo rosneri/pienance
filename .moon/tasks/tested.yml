@@ -1,0 +1,12 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+# Inherited by projects tagged "tested".
+inheritedBy:
+  tags: ["tested"]
+
+tasks:
+  test:
+    command: "vitest run"
+    inputs:
+      - "@group(sources)"
+      - "vitest.config.ts"

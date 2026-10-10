@@ -1,0 +1,128 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Pies ─────────────────────────────────────────────────
+
+model Pie {
+  id          String   @id
+  /// The user the pie belongs to
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  /// ISO 4217 code, e.g. "EUR"
+  currency    String
+  /// In the currency's minor units (cents, yen, fils…)
+  incomeMinor BigInt
+  createdAt   DateTime @default(now())
+  slices      Slice[]
+
+  @@index([ownerId, createdAt])
+}
+
+model Slice {
+  id       String @id
+  pieId    String
+  pie      Pie    @relation(fields: [pieId], references: [id], onDelete: Cascade)
+  name     String
+  /// Ratio of the pie, 0..1
+  share    Float
+  position Int
+  bites    Bite[]
+
+  @@index([pieId])
+}
+
+model Bite {
+  id          String   @id
+  sliceId     String
+  slice       Slice    @relation(fields: [sliceId], references: [id], onDelete: Cascade)
+  currency    String
+  amountMinor BigInt
+  note        String
+  eatenAt     DateTime
+
+  @@index([sliceId, eatenAt])
+}
+
+// ── Identity (Better Auth: core tables + the JWT plugin's keys) ──
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  pies          Pie[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+model Jwks {
+  id         String    @id
+  publicKey  String
+  privateKey String
+  createdAt  DateTime
+  expiresAt  DateTime?
+  alg        String?
+  crv        String?
+
+  @@map("jwks")
+}

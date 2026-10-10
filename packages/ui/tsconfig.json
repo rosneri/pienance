@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "ES2024"],
+    "types": [],
+    "jsx": "react-jsx",
+    "paths": {
+      "@pienance/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "vitest.config.ts", "vitest.setup.ts"]
+}
