@@ -40,6 +40,19 @@ question should be one tap away.
 
 None. Agents already reach `weigh_bite` directly.
 
+## UX
+
+- **Install.** No custom install banner; browsers have their own. Where the browser exposes the
+  install prompt, the masthead menu shows "Add to home screen". Elsewhere it is hidden.
+- **Shortcut.** Long-pressing the icon offers "Weigh something". The page opens scrolled to the
+  weigh form with the price focused and the numeric keyboard up.
+- **Share.** The form opens prefilled, with one muted line above it:
+  - Price found: "Found 399.00 in what you shared. Check it, then weigh."
+  - No price: "No price in what you shared." The price field is focused instead.
+  - The note is the shared title, cut at 60 characters.
+- **Currency.** With Foreign bites built, a recognised symbol preselects that currency.
+- **Signed out.** Sign-in first, then straight back to the prefilled form.
+
 ## Tests
 
 - Unit: `Money.findIn` with "$1,299.00", "12,50 €", "129", no amount, and several amounts.

@@ -70,6 +70,24 @@ model Staple {
 - `stock_staple { amount, slice, note }`, `drop_staple { stapleId }`.
 - `read_pie` lists staples separately from bites.
 
+## UX
+
+- **Adding.** The weigh form gains an "Every month" checkbox under the slice choice. Checked,
+  the second button reads "Add to every month" instead of "Take the bite". "Weigh it" still
+  weighs one month.
+- **Answer.** "Added. Rent takes about two thirds of Needs every month."
+- **Section.** "Every month" sits between the weigh form and "Eaten this month", one row per
+  staple: "Rent · about two thirds of Needs". It is hidden while the pantry is empty.
+- **Discovery.** The empty bite list says: "Not a crumb yet. Rent or subscriptions? Tick
+  “Every month” and they count from the 1st."
+- **Stopping.** Each row has an options button with "Stop after October". It confirms inline,
+  like putting back a bite. A stopped staple stays in the list, muted, as "Ends after October".
+- **Changing an amount.** Stop it and add a new one. The options menu offers "Change amount",
+  which does exactly that with the form prefilled.
+- **Weighing.** When staples shape the verdict, the sentence names the biggest one:
+  "Tight. With Rent counted, it takes about half of what is left of Needs."
+- **Pie.** Staples are simply eaten; the diagram draws no special mark for them.
+
 ## Tests
 
 - Unit: active window edges (`since`, `until`, month after drop); servings and weighing include

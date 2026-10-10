@@ -15,7 +15,7 @@ rewarded, usually by putting it into Savings.
 
 ## Behaviour
 
-- In the first days of a month, if last month left something, the page asks once:
+- During the month, if last month left something and nothing was carried yet, the page asks:
   "September left about a fifth of your pie. Carry it into Savings?" with a slice choice.
 - Carrying is explicit. Nothing happens if the person ignores the question, and nothing is
   written when a page is only read.
@@ -66,6 +66,22 @@ model Carry {
 
 - `carry_over { slice }`, `drop_carry`.
 - `read_pie` mentions the carry and whether an offer is open.
+
+## UX
+
+- **Offer.** A bordered card under the headline, above the pie, while last month left something
+  and no carry exists:
+  - "September left about a fifth of your pie."
+  - "Carry it into" with slice pills like the weigh form, Savings preselected.
+  - "Carry it" (primary) and "Not this month" (ghost).
+- **After carrying.** The card collapses to one answer line: "Carried into Savings. It is
+  bigger this month." with an "Undo" text button for the rest of the visit. The Savings wedge
+  widens with the usual ink-on motion: slice angles follow sizes, so `viewPie` must compute them
+  from sizes instead of shares once a carry exists.
+- **Later.** The legend row reads "Savings · with September's leftover". Its options menu offers
+  "Undo the carry" for the rest of the month.
+- **Dismissing.** "Not this month" hides the card for this viewer only.
+- **Overspent month.** No card. Nothing to carry, nothing to say.
 
 ## Tests
 

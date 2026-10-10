@@ -54,6 +54,19 @@ it over a few months. Weighing should answer "what if I spread it?".
 - `weigh_bite` and `take_bite` gain optional `months`.
 - New `put_back_spread { spreadId }`.
 
+## UX
+
+- **Control.** A "Pay over" select under the price: "This month" (default), 2, 3, 6, 12 or 24
+  months. It uses the existing `native-select`, which behaves well on phones.
+- **Buttons.** With months chosen, "Take the bite" reads "Take it over 6 months".
+- **Answer.** Two sentences, now first, then spread. The tone follows this month's part.
+- **Nudge.** When a bite overflows, the answer adds a "Spread it to fit" button. It picks the
+  fewest months, up to 24, at which this month's part fits, and weighs again. That needs a core
+  helper, `Pie.fewestMonthsToFit(candidate, max)`. If none fits, the button is not shown.
+- **Bite row.** "Laptop · 1 of 6 · about a tenth of Wants", with a muted second line
+  "5 more months".
+- **Put back.** The menu says what it does: "Put back this and the 5 to come".
+
 ## Tests
 
 - Unit: split parts sum to the amount and differ by at most one minor unit; weigh with months;

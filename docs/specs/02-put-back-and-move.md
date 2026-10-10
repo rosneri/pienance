@@ -21,8 +21,8 @@ Editing a bite is a put back followed by a new bite. No separate "edit" verb.
 - Only bites of the month being served can be put back or moved. Past months are read-only.
 - Putting back a bite that does not exist fails with "That bite is not in this month's pie."
 - Moving into the bite's own slice is a no-op, not an error.
-- After taking a bite, the page offers "Put back" for a few seconds, so an accidental take is one
-  tap to undo.
+- After taking a bite, the page offers "Put back" until the next weigh or take, so an
+  accidental take is one tap to undo.
 - The answer after a move restates the destination: "Moved. It is about a tenth of Needs."
 
 ## Design
@@ -57,6 +57,25 @@ Editing a bite is a put back followed by a new bite. No separate "edit" verb.
 
 - `read_pie` bites include their `id`.
 - New `put_back_bite { biteId }` and `move_bite { biteId, slice }`.
+
+## UX
+
+- **Bite row.** Each row gets a trailing options button, 44px square, labelled
+  "Options for Running shoes". It opens a menu:
+  - "Move to Needs", "Move to Savings": one item per other slice, no submenu, so it works on a
+    phone.
+  - A separator, then "Put back" in the destructive tone.
+- **Put back.** No modal. The row turns into an inline question:
+  "Put back Running shoes? [Put back] [Keep]". Focus lands on "Keep". Confirming removes the row
+  and moves focus to the next row's options button, or to the heading when the list is empty.
+- **Move.** Applies at once; the row's slice name changes in place. A polite live region in the
+  list says "Moved to Needs. It is about a tenth of it."
+- **Undo a take.** After "Take the bite", the answer line reads "Taken. About a tenth of Wants."
+  with a "Put back" text button beside it. It stays until the next weigh or take. No timer, so
+  nobody has to race it.
+- **Pending.** The row dims and carries `aria-busy`; its options button is disabled.
+- **Errors.** One destructive line under the row, e.g. "That bite is not in this month's pie."
+- **Components.** shadcn `dropdown-menu`, added with the CLI into `@pienance/ui`.
 
 ## Tests
 

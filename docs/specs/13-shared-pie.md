@@ -83,6 +83,25 @@ Better Auth's organization plugin was considered. It brings teams, roles and inv
 designed for workspaces, which is far more than one table of members. A plain table keeps the
 domain in pienance's language.
 
+## UX
+
+- **Sharing.** "Share pie" in the masthead menu, for the baker only. It opens `/share`:
+  - One line: "Anyone with this link can join this pie. It works once, for seven days."
+  - "Share invite link" uses the system share sheet where there is one, otherwise copies the
+    link and answers "Link copied."
+  - An open invite shows as "One invite open until 17 October", with "Cancel invite".
+  - Guests are listed by name, each with "Remove", confirmed inline.
+- **Invite page.** It shows no pie data before joining: "Ana invited you to a shared pie."
+  with "Join the pie" and "Not now".
+  - Expired: "This invite has expired. Ask Ana for a new one."
+  - Already baked: "You already have a pie. Shared pies are one per person for now."
+- **Bite rows.** A 24px initial badge before the note, on `secondary`, labelled
+  "taken by Ana" for screen readers.
+- **Filter.** Pills above the bite list: "Everyone", then each person. They filter the list
+  only; the pie always shows the whole household.
+- **Guests.** The masthead menu hides Re-slice and Share pie. Guests see "Put back" only on
+  their own bites.
+
 ## Tests
 
 - Unit: role checks for re-slice and put back; bites record their taker.

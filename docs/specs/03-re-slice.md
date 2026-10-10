@@ -57,6 +57,29 @@ and the repository then returns the newest pie, so this month's bites silently d
   name, plus a read-only `preview_reslice` with the same input.
 - `bake_pie` is only registered when there is no pie (unchanged).
 
+## UX
+
+- **Entry.** "Re-slice" in the masthead menu (see the index). It opens `/reslice`, a full page,
+  not a dialog, because a form with several rows is miserable in a modal on a phone.
+- **Layout.** Mobile: a small live pie (160px) on top, the form below, and a sticky bottom bar
+  with the total and "Save the pie". Desktop: the pie sticks in the left column, the form on the
+  right.
+- **Income.** One field, prefilled, with the currency symbol in the label.
+- **Slice rows.** Name input, a stepper "− 30% +" in 5% steps, and the rough words under it
+  ("about a third"). The retire button is an icon labelled "Retire Wants".
+  - Shares are the one place numbers appear, because people set them exactly. The rough words
+    stay beside them.
+- **Total.** A live line: "Shares add up to 95%. Place 5% more." Save stays disabled with that
+  line as its reason, never a silent grey button.
+- **Add a slice.** Appends "New slice" at 0% with the name selected for typing.
+- **Retire.** A slice with bites this month stays visible, greyed: "Retired · still has bites
+  this month", with "Keep" to undo.
+- **Preview.** One line under the total, toned like a verdict: "Every slice still fits." or
+  "Wants would be all eaten." The small pie redraws as steppers move.
+- **Save.** Returns to the home page, where the pie shows the new cut. "Cancel" is a plain link
+  back, with nothing saved.
+- **Keyboard.** Steppers respond to arrow keys; each is a labelled spinbutton.
+
 ## Tests
 
 - Unit: reslice keeps bites, rejects shares not adding up, retires removed slices, refuses bites

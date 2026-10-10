@@ -59,6 +59,24 @@ None.
 
 `read_pie` adds `pace: "<sentence>"` and a per-slice pace word.
 
+## UX
+
+- **Where.** One muted line under the headline, above the pie. The legend adds the pace word to
+  each fast row: "about half left · going fast".
+- **Copy.**
+  - None fast: "Every slice is on pace."
+  - One fast: "Wants is going fast: about half eaten, about a third of the month gone."
+  - Several fast: names the fastest, then "and Needs too."
+  - Before a sliver of the month is gone, the line is hidden. Day one has no pace.
+- **Pie.** A short radial tick in each slice marks where the baked part would end on pace. It
+  uses `stroke-muted-foreground`, so it reads as a guide, not a warning. When the baked part has
+  already passed the tick, the slice is fast; the eye sees it without colour.
+- **Motion.** The tick fades in after the slices ink on, and appears at once under
+  `prefers-reduced-motion`.
+- **Accessibility.** The pie's label gains "about a third of the month gone". Pace is always a
+  word in the legend, never only a mark.
+- **Mobile.** The line wraps under the headline at 60ch; nothing new to tap.
+
 ## Tests
 
 - Unit: `Month.gone` at start, middle, last millisecond, and across February/leap years.

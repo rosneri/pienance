@@ -49,6 +49,23 @@ last month go?" even though every bite is still stored.
 - `read_pie` gains optional `month` ("2026-09").
 - New `read_shelf` returning one line per month: "September: about a tenth left".
 
+## UX
+
+- **Where.** A "Past months" section under the legend, in the pie's column. It is hidden until
+  the first month has passed.
+- **Row.** Small pies, 56px, with the short month under each ("Sep"). The current month comes
+  first, so there is always a way back.
+  - Mobile: one row that scrolls sideways inside itself, with scroll snapping. The last pie is
+    cut by the edge so the row looks scrollable. The page itself never scrolls sideways.
+  - Desktop: the row wraps.
+- **Selected.** The month on screen is marked with `aria-current="page"` and an underline under
+  its label, not colour alone.
+- **Past month page.** The headline turns to the past tense: "About a tenth of September's pie
+  was left." The weigh form and bite menus are gone. A line above the pie says
+  "You are looking at September. Back to October."
+- **Accessibility.** Each pie is a link labelled "September: about a tenth left".
+- **States.** Rendered on the server; no spinners. An unknown month quietly shows this month.
+
 ## Tests
 
 - Unit: `Month.parse` rejects junk; shelf stops at the baking month.

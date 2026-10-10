@@ -1,7 +1,7 @@
 # Feature specs
 
 Proposed features, one spec each. Every spec names its new terms, the change per core layer,
-persistence, web, WebMCP tools and tests, following CLAUDE.md. New terms join the README's
+persistence, web, UX, WebMCP tools and tests, following CLAUDE.md. New terms join the README's
 ubiquitous language when a spec is built.
 
 Suggested order: small, independent and visible first, then features that build on them.
@@ -21,6 +21,31 @@ Suggested order: small, independent and visible first, then features that build 
 | 11  | [Weigh anywhere](11-weigh-anywhere.md)       | Installable app, shortcut and share target.              | —                     | no            |
 | 12  | [Agent tools](12-agent-tools.md)             | Tool conventions, catalogue, and `find_room`.            | each feature          | no            |
 | 13  | [Shared pie](13-shared-pie.md)               | Several people eating from one pie.                      | 2                     | yes           |
+
+## UX principles
+
+Every spec's UX section follows these, so they are not repeated there.
+
+- **Mobile first.** One column below `lg`: headline, pie, legend, then forms and lists. Two
+  columns on desktop, pie on the left, as today.
+- **Words, not numbers.** Proportions are always spoken with `roughly`. Numbers appear only
+  where the person types them: amounts, shares while re-slicing, and the sweep step.
+- **One answer line.** Each form answers in its `Answer` line (`role="status"`), toned like a
+  verdict. No toasts, no snackbars.
+- **No modals for small things.** Destructive actions confirm inline, in the row, with focus
+  on the safe choice. Undo offers stay until the next action, never on a timer.
+- **Never colour alone.** Every tone has words: "going fast", "tight", "overflowed".
+- **Masthead menu.** The first spec that needs more than "Sign out" (Re-slice) replaces it
+  with one "Menu" button opening a shadcn `sheet`: Re-slice, Share pie, Add to home screen,
+  Sign out. Items appear only when they apply.
+- **Components and tokens.** shadcn components added with the CLI into `@pienance/ui`
+  (`dropdown-menu`, `sheet`, `switch`). Colours only from the tokens in `globals.css`
+  (`crust-*`, `plate`, `berry`, `tight`, `destructive`, `muted-foreground`…).
+- **Every state.** Interactive pieces ship default, hover, focus-visible, active, disabled,
+  pending, error and success states. Targets are at least 44px (`h-11`).
+- **Motion.** Reuse the existing ink-on and `--dur-long`/`--ease-out`; everything appears at
+  once under `prefers-reduced-motion`.
+- **Audit.** Run `hallmark audit` on each UI change, at 320, 375, 414 and 768px.
 
 ## Known issues the specs rely on
 

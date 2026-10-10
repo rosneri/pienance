@@ -64,6 +64,19 @@ Extensions to existing tools: `read_pie` gains `month`, pace, staples, carry and
 Also offered in the weigh form: a "Which slice?" option in the slice select that calls
 `findRoom` instead of `weighBite`.
 
+## UX
+
+- **Same words.** Agents and the page say the same sentences, so a person reading an agent's
+  reply recognises the app's voice.
+- **Same page.** Every tool goes through the server actions, so the page refreshes after an
+  agent acts. No separate "done by your assistant" marker.
+- **Which slice?** The weigh form's slice pills gain a first option, "Not sure". With it, "Weigh
+  it" calls `findRoom`. The answer names the best slice and selects its pill, so "Take the
+  bite" then takes from it:
+  - "It fits best in Wants, leaving about half of it. It would be tight in Needs."
+  - "It does not fit in any slice this month." With Spread, a "Spread it to fit" button follows.
+- **Default.** "Not sure" is not preselected. The first slice stays the default, as today.
+
 ## Tests
 
 - Unit: ordering rules, ties broken by slice order, nothing fits.

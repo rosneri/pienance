@@ -57,6 +57,18 @@ cannot be weighed or taken at all ("This pie is in EUR, not USD").
 
 `weigh_bite` and `take_bite` gain an optional `currency`.
 
+## UX
+
+- **Price field.** A currency select joined to the left of the amount input, as one control.
+  Order: the pie's currency, then currencies this viewer used recently, then all of them.
+  The label stays "Price".
+- **Default.** Always the pie's currency, so a foreign bite is a deliberate choice.
+- **Answer.** "Fits. Paid in USD, it is about a tenth of Wants." "Weighing…" also covers the
+  rate lookup.
+- **No rate.** The destructive answer line, with the currency left selected so a retry is one
+  tap.
+- **Bite row.** A muted suffix: "Hotel · about a fifth of Wants · paid in USD".
+
 ## Tests
 
 - Unit: `convert` across exponents (JPY to EUR, EUR to KWD) with exact expectations.

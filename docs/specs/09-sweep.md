@@ -56,6 +56,19 @@ leftovers piling up in Savings, in proportions.
 - `set_sweep { slice, step } | { off: true }`.
 - `take_bite` result mentions the sweep.
 
+## UX
+
+- **Settings.** A "Sweep" block at the end of the Re-slice page, or in a small sheet from the
+  masthead menu if Re-slice is not built yet:
+  - A switch, "Round bites up".
+  - When on: "into" with slice pills, and "to the next" with 1, 5 or 10 of the currency.
+  - One example line, in the pie's currency: "A 4.30 € bite sweeps 0.70 € into Savings."
+    Rounding is about exact amounts, so this is a place where numbers help.
+- **Turning off.** Immediate, with "Past sweeps stay." as the answer.
+- **After a take.** The answer adds the sweep: "Taken. Swept a crumb into Savings."
+- **Bite list.** One muted line under the list: "Swept this month: a sliver of Savings."
+- **Components.** shadcn `switch`, added with the CLI.
+
 ## Tests
 
 - Unit: `roundUpTo` for JPY (no minor unit), EUR and KWD (three); sweeps skip the target slice

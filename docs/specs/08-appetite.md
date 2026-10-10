@@ -46,6 +46,16 @@ None.
 
 `read_shelf` appends the appetite sentences.
 
+## UX
+
+- **Where.** Under the shelf, as a short "Usually" heading and up to two sentences.
+- **Tone.** Plain foreground text. An overflow streak uses the `tight` tone, and the word
+  "overflowed" carries the meaning on its own.
+- **Before three months.** One muted line: "After three months, pienance tells you how each
+  slice is usually eaten." Hidden before the shelf has its first month.
+- **Past month pages.** Not shown, so it never reads as a verdict on one old month.
+- **No interaction.** Nothing to tap. It is a sentence to read, not a chart.
+
 ## Tests
 
 - Unit: median with odd and even counts; each streak; fewer than three months yields nothing;
