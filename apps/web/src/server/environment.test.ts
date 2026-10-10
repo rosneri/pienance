@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { authSecretFrom, baseUrlFrom, trustedOriginsFrom } from "@/environment";
+import {
+  authSecretFrom,
+  baseUrlFrom,
+  deploymentFrom,
+  sampleRatioFrom,
+  trustedOriginsFrom,
+} from "@/environment";
 
 describe("authSecretFrom", () => {
   it("uses BETTER_AUTH_SECRET when set", () => {
@@ -58,5 +64,28 @@ describe("trustedOriginsFrom", () => {
         VERCEL_PROJECT_PRODUCTION_URL: "p.vercel.app",
       }),
     ).toEqual(["https://a.vercel.app", "https://p.vercel.app"]);
+  });
+});
+
+describe("sampleRatioFrom", () => {
+  it("keeps every trace by default", () => {
+    expect(sampleRatioFrom({})).toBe(1);
+  });
+
+  it("reads TELEMETRY_SAMPLE_RATIO, clamped to 0..1", () => {
+    expect(sampleRatioFrom({ TELEMETRY_SAMPLE_RATIO: "0.1" })).toBe(0.1);
+    expect(sampleRatioFrom({ TELEMETRY_SAMPLE_RATIO: "7" })).toBe(1);
+    expect(sampleRatioFrom({ TELEMETRY_SAMPLE_RATIO: "-1" })).toBe(0);
+    expect(sampleRatioFrom({ TELEMETRY_SAMPLE_RATIO: "lots" })).toBe(1);
+  });
+});
+
+describe("deploymentFrom", () => {
+  it("prefers the Vercel deployment id, then the commit", () => {
+    expect(deploymentFrom({ VERCEL_DEPLOYMENT_ID: "dpl_1", VERCEL_GIT_COMMIT_SHA: "abc" })).toBe(
+      "dpl_1",
+    );
+    expect(deploymentFrom({ VERCEL_GIT_COMMIT_SHA: "abc" })).toBe("abc");
+    expect(deploymentFrom({})).toBeNull();
   });
 });

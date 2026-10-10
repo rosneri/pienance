@@ -1,5 +1,6 @@
 import { InMemoryPieRepository, pienance, type PieRepository } from "@pienance/core";
 import { describe, expect, it } from "vitest";
+import type { ProductEvent } from "@pienance/telemetry/contract";
 import { pieActions } from "./pie-actions";
 
 function kitchen(pies: PieRepository = new InMemoryPieRepository()) {
@@ -12,11 +13,17 @@ function kitchen(pies: PieRepository = new InMemoryPieRepository()) {
   });
 
   const refreshes: string[] = [];
+  const tracked: Array<{ event: ProductEvent; ownerId: string }> = [];
 
   const as = (owner: string | null) =>
-    pieActions({ app, owner: async () => owner, refresh: () => refreshes.push("refresh") });
+    pieActions({
+      app,
+      owner: async () => owner,
+      refresh: () => refreshes.push("refresh"),
+      track: (event, ownerId) => tracked.push({ event, ownerId }),
+    });
 
-  return { as, refreshes };
+  return { as, refreshes, tracked };
 }
 
 describe("pie actions", () => {
@@ -121,5 +128,29 @@ describe("pie actions", () => {
     await expect(
       kitchen(broken).as("ada").weighBite({ sliceId: "x", amount: "1" }),
     ).rejects.toThrow("database is down");
+  });
+
+  it("records product events without amounts", async () => {
+    const { as, tracked } = kitchen();
+    const ada = as("ada");
+    const baked = await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+    const wants = baked.ok ? (baked.value.slices[1]?.id ?? "") : "";
+
+    await ada.weighBite({ sliceId: wants, amount: "225" });
+    await ada.takeBite({ sliceId: wants, amount: "100", note: "Cinema" });
+
+    expect(tracked).toEqual([
+      { event: { name: "pie.baked", properties: { currency: "EUR" } }, ownerId: "ada" },
+      { event: { name: "bite.weighed", properties: { verdict: "fits" } }, ownerId: "ada" },
+      { event: { name: "bite.taken", properties: {} }, ownerId: "ada" },
+    ]);
+  });
+
+  it("records nothing for someone signed out", async () => {
+    const { as, tracked } = kitchen();
+
+    await as(null).bakePie({ monthlyIncome: "3000", currency: "EUR" });
+
+    expect(tracked).toEqual([]);
   });
 });

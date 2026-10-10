@@ -30,6 +30,9 @@ in code, UI and agent tools.
   in. UI components take their actions as props so tests can hand in plain functions.
 - WebMCP tools (`apps/web/src/components/pie-tools.tsx`) mirror the UI's actions; keep them in
   sync when use cases change.
+- Telemetry (`@pienance/telemetry`, see `docs/telemetry.md`) stays out of core: new use cases get
+  a `traced()` wrapper in `pienance.ts`, user-facing outcomes a `track()` product event from the
+  server action, and new buttons a `data-track` name. Never record amounts, incomes or free text.
 
 ## Commands
 

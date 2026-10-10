@@ -1,20 +1,21 @@
-# Telemetry blueprint
+# Telemetry
 
 How pienance captures traces, performance, web vitals, product analytics and clickstream with
 OpenTelemetry, stores everything in the Postgres it already has, and runs on serverless functions
 with no collector, daemon or sidecar.
 
-Status: **proposal**. Nothing here is implemented yet; the [rollout](#8-rollout) lists the order.
+Code: `packages/telemetry` (`@pienance/telemetry`), the `telemetry` migration in `packages/db`, and
+the wiring in `apps/web` (§5).
 
 ## 1. Requirements
 
-| Signal                  | Captured as                                                    | Source                     |
-| ----------------------- | -------------------------------------------------------------- | -------------------------- |
-| APM / traces            | OTel spans (Next.js, fetch, Prisma, use cases)                 | server, `instrumentation`  |
-| Server metrics (RED)    | Derived from spans in SQL (rate, errors, duration percentiles) | rollup job                 |
-| Web vitals              | LCP, INP, CLS, FCP, TTFB samples                               | browser, `web-vitals`      |
-| Product analytics       | Named domain events (`pie.baked`, `bite.weighed`…)             | server actions             |
-| Clickstream / user flow | `$pageview`, `$click`, `$leave` with session and route         | browser, batched beacons   |
+| Signal                  | Captured as                                                     | Source                     |
+| ----------------------- | --------------------------------------------------------------- | -------------------------- |
+| APM / traces            | OTel spans (Next.js, fetch, Prisma, use cases)                  | server, `instrumentation`  |
+| Server metrics (RED)    | Derived from spans in SQL (rate, errors, duration percentiles)  | rollup job                 |
+| Web vitals              | LCP, INP, CLS, FCP, TTFB samples                                | browser, `next/web-vitals` |
+| Product analytics       | Named domain events (`pie.baked`, `bite.weighed`, `bite.taken`) | server actions             |
+| Clickstream / user flow | `$pageview`, `$click`, `$leave` with session and route          | browser, batched beacons   |
 
 Constraints: one deployable (the Next.js app), Postgres as the only store, works on Vercel and AWS
 Lambda, every format stays OTel/OTLP-shaped so leaving Postgres is a config change, not a rewrite.
@@ -30,15 +31,15 @@ Cron (or EventBridge) request — a scheduled HTTP call, not a daemon.
 
 **B. Self-hosted observability platform.** Ship OTLP to a platform and let it store and display.
 
-| Platform                    | Storage it needs                                     | Long-running services             | Postgres-only? | Notes                                                                                      |
-| --------------------------- | ---------------------------------------------------- | --------------------------------- | -------------- | ------------------------------------------------------------------------------------------ |
-| **Direct-to-Postgres (A)**  | the app's Postgres                                   | none                              | yes            | You build the read side (SQL, or Grafana/Metabase on the tables).                          |
-| Uptrace                     | ClickHouse (spans, logs, metrics) + Postgres (meta)  | Uptrace server, ClickHouse        | no             | Excellent OTel-native UI; ClickHouse is the real store.                                    |
-| Highlight.io                | ClickHouse, Postgres, Redis, Kafka, object storage   | backend, workers, frontend, Kafka | no             | Session replay + errors + traces. Now part of LaunchDarkly; self-host is a hobby compose.  |
-| SigNoz / ClickStack (HyperDX) | ClickHouse                                         | collector, query service          | no             | Strong APM; same ClickHouse dependency.                                                    |
-| PostHog (self-host)         | ClickHouse, Postgres, Redis, Kafka                   | many                              | no             | Best product analytics; self-host is "hobby" only, no APM.                                 |
-| Umami                       | Postgres                                             | Umami server                      | yes            | Pageviews and custom events only; no traces, no vitals detail.                             |
-| Jaeger / Tempo              | Cassandra, Elasticsearch, Badger / object storage    | collector, query                  | no             | Traces only.                                                                               |
+| Platform                      | Storage it needs                                    | Long-running services             | Postgres-only? | Notes                                                                                     |
+| ----------------------------- | --------------------------------------------------- | --------------------------------- | -------------- | ----------------------------------------------------------------------------------------- |
+| **Direct-to-Postgres (A)**    | the app's Postgres                                  | none                              | yes            | You build the read side (SQL, or Grafana/Metabase on the tables).                         |
+| Uptrace                       | ClickHouse (spans, logs, metrics) + Postgres (meta) | Uptrace server, ClickHouse        | no             | Excellent OTel-native UI; ClickHouse is the real store.                                   |
+| Highlight.io                  | ClickHouse, Postgres, Redis, Kafka, object storage  | backend, workers, frontend, Kafka | no             | Session replay + errors + traces. Now part of LaunchDarkly; self-host is a hobby compose. |
+| SigNoz / ClickStack (HyperDX) | ClickHouse                                          | collector, query service          | no             | Strong APM; same ClickHouse dependency.                                                   |
+| PostHog (self-host)           | ClickHouse, Postgres, Redis, Kafka                  | many                              | no             | Best product analytics; self-host is "hobby" only, no APM.                                |
+| Umami                         | Postgres                                            | Umami server                      | yes            | Pageviews and custom events only; no traces, no vitals detail.                            |
+| Jaeger / Tempo                | Cassandra, Elasticsearch, Badger / object storage   | collector, query                  | no             | Traces only.                                                                              |
 
 Every full-featured platform needs ClickHouse (or similar) **and** a long-running process, which
 breaks both the single-database and the no-daemon constraints. Umami fits the constraints but only
@@ -46,7 +47,7 @@ covers a fifth of the scope.
 
 ### 2.2 Decision
 
-Option A. It meets every constraint, adds one package and three routes, and keeps the exit open:
+Option A. It meets every constraint, adds one package and two routes, and keeps the exit open:
 
 - Spans are produced by the standard OTel SDK; swapping `PostgresSpanExporter` for
   `OTLPTraceExporter` sends them to Uptrace, SigNoz, Honeycomb, Grafana Cloud… unchanged.
@@ -60,14 +61,14 @@ raw data becomes the main use. Then keep the SDK, swap the exporter, and point i
 
 ### 2.3 Serverless constraints and how A handles them
 
-| Constraint                                       | Consequence                                     | Answer                                                                                                                                             |
-| ------------------------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Instance freezes after the response              | `BatchSpanProcessor` timers never fire          | Flush when the local root span ends, inside `waitUntil` (Vercel) / before the handler returns (Lambda). `@vercel/otel` already does the former. |
-| Many concurrent instances, each with a pool      | `max_connections` exhausted                     | Server-side pooler + tiny per-instance pool (§3).                                                                                                  |
-| Cold starts                                      | SDK init adds latency                           | Only `@opentelemetry/api` + `sdk-trace-base` + the exporter; no `sdk-node` auto-instrumentation bundle.                                            |
-| No background threads                            | No metrics `PeriodicExportingMetricReader`      | Derive server metrics from spans in SQL; no OTel metrics SDK on the server.                                                                        |
-| Edge runtime has no TCP                          | `pg` cannot run there                           | Telemetry writes only in the Node.js runtime (Next 16 `proxy.ts` and route handlers default to Node).                                              |
-| Billed duration                                  | Flushing extends each invocation                | One multi-row `INSERT` per flush (~2–10 ms on a warm pooled connection); sampling caps volume.                                                     |
+| Constraint                                  | Consequence                                | Answer                                                                                                                                                       |
+| ------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Instance freezes after the response         | `BatchSpanProcessor` timers never fire     | The tail sampler exports when the local root span ends and hands the write to `waitUntil` (Vercel); elsewhere call `provider.forceFlush()` before returning. |
+| Many concurrent instances, each with a pool | `max_connections` exhausted                | Server-side pooler + tiny per-instance pool (§3).                                                                                                            |
+| Cold starts                                 | SDK init adds latency                      | Only `sdk-trace-node`, Prisma's instrumentation and the exporter; no `sdk-node` auto-instrumentation bundle.                                                 |
+| No background threads                       | No metrics `PeriodicExportingMetricReader` | Derive server metrics from spans in SQL; no OTel metrics SDK on the server.                                                                                  |
+| Edge runtime has no TCP                     | `pg` cannot run there                      | Tracing registers only in the Node.js runtime (`NEXT_RUNTIME === "nodejs"`).                                                                                 |
+| Billed duration                             | Flushing extends each invocation           | One multi-row `INSERT` per flush (~2–10 ms on a warm pooled connection); sampling caps volume.                                                               |
 
 ## 3. Connection pooling
 
@@ -94,481 +95,223 @@ Telemetry multiplies writes, so pooling is the main risk.
 6. **Never trace the exporter.** Wrap writes in `context.with(suppressTracing(context.active()))`
    so `pg`/Prisma instrumentation does not create spans about saving spans.
 
-Connection string: `TELEMETRY_DATABASE_URL` (pooled), falling back to the app's pooled URL. The
-writer pool is created lazily on first flush, so builds need no database.
+Connection string: `TELEMETRY_DATABASE_URL` (pooled), falling back to the app's database URL. The
+pool is created on first use and connects lazily, so builds need no database.
 
 ## 4. Database schema
 
-All telemetry lives in its own Postgres schema, `telemetry`, so it never appears in Prisma's model
-of `public` and can be dropped or moved wholesale.
+Migration: [`packages/db/prisma/migrations/20261010120000_telemetry/migration.sql`](../packages/db/prisma/migrations/20261010120000_telemetry/migration.sql).
+`prisma migrate deploy` applies it like any other migration (on Vercel builds and in PGlite test
+databases). Everything lives in its own Postgres schema, `telemetry`. Prisma only diffs `public`,
+so `prisma migrate diff` reports no drift for these tables. Checked; if a future Prisma version
+does report it, list them under `tables.external` in `prisma.config.ts`.
+
+| Table                     | Holds                                                 | Partitioned         | Key                               |
+| ------------------------- | ----------------------------------------------------- | ------------------- | --------------------------------- |
+| `telemetry.spans`         | every kept span                                       | daily, `start_time` | `(trace_id, span_id, start_time)` |
+| `telemetry.web_vitals`    | LCP, INP, CLS, FCP, TTFB samples                      | daily, `time`       | `(id, time)`                      |
+| `telemetry.events`        | clickstream and product events                        | daily, `time`       | `(id, time)`                      |
+| `telemetry.route_rollups` | requests, errors, p50/p95/p99 per route per 5 minutes | no                  | `(bucket, service, route)`        |
+| `telemetry.vital_rollups` | p75, good, poor per route, vital, device per day      | no                  | `(day, route, name, device)`      |
 
 Design choices:
 
-- **Native range partitioning by day** on the time column. Retention is `DROP TABLE` of old
-  partitions (instant, no vacuum debt). No `pg_partman`/TimescaleDB required, since managed hosts
-  such as Prisma Postgres do not offer them; a plpgsql function maintains partitions instead.
-- **Server time is the partition key.** Browser clocks are wrong; `time` is when the server
-  received an event, `client_time` keeps what the browser said.
-- **Hot attributes promoted to columns** (`http_route`, `http_status`, `user_id`…); the long tail
-  stays in `jsonb`. No GIN on `jsonb` by default (write amplification); add `jsonb_path_ops`
-  partial indexes only for attributes you actually filter on.
-- **BRIN** on time (tiny, ideal for append-only), a few targeted B-trees, primary keys that make
-  retries idempotent (`ON CONFLICT DO NOTHING`).
-- **`lz4`** compression for `jsonb` (Postgres 14+), `fillfactor = 100` for insert-only tables.
-- **Ids as `bytea`** (16-byte trace, 8-byte span): half the size of hex text.
+- **Native range partitioning by day.** Retention is `DROP TABLE` of old partitions: instant,
+  with no vacuum debt. Neither `pg_partman` nor TimescaleDB is needed (managed hosts such as
+  Prisma Postgres do not offer them). `telemetry.maintain_partitions(days_ahead, keep_days)`
+  creates the coming days' partitions and drops expired ones.
+- **No `DEFAULT` partition.** A row outside the created range fails its batch, which the writer
+  drops. A default partition would silently swallow such rows, and then block creating the
+  matching partition. Daily maintenance with `days_ahead = 3` leaves two missed runs of slack.
+- **Server time is the partition key** for events and vitals. Browser clocks are wrong, so
+  `client_time` keeps what the browser said, and only when it is within 7 days of the server's
+  time.
+- **Hot attributes promoted to columns** (`http_route`, `http_method`, `http_status`, `user_id`);
+  the long tail stays in `jsonb`. There is no GIN index on `jsonb` (write amplification). Add a
+  `jsonb_path_ops` partial index only for an attribute you actually filter on.
+- **BRIN** on time (tiny, ideal for append-only data), a few targeted B-trees, and primary keys
+  that make retries idempotent (`ON CONFLICT DO NOTHING`).
+- **Ids as `bytea`** (16-byte trace id, 8-byte span id): half the size of hex text. Query them with
+  `encode(trace_id, 'hex')` and `decode($1, 'hex')`.
 - **No money.** Telemetry never stores amounts, incomes or exact proportions; only verdicts,
-  slice names and rough sizes (`"about a quarter"`). Pienance is a finance app.
+  currency codes and paths. Pienance is a finance app.
 
-### 4.1 Migration SQL
+Writes use one statement per batch: `INSERT … SELECT … FROM unnest($1::timestamptz[], $2::text[], …)
+ON CONFLICT DO NOTHING`. That is one statement shape and one round trip however many rows there are,
+and it is safe behind transaction poolers. See `PostgresTelemetryWriter`.
 
-Shipped as a Prisma migration (`packages/db/prisma/migrations/<timestamp>_telemetry/migration.sql`),
-so `prisma migrate deploy`, the Vercel build and the PGlite test databases all apply it with no
-extra tooling. Prisma only diffs the `public` schema, so the `telemetry` tables never show up as
-drift. (If a future Prisma version does, list them under `tables.external` in `prisma.config.ts`.)
+Least privilege (run once per environment; roles are cluster-wide, so they are not in the
+migration):
 
 ```sql
-CREATE SCHEMA IF NOT EXISTS telemetry;
-
--- ── Spans (APM) ────────────────────────────────────────────────────────────
-CREATE TABLE telemetry.spans (
-  start_time      timestamptz NOT NULL,
-  trace_id        bytea       NOT NULL,           -- 16 bytes
-  span_id         bytea       NOT NULL,           -- 8 bytes
-  parent_span_id  bytea,
-  name            text        NOT NULL,
-  kind            smallint    NOT NULL,           -- OTel SpanKind: 0 internal … 4 consumer
-  duration_us     bigint      NOT NULL,
-  status_code     smallint    NOT NULL DEFAULT 0, -- 0 unset, 1 ok, 2 error
-  status_message  text,
-  service         text        NOT NULL,           -- resource service.name
-  deployment      text,                           -- VERCEL_DEPLOYMENT_ID or git sha
-  http_route      text,                           -- http.route
-  http_method     text,
-  http_status     smallint,                       -- http.response.status_code
-  user_id         text,                           -- enduser.id (pienance ownerId)
-  attributes      jsonb       NOT NULL DEFAULT '{}',
-  events          jsonb,                          -- span events incl. exceptions
-  links           jsonb,
-  PRIMARY KEY (trace_id, span_id, start_time)
-) PARTITION BY RANGE (start_time);
-
-CREATE INDEX spans_time_brin  ON telemetry.spans USING brin (start_time);
-CREATE INDEX spans_route_time ON telemetry.spans (http_route, start_time) WHERE kind = 1;  -- server
-CREATE INDEX spans_errors     ON telemetry.spans (start_time) WHERE status_code = 2;
-CREATE INDEX spans_user_time  ON telemetry.spans (user_id, start_time) WHERE user_id IS NOT NULL;
-
--- ── Web vitals ─────────────────────────────────────────────────────────────
-CREATE TABLE telemetry.web_vitals (
-  time             timestamptz      NOT NULL DEFAULT now(),
-  client_time      timestamptz,
-  id               text             NOT NULL,     -- web-vitals metric id, unique per page load
-  name             text             NOT NULL CHECK (name IN ('LCP', 'INP', 'CLS', 'FCP', 'TTFB')),
-  value            double precision NOT NULL,     -- ms, CLS unitless
-  rating           text CHECK (rating IN ('good', 'needs-improvement', 'poor')),
-  navigation_type  text,
-  route            text             NOT NULL,     -- route pattern, e.g. /sign-in
-  session_id       uuid             NOT NULL,
-  user_id          text,
-  deployment       text,
-  device           text,                          -- mobile | tablet | desktop
-  country          text,                          -- from x-vercel-ip-country / CloudFront header
-  attribution      jsonb            NOT NULL DEFAULT '{}',  -- LCP element, INP target…
-  PRIMARY KEY (id, time)
-) PARTITION BY RANGE (time);
-
-CREATE INDEX web_vitals_time_brin  ON telemetry.web_vitals USING brin (time);
-CREATE INDEX web_vitals_route_name ON telemetry.web_vitals (route, name, time);
-
--- ── Events: product analytics + clickstream ────────────────────────────────
-CREATE TABLE telemetry.events (
-  time          timestamptz NOT NULL DEFAULT now(),
-  client_time   timestamptz,
-  id            uuid        NOT NULL,          -- generated by the sender: retries are idempotent
-  name          text        NOT NULL,          -- '$pageview', '$click', 'bite.weighed', …
-  source        text        NOT NULL CHECK (source IN ('browser', 'server')),
-  session_id    uuid,
-  anonymous_id  uuid,                          -- first-party cookie, before sign-in
-  user_id       text,                          -- set by the server, never trusted from the client
-  route         text,
-  path          text,
-  referrer      text,
-  trace_id      bytea,                         -- joins server events to their trace
-  deployment    text,
-  device        text,
-  country       text,
-  properties    jsonb       NOT NULL DEFAULT '{}',
-  PRIMARY KEY (id, time)
-) PARTITION BY RANGE (time);
-
-CREATE INDEX events_time_brin    ON telemetry.events USING brin (time);
-CREATE INDEX events_name_time    ON telemetry.events (name, time);
-CREATE INDEX events_session_time ON telemetry.events (session_id, time);
-CREATE INDEX events_user_time    ON telemetry.events (user_id, time) WHERE user_id IS NOT NULL;
-
--- Compression and fill for insert-only tables (inherited by new partitions).
-ALTER TABLE telemetry.spans      ALTER COLUMN attributes  SET COMPRESSION lz4;
-ALTER TABLE telemetry.web_vitals ALTER COLUMN attribution SET COMPRESSION lz4;
-ALTER TABLE telemetry.events     ALTER COLUMN properties  SET COMPRESSION lz4;
-
--- ── Rollups (cheap dashboards, kept for months) ────────────────────────────
-CREATE TABLE telemetry.route_rollups (
-  bucket    timestamptz      NOT NULL,         -- 5-minute bucket
-  service   text             NOT NULL,
-  route     text             NOT NULL,
-  requests  integer          NOT NULL,
-  errors    integer          NOT NULL,         -- status_code = 2 or http_status >= 500
-  p50_ms    double precision NOT NULL,
-  p95_ms    double precision NOT NULL,
-  p99_ms    double precision NOT NULL,
-  PRIMARY KEY (bucket, service, route)
-);
-
-CREATE TABLE telemetry.vital_rollups (
-  day      date             NOT NULL,
-  route    text             NOT NULL,
-  name     text             NOT NULL,
-  device   text             NOT NULL,
-  samples  integer          NOT NULL,
-  p75      double precision NOT NULL,          -- Core Web Vitals are judged at p75
-  good     integer          NOT NULL,
-  poor     integer          NOT NULL,
-  PRIMARY KEY (day, route, name, device)
-);
-
--- ── Partition upkeep: create ahead, drop behind ────────────────────────────
-CREATE OR REPLACE FUNCTION telemetry.maintain_partitions(days_ahead int DEFAULT 3, keep_days int DEFAULT 14)
-RETURNS void LANGUAGE plpgsql AS $$
-DECLARE
-  parent text;
-  day    date;
-  child  record;
-BEGIN
-  FOREACH parent IN ARRAY ARRAY['spans', 'web_vitals', 'events'] LOOP
-    FOR day IN SELECT generate_series(current_date - 1, current_date + days_ahead, interval '1 day')::date LOOP
-      EXECUTE format(
-        'CREATE TABLE IF NOT EXISTS telemetry.%I PARTITION OF telemetry.%I
-           FOR VALUES FROM (%L) TO (%L) WITH (fillfactor = 100)',
-        parent || '_' || to_char(day, 'YYYYMMDD'), parent, day, day + 1);
-    END LOOP;
-
-    FOR child IN
-      SELECT c.relname FROM pg_inherits i
-      JOIN pg_class c ON c.oid = i.inhrelid
-      JOIN pg_class p ON p.oid = i.inhparent
-      JOIN pg_namespace n ON n.oid = p.relnamespace
-      WHERE n.nspname = 'telemetry' AND p.relname = parent
-        AND c.relname ~ '_\d{8}$'
-        AND to_date(right(c.relname, 8), 'YYYYMMDD') < current_date - keep_days
-    LOOP
-      EXECUTE format('DROP TABLE telemetry.%I', child.relname);
-    END LOOP;
-  END LOOP;
-END $$;
-
-SELECT telemetry.maintain_partitions();
-
--- ── Least privilege ────────────────────────────────────────────────────────
--- Run once per environment by an admin (roles are cluster-wide, so not in the migration):
---   CREATE ROLE telemetry_writer LOGIN PASSWORD '…';
---   ALTER ROLE telemetry_writer SET statement_timeout = '2s';
---   GRANT USAGE ON SCHEMA telemetry TO telemetry_writer;
---   GRANT INSERT ON ALL TABLES IN SCHEMA telemetry TO telemetry_writer;
---   ALTER DEFAULT PRIVILEGES IN SCHEMA telemetry GRANT INSERT ON TABLES TO telemetry_writer;
+CREATE ROLE telemetry_writer LOGIN PASSWORD '…';
+ALTER ROLE telemetry_writer SET statement_timeout = '2s';
+GRANT USAGE ON SCHEMA telemetry TO telemetry_writer;
+GRANT INSERT ON ALL TABLES IN SCHEMA telemetry TO telemetry_writer;
+ALTER DEFAULT PRIVILEGES IN SCHEMA telemetry GRANT INSERT ON TABLES TO telemetry_writer;
+-- Maintenance also needs CREATE on the schema, ownership of the partitioned tables and
+-- INSERT/UPDATE on the rollups: run it as the migration role.
 ```
 
-No `DEFAULT` partition: rows outside the created range fail their batch, which the writer counts.
-A default partition would silently swallow them and then block creating the matching partition.
-Running maintenance hourly with `days_ahead = 3` leaves three days of slack.
-
-### 4.2 Batch insert (one statement per flush)
+Example queries:
 
 ```sql
-INSERT INTO telemetry.spans (start_time, trace_id, span_id, parent_span_id, name, kind, duration_us,
-  status_code, status_message, service, deployment, http_route, http_method, http_status, user_id,
-  attributes, events, links)
-SELECT * FROM unnest(
-  $1::timestamptz[], $2::bytea[], $3::bytea[], $4::bytea[], $5::text[], $6::smallint[], $7::bigint[],
-  $8::smallint[], $9::text[], $10::text[], $11::text[], $12::text[], $13::text[], $14::smallint[],
-  $15::text[], $16::jsonb[], $17::jsonb[], $18::jsonb[])
-ON CONFLICT DO NOTHING;
-```
-
-Same shape for `web_vitals` and `events`. Batches are capped at 500 rows to bound statement size.
-
-### 4.3 Rollup and query examples
-
-```sql
--- Hourly job: roll up the last two complete hours of server spans (idempotent upsert).
-INSERT INTO telemetry.route_rollups
-SELECT date_bin('5 minutes', start_time, 'epoch') AS bucket, service, http_route,
-       count(*), count(*) FILTER (WHERE status_code = 2 OR http_status >= 500),
-       percentile_cont(0.50) WITHIN GROUP (ORDER BY duration_us) / 1000,
-       percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_us) / 1000,
-       percentile_cont(0.99) WITHIN GROUP (ORDER BY duration_us) / 1000
-FROM telemetry.spans
-WHERE kind = 1 AND http_route IS NOT NULL
-  AND start_time >= date_trunc('hour', now()) - interval '2 hours'
-  AND start_time <  date_trunc('hour', now())
-GROUP BY 1, 2, 3
-ON CONFLICT (bucket, service, route) DO UPDATE SET
-  requests = excluded.requests, errors = excluded.errors,
-  p50_ms = excluded.p50_ms, p95_ms = excluded.p95_ms, p99_ms = excluded.p99_ms;
-
 -- One trace, as a tree.
 SELECT encode(span_id, 'hex') AS span, encode(parent_span_id, 'hex') AS parent, name,
        duration_us / 1000.0 AS ms, status_code
 FROM telemetry.spans WHERE trace_id = decode($1, 'hex') ORDER BY start_time;
 
--- Funnel: of the sessions that weighed a bite this week, how many took one?
-SELECT count(DISTINCT session_id) FILTER (WHERE name = 'bite.weighed') AS weighed,
-       count(DISTINCT session_id) FILTER (WHERE name = 'bite.taken')   AS taken
+-- Slowest routes today.
+SELECT route, sum(requests) AS requests, max(p95_ms) AS worst_p95_ms
+FROM telemetry.route_rollups WHERE bucket >= current_date GROUP BY route ORDER BY 3 DESC;
+
+-- Funnel: of the users who weighed a bite this week, how many took one?
+SELECT count(DISTINCT user_id) FILTER (WHERE name = 'bite.weighed') AS weighed,
+       count(DISTINCT user_id) FILTER (WHERE name = 'bite.taken')   AS took
 FROM telemetry.events WHERE time >= now() - interval '7 days';
+
+-- Product events with the request that produced them.
+SELECT e.name, s.name AS span, s.duration_us / 1000.0 AS ms
+FROM telemetry.events e JOIN telemetry.spans s ON s.trace_id = e.trace_id AND s.kind = 1
+WHERE e.source = 'server' AND e.time >= now() - interval '1 day';
 ```
 
-Reading: Grafana (Postgres data source; its Traces panel renders rows with `traceID`, `spanID`,
-`parentSpanID`, `serviceName`, `startTime`, `duration` columns) or Metabase, pointed at a read-only
-role. Both are optional and outside the deployment.
+Reading: any SQL client, or Grafana or Metabase pointed at a read-only role. Grafana's Traces panel
+can render `telemetry.spans` rows aliased to `traceID`, `spanID`, `parentSpanID`, `serviceName`,
+`startTime` and `duration`. All of these are optional and live outside the deployment.
 
-## 5. Implementation strategy
+## 5. Implementation
 
 ### 5.1 Where code lives
 
-Telemetry is infrastructure, not business: `@pienance/core` stays untouched and unaware of it.
+Telemetry is infrastructure, not business: `@pienance/core` is untouched and unaware of it.
 
 ```
-packages/telemetry            @pienance/telemetry   (new; layer: library)
-  src/contract/               portable: event names, payload types, validate(), no DOM/Node
-    events.ts                 ProductEvent union ('pie.baked' | 'bite.weighed' | …) + properties
-    beacon.ts                 Beacon payload type + parseBeacon(json): Outcome-like result
-  src/browser/                DOM only
-    beacon-queue.ts           batching queue (size/time/visibility flush, sendBeacon fallback)
-    clickstream.ts            $pageview / $click / $leave capture
-  src/server/                 Node only
-    postgres-writer.ts        TelemetryWriter port + PostgresTelemetryWriter (unnest inserts)
-    in-memory-writer.ts       for tests
-    postgres-span-exporter.ts OTel SpanExporter → writer.spans()
-    tail-sampler.ts           SpanProcessor: keep errors, slow and a ratio of the rest
-    register.ts               registerTelemetry({ service, writer, sampleRatio })
-    traced.ts                 traced(useCases, tracer): wraps each use case in a span
-    track.ts                  server-side product events
-  package.json exports: "./contract", "./browser", "./server"
+packages/telemetry                @pienance/telemetry
+  src/contract/                   portable (plain TypeScript + zod): shared by browser, server, native
+    events.ts                     ProductEvent union, browser event names, vital names
+    beacon.ts                     beacon payload schema, parseBeacon(), size limits
+  src/browser/                    DOM only
+    identity.ts                   session id (30 min idle) and anonymous id, storage-safe
+    beacon-queue.ts               batching: 20 items or 5 s, sendBeacon when unloading, retry buffer
+    browser-telemetry.ts          pageview / click / leave / vital; startBrowserTelemetry(window, send)
+  src/server/                     Node only, framework-free
+    rows.ts, writer.ts            row types; TelemetryWriter port, in-memory and discarding writers
+    postgres-writer.ts            PostgresTelemetryWriter (unnest inserts), telemetryPool()
+    span-row.ts                   ReadableSpan → SpanRow with promoted attributes
+    writer-span-exporter.ts       OTel SpanExporter → TelemetryWriter, tracing suppressed
+    tail-sampler.ts               SpanProcessor: per-trace keep/drop, export on root end, defer
+    tracing.ts                    startTracing(), traced(), recordError()
+    ingest.ts                     beacon → rows stamped by the server; product event rows; deviceOf()
+    maintenance.ts                maintainTelemetry(): partitions, retention, rollups
 
 apps/web/src
-  instrumentation.ts          register(): Node runtime → registerTelemetry(...); onRequestError
-  instrumentation-client.ts   startBrowserTelemetry({ endpoint: "/api/telemetry" })
-  components/web-vitals.tsx   useReportWebVitals → queue
-  app/api/telemetry/route.ts  POST: validate, enrich, insert; 204
-  app/api/telemetry/maintain/route.ts  GET (cron): partitions + rollups
-  pienance.ts                 composition root: telemetryWriter(), traced(wire(...))
+  instrumentation.ts              register() → startServerTelemetry(); onRequestError → recordError
+  pienance.ts                     composition root: telemetry pool/writer, tracing, traced use cases, track()
+  server/telemetry-routes.ts      ingestBeacon() and maintenanceRoute(), framework-free
+  app/api/telemetry/route.ts      POST beacons
+  app/api/telemetry/maintain/route.ts   GET, daily Vercel Cron (vercel.json), CRON_SECRET
+  components/telemetry.tsx        <Telemetry />: starts browser telemetry, pageviews, web vitals
 ```
 
-moon: `packages/telemetry/moon.yml` with `layer: library`, tags `server`, `tested`; oxlint
-`no-restricted-imports` so `contract/` imports nothing platform-specific (same rule as core) and
-`browser/` never imports `server/`. Add it to `transpilePackages` in `next.config.ts`.
+Boundaries are enforced by oxlint (`no-restricted-imports`): `contract/` imports no platform,
+framework or OTel code; `browser/` never imports `server/`, and the reverse is also forbidden.
 
-Dependencies (exact versions pinned at implementation time): `@opentelemetry/api`,
-`@opentelemetry/sdk-trace-base`, `@opentelemetry/core`, `@opentelemetry/resources`,
-`@opentelemetry/semantic-conventions`, `@vercel/otel` (flush-on-`waitUntil`; works off Vercel
-too), `@prisma/instrumentation` (query spans), `pg`, `web-vitals` (via `next/web-vitals`).
+### 5.2 Server traces
 
-### 5.2 Server: `instrumentation.ts`
+`instrumentation.ts` calls `startServerTelemetry()` once per instance, in the Node.js runtime and
+only when a database URL exists. It registers a `NodeTracerProvider` with `service.name` and
+`deployment.id`. Next.js then reports its own spans to it (`GET /route`, `render route`,
+`resolve page components`…), and `@prisma/instrumentation` adds query spans. The single span
+processor is:
 
-```ts
-// apps/web/src/instrumentation.ts
-import type { Instrumentation } from "next";
-
-export async function register(): Promise<void> {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-
-  const { startServerTelemetry } = await import("./telemetry.server");
-  startServerTelemetry();
-}
-
-export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
-  if (process.env.NEXT_RUNTIME !== "nodejs") return;
-
-  const { recordRequestError } = await import("./telemetry.server");
-  recordRequestError(error, request, context); // span event + status error on the active span
-};
+```
+TailSampler ─► WriterSpanExporter ─► PostgresTelemetryWriter ─► telemetry.spans
 ```
 
-```ts
-// apps/web/src/telemetry.server.ts — composition root for server telemetry
-import { registerOTel } from "@vercel/otel";
-import { PrismaInstrumentation } from "@prisma/instrumentation";
-import {
-  PostgresSpanExporter,
-  TailSampler,
-  telemetryWriter,
-} from "@pienance/telemetry/server";
+- **`TailSampler`** buffers ended spans per trace and decides when the local root ends. A
+  serverless request runs in one process, so the whole server-side trace is local and tail
+  sampling is exact. It keeps every trace with an error, every trace slower than 1 s, and
+  `TELEMETRY_SAMPLE_RATIO` of the rest. It exports at once and passes the write to `waitUntil`,
+  so spans are stored after the response and before the function is frozen. Spans that end after
+  their root follow the root's decision. Memory is bounded (1,000 traces).
+- **`WriterSpanExporter`** maps spans to rows and writes them under `suppressTracing`, so saving
+  spans creates no spans. Swap it for `OTLPTraceExporter` to send the same spans to any OTel
+  backend.
+- **`traced()`** wraps each use case at the composition root (`pienance.bakePie` and so on), so
+  traces show what the app did, not only the route. Errors are recorded on the span.
+- **`onRequestError`** records uncaught errors on the active span, which makes the tail sampler
+  keep that trace.
 
-export function startServerTelemetry(): void {
-  const writer = telemetryWriter(process.env); // lazy pool; in-memory/no-op without a URL
+### 5.3 Product events
 
-  registerOTel({
-    serviceName: "pienance-web",
-    attributes: { "deployment.id": process.env.VERCEL_DEPLOYMENT_ID ?? "local" },
-    instrumentations: ["fetch", new PrismaInstrumentation()],
-    spanProcessors: [
-      new TailSampler({
-        exporter: new PostgresSpanExporter(writer),
-        keepRatio: Number(process.env.TELEMETRY_SAMPLE_RATIO ?? "1"),
-        slowMs: 1_000,
-      }),
-    ],
-  });
-}
-```
+Server actions call `track(event, ownerId)`, a dependency of `pieActions`, so tests pass a plain
+function. The real `track` builds the row immediately (with the active `trace_id`, which joins
+the event to its trace) and writes it in `after()`, once the response is sent. Server-side events
+are authoritative and immune to ad blockers. WebMCP tools call the same actions, so agent use is
+counted too.
 
-Key pieces:
+| Event          | Properties |
+| -------------- | ---------- |
+| `pie.baked`    | `currency` |
+| `bite.weighed` | `verdict`  |
+| `bite.taken`   | —          |
 
-- **`PostgresSpanExporter.export(spans, done)`** maps `ReadableSpan` → rows (promoting
-  `http.route`, `http.request.method`, `http.response.status_code`, `enduser.id`), calls
-  `writer.spans(rows)` under `suppressTracing`, and reports `ExportResultCode.FAILED` on error
-  without throwing. `forceFlush()` awaits in-flight writes.
-- **`TailSampler`** (a `SpanProcessor`): buffers ended spans per trace id and decides when the
-  local root ends. A serverless request is one process, so the whole server trace is local and
-  tail sampling is exact: keep every error, every trace slower than `slowMs`, and `keepRatio` of
-  the rest. Then hands the kept spans to the exporter and flushes. `@vercel/otel` wraps the
-  processor so the flush runs in `waitUntil`, after the response is sent.
-- **Lambda / other hosts**: same code; without Vercel's request context, call
-  `await provider.forceFlush()` at the end of the handler, or rely on `after()` from
-  `next/server`, which awaits work before the instance is frozen on hosts that support it.
+### 5.4 Browser: clickstream and web vitals
 
-### 5.3 Use cases and product events (server)
+`<Telemetry />` in the root layout starts `startBrowserTelemetry(window, beaconSender("/api/telemetry"))`
+unless the visitor sends Global Privacy Control. It then:
 
-Use cases get spans without core knowing: wrap them where they are wired.
+- sends `$pageview` on load and on every App Router navigation (`usePathname`); the first one
+  carries the referrer's **origin** only;
+- sends `$click` for clicks on elements marked `data-track="name"` (`bake`, `weigh`, `take`),
+  recording only the name, never text or input values;
+- sends `$leave` with time on page when the page is hidden;
+- reports web vitals from `useReportWebVitals`, ignoring Next's own non-standard metrics.
 
-```ts
-// apps/web/src/pienance.ts
-export const pienance = traced(wire({ pies, newId, now: clock }), trace.getTracer("pienance"));
-// Each call becomes a span "pienance.weighBite" with the outcome's safe attributes.
-```
+The beacon queue batches 20 items or 5 seconds, whichever comes first. When the page is hidden it
+flushes with `navigator.sendBeacon`; otherwise it uses `fetch(…, { keepalive: true })`. A failed
+batch is kept (at most 200 items) for the next flush. Every item has an id generated in the
+browser, so a retry is stored once. Paths never include query strings or fragments. The session
+id lives in `sessionStorage` and the anonymous id in `localStorage`, both behind `try/catch`
+(blocked storage just means ids last as long as the page).
 
-Product events are emitted by server actions, where the outcome and the owner are known. Being
-server-side, they are authoritative and immune to ad blockers.
+Browser traces (the OTel web SDK, ~60 KB) are left out on purpose.
 
-```ts
-// apps/web/src/server/pie-actions.ts (sketch)
-const weighing = await deps.app.weighBite({ ownerId, ...input });
-deps.track({ name: "bite.weighed", userId: ownerId, properties: { verdict: weighing.verdict } });
-```
+### 5.5 Ingestion and maintenance routes
 
-`track` is a dependency of the actions (tests pass a plain function); the real one is
-`(event) => after(() => writer.events([toRow(event, trace.getActiveSpan())]))`, attaching the
-current `trace_id` so an event joins its trace.
+`POST /api/telemetry` (`ingestBeacon`):
 
-Event vocabulary (in `contract/events.ts`, using the ubiquitous language):
+- rejects cross-site requests (`Sec-Fetch-Site`) and bodies over 60 KB;
+- parses the body against the contract (zod: known names only, at most 100 items and
+  10 flat properties each, unknown keys stripped);
+- stamps rows with the signed-in user from the session (never a user id sent by the client),
+  the device class from `User-Agent`, the country from `x-vercel-ip-country` or
+  `cloudfront-viewer-country`, and the deployment;
+- responds `204` and writes in `after()`.
 
-| Event          | Properties                                 |
-| -------------- | ------------------------------------------ |
-| `pie.baked`    | `currency`                                 |
-| `pie.served`   | `bites` (count), `leftover` (rough size)   |
-| `bite.weighed` | `slice`, `verdict`, `size` (rough size)    |
-| `bite.taken`   | `slice`, `verdict`                         |
-| `agent.tool`   | `tool` (WebMCP tool name), `ok`            |
+`GET /api/telemetry/maintain` (`maintenanceRoute`) runs daily from Vercel Cron
+(`vercel.json`, `17 3 * * *`; Hobby plans allow daily crons only, Pro can go hourly for fresher
+rollups). It requires `Authorization: Bearer $CRON_SECRET` and stays shut
+when the secret is unset. It runs `maintain_partitions(3, 14)` and refreshes both rollups for yesterday and today; every step is idempotent. On AWS, an EventBridge schedule can call the same URL.
 
-### 5.4 Browser: batching, clickstream, web vitals
+## 6. Tests
 
-`instrumentation-client.ts` (Next ≥ 15.3) runs once before hydration:
+| Where                           | What                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------ |
+| `telemetry/src/contract`        | `parseBeacon`: valid payloads, unknown names, query strings, property limits, batch size   |
+| `telemetry/src/browser` (jsdom) | queue size/time/unload flushes, retry and buffer cap; identity; page listeners             |
+| `telemetry/src/server`          | tail sampling decisions, span → row mapping, `traced`; ingest mapping, clock skew, devices |
+| `telemetry/src/server` (PGlite) | writer round trip, idempotent retry, jsonb escaping, rollups, partition create/drop        |
+| `web/src/server`                | ingestion route (owner from session, 400/403/413), cron auth, product events in actions    |
+| `web/src/components`            | `<Telemetry />` sends pageview and tracked clicks                                          |
 
-```ts
-// apps/web/src/instrumentation-client.ts
-import { startBrowserTelemetry } from "@pienance/telemetry/browser";
-
-startBrowserTelemetry({ endpoint: "/api/telemetry" });
-```
-
-`BeaconQueue` rules:
-
-- Buffer in memory; flush at **20 items** or **5 s**, whichever first.
-- Flush on `visibilitychange → hidden` and `pagehide` with `navigator.sendBeacon` (survives
-  unload; JSON `Blob`, ≤ 60 KB per beacon, split if larger); otherwise `fetch(…, { keepalive: true })`.
-- Each item gets a `crypto.randomUUID()` id at creation, so a retried batch is deduplicated by
-  the primary key.
-- On failure keep at most 200 items and retry on the next flush; never block the UI.
-- `session_id` in `sessionStorage` (new after 30 min idle); `anonymous_id` in a first-party
-  cookie; both wrapped in `try/catch` (private mode). Respect `navigator.globalPrivacyControl`
-  and a consent flag before sending clickstream.
-
-Clickstream capture: `$pageview` on load and on App Router navigations (`usePathname` change in a
-small client component), `$click` via one delegated `click` listener recording only elements with
-a `data-track` attribute (`data-track="weigh"`), never text content or input values, and `$leave`
-with time on page.
-
-Web vitals: `useReportWebVitals` from `next/web-vitals` in `components/web-vitals.tsx`, pushing
-`{ id, name, value, rating, navigationType, attribution }` onto the same queue.
-
-Browser traces (optional, later): the OTel web SDK is ~60 KB+; skip it initially. Link client
-and server instead by rendering the server trace id into a `<meta name="traceparent">` and
-attaching it to `$pageview`.
-
-### 5.5 Ingestion route
-
-```ts
-// apps/web/src/app/api/telemetry/route.ts
-import { parseBeacon } from "@pienance/telemetry/contract";
-import { headers } from "next/headers";
-import { after } from "next/server";
-import { ownerOf } from "@pienance/auth";
-import { auth, telemetry } from "@/pienance";
-
-export const runtime = "nodejs";
-
-export async function POST(request: Request): Promise<Response> {
-  if (Number(request.headers.get("content-length") ?? 0) > 64_000) {
-    return new Response(null, { status: 413 });
-  }
-
-  const beacon = parseBeacon(await request.text()); // validates, caps items, strips unknown keys
-  if (!beacon.ok) return new Response(null, { status: 400 });
-
-  const userId = await ownerOf(auth(), await headers()); // never trust a client-sent user id
-  const context = telemetry.requestContext(request);     // device, country, deployment
-
-  after(() => telemetry.ingest(beacon.value, { userId, ...context }));
-
-  return new Response(null, { status: 204 });
-}
-```
-
-Hardening: same-origin check (`Origin`/`Sec-Fetch-Site`), 64 KB body limit, at most 100 items per
-beacon, an allow-list of event names and property keys from `contract/`, route patterns instead
-of raw URLs (strip query strings), and an optional per-IP rate limit through Vercel Firewall. The
-route responds before writing (`after`), so the browser never waits on Postgres.
-
-### 5.6 Maintenance (cron, not daemon)
-
-```json
-// vercel.json
-{ "crons": [{ "path": "/api/telemetry/maintain", "schedule": "7 * * * *" }] }
-```
-
-`GET /api/telemetry/maintain` checks `Authorization: Bearer ${CRON_SECRET}`, then runs
-`SELECT telemetry.maintain_partitions(3, 14)`, the route rollup (§4.3) and the daily vitals rollup.
-Each step is idempotent, so a missed or doubled run is harmless. On AWS, an EventBridge schedule
-calls the same URL.
-
-Account deletion also deletes the user's telemetry rows
-(`DELETE FROM telemetry.events WHERE user_id = $1`, same for spans and vitals); retention ages out
-the rest.
-
-## 6. Testing
-
-Following the repo's rules (Vitest, no `vi.mock`, dependencies passed in):
-
-| Unit                                                                      | Integration (PGlite via `@pienance/db/testing`)                                    |
-| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `parseBeacon` accepts/rejects payloads; caps; strips unknown properties   | migration applies; `maintain_partitions` creates and drops partitions              |
-| `BeaconQueue` flush on size, time, hidden (fake `send`, fake timers)      | `PostgresTelemetryWriter` round-trips spans, vitals, events; retry is idempotent   |
-| `TailSampler` keeps errors and slow traces, ratio for the rest            | exporter → writer → rows with promoted columns                                     |
-| span → row mapping (ids, durations, promoted attributes)                  | rollup SQL produces expected percentiles                                           |
-| `traced()` names spans and records errors (in-memory span exporter)       | ingestion route handler with in-memory writer and a test owner                     |
-| actions call `track` with the right event (plain function)                | —                                                                                  |
+An end-to-end run (`next start` on a PGlite database) stores Next.js spans, beacon events and
+vitals, and the rollups, as described.
 
 ## 7. Capacity and cost
 
-Rough sizing, per row including indexes: span ~0.5 KB, event ~0.4 KB, vital ~0.3 KB.
+Rough sizing per row, including indexes: span ~0.5 KB, event ~0.4 KB, vital ~0.3 KB.
 
 | Traffic                     | Spans/day (8/request) | Raw size/day | 14-day footprint |
 | --------------------------- | --------------------- | ------------ | ---------------- |
@@ -576,18 +319,22 @@ Rough sizing, per row including indexes: span ~0.5 KB, event ~0.4 KB, vital ~0.3
 | 1 M requests/day            | 8 M                   | ~4 GB        | ~56 GB           |
 | 1 M requests/day, 10 % kept | 0.8 M (+ all errors)  | ~0.4 GB      | ~6 GB            |
 
-Rollups are tiny and can be kept for a year. Lower `keep_days` or `TELEMETRY_SAMPLE_RATIO` before
-reaching for another store.
+Rollups are tiny and are kept. Lower `keep_days` or `TELEMETRY_SAMPLE_RATIO` before reaching for
+another store.
 
-## 8. Rollout
+## 8. Operating it
 
-1. `packages/telemetry` skeleton: contract, writer port, in-memory writer, tests.
-2. Telemetry migration + `PostgresTelemetryWriter` + integration tests on PGlite.
-3. Server traces: exporter, tail sampler, `instrumentation.ts`, `traced()` use cases.
-4. Ingestion route, `BeaconQueue`, web vitals, `$pageview`.
-5. Product events from server actions and WebMCP tools; `$click` with `data-track`.
-6. Maintenance cron, rollups, read-only role, a Grafana or Metabase dashboard.
+Environment:
 
-Environment: `TELEMETRY_DATABASE_URL` (pooled, `telemetry_writer`), `TELEMETRY_SAMPLE_RATIO`
-(default `1`), `CRON_SECRET`. Without a database URL, telemetry writes to the in-memory writer,
-like the rest of the app.
+| Variable                 | Default                     | Purpose                                                          |
+| ------------------------ | --------------------------- | ---------------------------------------------------------------- |
+| `TELEMETRY_DATABASE_URL` | the app's database URL      | where telemetry goes; prefer a pooled URL and `telemetry_writer` |
+| `TELEMETRY_SAMPLE_RATIO` | `1`                         | share of ordinary traces kept (errors and slow ones always are)  |
+| `CRON_SECRET`            | unset (maintenance is shut) | authorises the daily maintenance cron                            |
+
+Without any database URL, tracing is not started and beacons are discarded, like the rest of the
+app running in memory.
+
+Possible next steps, only when needed: a dashboard on the rollups, deleting a user's telemetry
+rows when their account is deleted (once accounts can be deleted), browser traces linked through
+a `traceparent` meta tag, and an OTLP ingestion endpoint for other services.

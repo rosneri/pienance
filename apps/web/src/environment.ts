@@ -42,3 +42,15 @@ export function trustedOriginsFrom(env: Env): string[] {
     (host) => https(host) ?? [],
   );
 }
+
+/** Share of ordinary traces kept (errors and slow ones always are): TELEMETRY_SAMPLE_RATIO, 0..1. */
+export function sampleRatioFrom(env: Env): number {
+  const ratio = Number(env.TELEMETRY_SAMPLE_RATIO ?? "1");
+
+  return Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 1;
+}
+
+/** Which deployment produced a span or event: Vercel's deployment id, else the git commit. */
+export function deploymentFrom(env: Env): string | null {
+  return env.VERCEL_DEPLOYMENT_ID ?? env.VERCEL_GIT_COMMIT_SHA ?? null;
+}

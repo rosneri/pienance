@@ -75,7 +75,7 @@ export function BakeForm({
         </Field>
 
         <div className="flex items-center">
-          <Button size="lg" disabled={pending}>
+          <Button size="lg" disabled={pending} data-track="bake">
             {pending ? "Baking…" : "Bake my pie"}
           </Button>
         </div>

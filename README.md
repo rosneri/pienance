@@ -34,6 +34,7 @@ packages/core   @pienance/core  Pure TypeScript: domain, use cases, views. No No
 packages/db     @pienance/db    Prisma Postgres adapter for the PieRepository port. Server only.
 packages/ui     @pienance/ui    Shared shadcn/ui components + design system (Tailwind v4).
 packages/auth   @pienance/auth  Better Auth: email + password, JWT sessions, JWKS. Server only.
+packages/telemetry @pienance/telemetry  OpenTelemetry traces, vitals, events → Postgres.
 apps/web        @pienance/web   Next.js app (Vercel): UI, server actions, WebMCP tools.
 tools/oxlint    anti-slop       Vendored Oxlint rules (github.com/dmmulroy/anti-slop).
 .claude/skills  hallmark, install-anti-slop   Vendored agent skills for design and lint upkeep.
@@ -112,13 +113,14 @@ Vitest everywhere, `moon run :test` (or `moon ci`) runs them all. No module mock
 forbids it): dependencies are passed in, so tests hand in real in-memory adapters or plain
 functions instead.
 
-| Project | Unit                                                                         | Integration                                                                            |
-| ------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| core    | Money, Currency, Proportion, Month, roughly, Pie, views, sentences, geometry | use cases with the in-memory repository                                                |
-| db      | —                                                                            | `PrismaPieRepository` against a real Postgres                                          |
-| auth    | —                                                                            | sign up/in/out, JWT cookie, `/token` JWTs verified with the JWKS (`jose`), on Postgres |
-| ui      | shadcn components (variants, states, form posting)                           | —                                                                                      |
-| web     | components and forms (Testing Library + jsdom), WebMCP tools                 | server actions with auth + Postgres users                                              |
+| Project   | Unit                                                                          | Integration                                                                            |
+| --------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| core      | Money, Currency, Proportion, Month, roughly, Pie, views, sentences, geometry  | use cases with the in-memory repository                                                |
+| db        | —                                                                             | `PrismaPieRepository` against a real Postgres                                          |
+| auth      | —                                                                             | sign up/in/out, JWT cookie, `/token` JWTs verified with the JWKS (`jose`), on Postgres |
+| ui        | shadcn components (variants, states, form posting)                            | —                                                                                      |
+| telemetry | beacon contract, batching queue, tail sampler, span and event mapping         | Postgres writer, rollups and partitions                                                |
+| web       | components and forms (Testing Library + jsdom), WebMCP tools, `<Telemetry />` | server actions with auth + Postgres users, telemetry routes                            |
 
 Integration tests get a throwaway Postgres from `@pienance/db/testing`: PGlite runs in-process,
 served over the Postgres wire protocol, with the real migrations applied. No Docker needed.
@@ -151,8 +153,19 @@ moon installs a pre-commit hook that lints and format-checks staged changes.
 
 ## Telemetry
 
-Traces, web vitals, product analytics and clickstream go through OpenTelemetry into the same
-Postgres, with no collector or daemon. The design is in [docs/telemetry.md](docs/telemetry.md).
+Traces, web vitals, product analytics and clickstream go into the same Postgres, in a separate
+`telemetry` schema partitioned by day, with no collector or daemon
+([docs/telemetry.md](docs/telemetry.md)):
+
+- **Traces**: OpenTelemetry in `instrumentation.ts` (Next.js, Prisma and each use case), tail
+  sampled per request and written after the response.
+- **Product events**: `pie.baked`, `bite.weighed`, `bite.taken`, from the server actions.
+- **Clickstream and web vitals**: `<Telemetry />` batches pageviews, `data-track` clicks and
+  vitals into beacons to `POST /api/telemetry`.
+- **Upkeep**: a daily Vercel Cron creates partitions, drops data older than 14 days and
+  refreshes the rollups.
+
+Telemetry never records amounts or incomes.
 
 ## Deploying to Vercel
 
@@ -169,3 +182,6 @@ Environment:
   every pie anyway). Rotating it signs everyone out.
 - **URLs**: on Vercel the production, branch and deployment URLs are picked up automatically;
   set `BETTER_AUTH_URL` for a custom domain.
+- **Telemetry**: set `CRON_SECRET` so the daily maintenance cron can run. Optionally set
+  `TELEMETRY_DATABASE_URL` (a pooled URL for a `telemetry_writer` role) and
+  `TELEMETRY_SAMPLE_RATIO` (share of ordinary traces kept, default `1`).
