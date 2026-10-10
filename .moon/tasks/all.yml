@@ -1,0 +1,31 @@
+$schema: "https://moonrepo.dev/schemas/tasks.json"
+
+# Inherited by every project.
+fileGroups:
+  sources:
+    - "src/**/*"
+  configs:
+    - "*.{json,ts,yml}"
+
+tasks:
+  lint:
+    command: "oxlint -c $workspaceRoot/.oxlintrc.json --deny-warnings ."
+    inputs:
+      - "@group(sources)"
+      - "@group(configs)"
+      - "/.oxlintrc.json"
+      - "/tools/oxlint/**/*"
+
+  format:
+    command: "oxfmt -c $workspaceRoot/.oxfmtrc.json --check ."
+    inputs:
+      - "@group(sources)"
+      - "@group(configs)"
+      - "/.oxfmtrc.json"
+
+  typecheck:
+    command: "tsc -p tsconfig.json"
+    inputs:
+      - "@group(sources)"
+      - "@group(configs)"
+      - "/tsconfig.base.json"

@@ -2,10 +2,14 @@ node_modules/
 .next/
 out/
 coverage/
-src/infrastructure/prisma/generated/
+**/src/generated/
 next-env.d.ts
 *.tsbuildinfo
 .env
 .env*.local
 .vercel
 .DS_Store
+
+# moon
+.moon/cache/
+.moon/docker/

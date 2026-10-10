@@ -1,0 +1,17 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+layer: "library"
+stack: "unknown"
+tags: ["portable", "tested"]
+
+project:
+  title: "Core"
+  description: "Domain model, use cases and views of pienance in pure TypeScript."
+
+tasks:
+  # tsconfig.json keeps Node and DOM out of the source; tests are checked separately.
+  typecheck-tests:
+    command: "tsc -p tsconfig.test.json"
+    inputs:
+      - "@group(sources)"
+      - "tsconfig*.json"

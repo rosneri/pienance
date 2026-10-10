@@ -1,0 +1,15 @@
+$schema: "https://moonrepo.dev/schemas/toolchains.json"
+
+# Tool versions come from .prototools (managed by proto).
+javascript:
+  packageManager: "pnpm"
+  inferTasksFromScripts: false
+  syncProjectWorkspaceDependencies: true
+
+node: {}
+
+pnpm: {}
+
+typescript:
+  rootOptionsConfigFileName: "tsconfig.base.json"
+  syncProjectReferences: false

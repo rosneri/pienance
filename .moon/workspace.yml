@@ -1,0 +1,23 @@
+$schema: "https://moonrepo.dev/schemas/workspace.json"
+
+# Every folder in apps/ and packages/ is a moon project, named after its folder.
+projects:
+  - "apps/*"
+  - "packages/*"
+
+vcs:
+  client: "git"
+  provider: "github"
+  defaultBranch: "main"
+  # Installed into .git/hooks by `moon sync hooks` (and on every moon run).
+  hooks:
+    pre-commit:
+      - "moon run :lint :format --affected --status=staged"
+  sync: true
+
+constraints:
+  # Applications may depend on libraries, never the other way around.
+  enforceLayerRelationships: true
+  tagRelationships:
+    # Portable code (shared with a future native app) may only depend on portable code.
+    portable: ["portable"]

@@ -1,0 +1,7 @@
+# Tool versions for everyone: run `proto use` to install them.
+node = "22.22.0"
+pnpm = "10.28.0"
+moon = "2.6.1"
+
+[settings]
+auto-install = true

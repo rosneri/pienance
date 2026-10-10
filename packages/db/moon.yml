@@ -1,0 +1,33 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+layer: "library"
+stack: "backend"
+tags: ["server"]
+
+project:
+  title: "Database"
+  description: "Prisma schema, migrations and the Prisma pie repository."
+
+dependsOn: ["core"]
+
+tasks:
+  generate:
+    command: "prisma generate"
+    inputs: ["prisma/schema.prisma", "prisma.config.ts"]
+    outputs: ["src/generated"]
+
+  migrate:
+    command: "prisma migrate dev"
+    options:
+      cache: false
+      runInCI: false
+      interactive: true
+
+  migrate-deploy:
+    command: "prisma migrate deploy"
+    options:
+      cache: false
+      runInCI: false
+
+  typecheck:
+    deps: ["~:generate"]
