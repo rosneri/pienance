@@ -9,7 +9,10 @@ datasource db {
 
 model Pie {
   id          String   @id
-  incomeCents Int
+  /// ISO 4217 code, e.g. "EUR"
+  currency    String
+  /// In the currency's minor units (cents, yen, fils…)
+  incomeMinor BigInt
   createdAt   DateTime @default(now())
   slices      Slice[]
 }
@@ -31,7 +34,8 @@ model Bite {
   id          String   @id
   sliceId     String
   slice       Slice    @relation(fields: [sliceId], references: [id], onDelete: Cascade)
-  amountCents Int
+  currency    String
+  amountMinor BigInt
   note        String
   eatenAt     DateTime
 

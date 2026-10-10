@@ -1,4 +1,5 @@
 import type { Bite } from "./bite";
+import type { Currency } from "./currency";
 import { Money } from "./money";
 import { Proportion } from "./proportion";
 import type { Slice } from "./slice";
@@ -27,12 +28,20 @@ export class PieError extends Error {
  * with the bites eaten from it during one month.
  */
 export class Pie {
+  private readonly sizes: ReadonlyMap<string, Money>;
+
   private constructor(
     readonly id: string,
     readonly income: Money,
     readonly slices: readonly Slice[],
     private readonly eaten: Bite[],
-  ) {}
+  ) {
+    const parts = income.split(slices.map((slice) => slice.share));
+
+    this.sizes = new Map(
+      slices.map((slice, index) => [slice.id, parts[index] ?? Money.zero(income.currency)]),
+    );
+  }
 
   static bake(props: {
     id: string;
@@ -56,6 +65,10 @@ export class Pie {
     return pie;
   }
 
+  get currency(): Currency {
+    return this.income.currency;
+  }
+
   get bites(): readonly Bite[] {
     return this.eaten;
   }
@@ -70,6 +83,8 @@ export class Pie {
 
   /** Considers a bite without taking it. */
   weigh(candidate: BiteCandidate): Weighing {
+    this.assertInCurrency(candidate.amount);
+
     const slice = this.slice(candidate.sliceId);
     const size = this.sizeOf(slice);
     const leftover = size.minus(this.eatenFrom(slice));
@@ -86,6 +101,7 @@ export class Pie {
   }
 
   take(bite: Bite): void {
+    this.assertInCurrency(bite.amount);
     this.slice(bite.sliceId);
     this.eaten.push(bite);
   }
@@ -105,24 +121,34 @@ export class Pie {
 
   /** How much of the whole pie is still left. */
   leftover(): Proportion {
-    return Money.sum(this.eaten.map((bite) => bite.amount))
+    return Money.sum(
+      this.eaten.map((bite) => bite.amount),
+      this.currency,
+    )
       .proportionOf(this.income)
       .complement();
   }
 
   private sizeOf(slice: Slice): Money {
-    return this.income.times(slice.share);
+    return this.sizes.get(slice.id) ?? Money.zero(this.currency);
   }
 
   private eatenFrom(slice: Slice): Money {
     return Money.sum(
       this.eaten.flatMap((bite) => (bite.sliceId === slice.id ? [bite.amount] : [])),
+      this.currency,
     );
+  }
+
+  private assertInCurrency(amount: Money): void {
+    if (!amount.isIn(this.currency)) {
+      throw new PieError(`This pie is in ${this.currency.code}, not ${amount.currency.code}`);
+    }
   }
 }
 
 function verdictFor(amount: Money, leftover: Money, leftAfter: Proportion): Verdict {
-  if (amount.cents > leftover.cents) return "overflows";
+  if (amount.isMoreThan(leftover)) return "overflows";
 
   return leftAfter.isLessThan(tightThreshold) ? "tight" : "fits";
 }

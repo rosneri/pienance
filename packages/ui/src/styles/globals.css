@@ -1,0 +1,149 @@
+/* Hallmark · route: custom (tuned) · macrostructure: Map / Diagram · nav: N9 edge-aligned · footer: Ft2 inline
+ * theme: custom · vibe: "cakes and pies, clean, minimalist" · paper: oklch(97% 0.012 80) · accent: oklch(50% 0.15 15)
+ * display: Fraunces (soft, roman) · body: Geist · axes: light / roman-serif / warm (berry)
+ * enrichment: E5 hand-built SVG (the pie) · studied: no · context: inferred
+ * pre-emit critique: P5 H4 E4 S4 R5 V4 · slop test: all gates pass
+ *
+ * The design system of pienance, shared by every web app. Tokens use shadcn/ui's names
+ * (--background, --primary, --ring…) so shadcn components pick them up unchanged.
+ */
+
+@import "tailwindcss";
+
+@source "../../../../apps/**/*.{ts,tsx}";
+@source "../**/*.{ts,tsx}";
+
+:root {
+  /* Cream paper and baked-crust ink. */
+  --background: oklch(97% 0.012 80);
+  --foreground: oklch(23% 0.02 50);
+  --card: var(--background);
+  --card-foreground: var(--foreground);
+  --popover: var(--background);
+  --popover-foreground: var(--foreground);
+  --primary: var(--foreground);
+  --primary-foreground: var(--background);
+  --secondary: oklch(94% 0.016 80);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(94% 0.016 80);
+  --muted-foreground: oklch(50% 0.018 60);
+  --accent: oklch(94% 0.016 80);
+  --accent-foreground: var(--foreground);
+  --destructive: oklch(50% 0.15 15);
+  --border: oklch(84% 0.02 75);
+  --input: oklch(84% 0.02 75);
+  --ring: oklch(52% 0.19 15);
+  --radius: 0.5rem;
+
+  /* Pienance's own: the pie's three crust bakes, the plate, the berry accent. */
+  --crust-1: oklch(82% 0.09 80);
+  --crust-2: oklch(71% 0.11 65);
+  --crust-3: oklch(60% 0.11 50);
+  --plate: oklch(90% 0.02 78);
+  --berry: oklch(50% 0.15 15);
+  --tight: oklch(50% 0.11 60);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-long: 420ms;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(17% 0.014 55);
+    --foreground: oklch(94% 0.012 80);
+    --secondary: oklch(21% 0.016 55);
+    --muted: oklch(21% 0.016 55);
+    --muted-foreground: oklch(68% 0.016 70);
+    --accent: oklch(21% 0.016 55);
+    --destructive: oklch(66% 0.13 15);
+    --border: oklch(33% 0.016 55);
+    --input: oklch(33% 0.016 55);
+    --ring: oklch(70% 0.16 15);
+    --crust-1: oklch(80% 0.08 80);
+    --crust-2: oklch(70% 0.1 65);
+    --crust-3: oklch(60% 0.1 50);
+    --plate: oklch(26% 0.018 55);
+    --berry: oklch(66% 0.13 15);
+    --tight: oklch(74% 0.1 65);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-crust-1: var(--crust-1);
+  --color-crust-2: var(--crust-2);
+  --color-crust-3: var(--crust-3);
+  --color-plate: var(--plate);
+  --color-berry: var(--berry);
+  --color-tight: var(--tight);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --font-sans: var(--font-geist), ui-sans-serif, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, serif;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body {
+    overflow-x: clip;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  h1,
+  h2 {
+    @apply font-display min-w-0 tracking-tight [overflow-wrap:anywhere];
+    font-weight: 650;
+    font-variation-settings: "SOFT" 100;
+  }
+}
+
+/* The pie inks on, slice by slice, once. */
+@keyframes ink-on {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+@utility animate-ink-on {
+  transform-origin: 100px 100px;
+  animation: ink-on var(--dur-long) var(--ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 150ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 150ms !important;
+  }
+}

@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { Money, Pie, Proportion } from "../domain";
+import { currencyOf, Money, Pie, Proportion } from "../domain";
 import { viewPie, viewWeighing } from "./pie-view";
+
+const eur = (amount: number) => Money.parse(String(amount), currencyOf("EUR"));
 
 const pie = Pie.bake({
   id: "pie",
-  income: Money.of(1000),
+  income: eur(1000),
   slices: [
     { id: "needs", name: "Needs", share: Proportion.of(0.5) },
     { id: "wants", name: "Wants", share: Proportion.of(0.5) },
@@ -13,7 +15,7 @@ const pie = Pie.bake({
     {
       id: "coffee",
       sliceId: "wants",
-      amount: Money.of(125),
+      amount: eur(125),
       note: "Coffee",
       eatenAt: new Date(Date.UTC(2026, 9, 1)),
     },
@@ -21,6 +23,10 @@ const pie = Pie.bake({
 });
 
 describe("viewPie", () => {
+  it("tells the pie's currency", () => {
+    expect(viewPie(pie).currency).toBe("EUR");
+  });
+
   it("lays slices around the pie with what is left", () => {
     expect(viewPie(pie).slices).toEqual([
       { id: "needs", name: "Needs", from: 0, to: 0.5, left: 1, leftWords: "all" },
@@ -48,7 +54,7 @@ describe("viewPie", () => {
   });
 
   it("describes a weighing roughly", () => {
-    const view = viewWeighing(pie.weigh({ sliceId: "wants", amount: Money.of(100) }));
+    const view = viewWeighing(pie.weigh({ sliceId: "wants", amount: eur(100) }));
     expect(view).toEqual({
       sliceName: "Wants",
       ofSlice: "about a fifth",

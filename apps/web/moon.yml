@@ -8,7 +8,7 @@ project:
   title: "Web"
   description: "The pienance web app (Next.js), deployed to Vercel."
 
-dependsOn: ["core", "db"]
+dependsOn: ["core", "db", "ui"]
 
 tasks:
   dev:

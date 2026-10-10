@@ -8,6 +8,9 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "dependencies": {
+    "dinero.js": "2.0.2"
+  },
   "devDependencies": {
     "vitest": "^5.0.3"
   }

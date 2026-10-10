@@ -8,6 +8,17 @@
     "enrichment": "E5 hand-built SVG (the pie)",
     "nav": "N9 edge-aligned",
     "footer": "Ft2 inline",
-    "brief": "pienance · monthly money as a pie, weigh a bite before buying"
+    "brief": "pienance \u00b7 same system rebuilt on shared shadcn/ui components (packages/ui), currency picker"
+  },
+  {
+    "date": "2026-10-10",
+    "macrostructure": "Map / Diagram",
+    "theme": "custom",
+    "theme_axes": "light / roman-serif / warm (berry)",
+    "vibe": "cakes and pies, clean, minimalist",
+    "enrichment": "E5 hand-built SVG (the pie)",
+    "nav": "N9 edge-aligned",
+    "footer": "Ft2 inline",
+    "brief": "pienance \u00b7 monthly money as a pie, weigh a bite before buying"
   }
 ]

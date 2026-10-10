@@ -1,4 +1,4 @@
-import { Money, Pie, Proportion } from "../domain";
+import { currencyOf, Money, Pie, Proportion } from "../domain";
 import type { Ports } from "./ports";
 
 /** The well-known 50/30/20 split, a sensible start until slices become editable. */
@@ -9,14 +9,17 @@ const defaultSlices = [
 ] as const;
 
 export interface BakePieInput {
-  readonly monthlyIncome: number;
+  /** As typed, e.g. "3000" or "2450,50". */
+  readonly monthlyIncome: string;
+  /** ISO 4217 code, e.g. "EUR". */
+  readonly currency: string;
 }
 
 export function bakePie(ports: Ports) {
   return async (input: BakePieInput): Promise<Pie> => {
     const pie = Pie.bake({
       id: ports.newId(),
-      income: Money.of(input.monthlyIncome),
+      income: Money.parse(input.monthlyIncome, currencyOf(input.currency)),
       slices: defaultSlices.map((slice) => ({
         id: ports.newId(),
         name: slice.name,

@@ -1,5 +1,7 @@
 export type { Bite } from "./bite";
 
+export { currencyCodes, currencyOf, type Currency } from "./currency";
+
 export { Money } from "./money";
 
 export { Month } from "./month";

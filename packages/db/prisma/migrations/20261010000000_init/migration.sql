@@ -4,7 +4,8 @@ CREATE SCHEMA IF NOT EXISTS "public";
 -- CreateTable
 CREATE TABLE "Pie" (
     "id" TEXT NOT NULL,
-    "incomeCents" INTEGER NOT NULL,
+    "currency" TEXT NOT NULL,
+    "incomeMinor" BIGINT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Pie_pkey" PRIMARY KEY ("id")
@@ -25,7 +26,8 @@ CREATE TABLE "Slice" (
 CREATE TABLE "Bite" (
     "id" TEXT NOT NULL,
     "sliceId" TEXT NOT NULL,
-    "amountCents" INTEGER NOT NULL,
+    "currency" TEXT NOT NULL,
+    "amountMinor" BIGINT NOT NULL,
     "note" TEXT NOT NULL,
     "eatenAt" TIMESTAMP(3) NOT NULL,
 

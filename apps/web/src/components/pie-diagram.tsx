@@ -1,12 +1,7 @@
 import { wedgePath, type SliceView } from "@pienance/core";
+import { crustFill } from "./crust";
 
 const radius = 100;
-
-const crusts = ["var(--color-crust-1)", "var(--color-crust-2)", "var(--color-crust-3)"];
-
-export function crustOf(index: number): string {
-  return crusts[index % crusts.length] ?? "var(--color-crust-1)";
-}
 
 /**
  * The pie itself. Each slice keeps its full share of the plate; the baked part
@@ -14,15 +9,30 @@ export function crustOf(index: number): string {
  */
 export function PieDiagram({ slices, label }: { slices: readonly SliceView[]; label: string }) {
   return (
-    <svg className="pie" viewBox="0 0 200 200" role="img" aria-label={label}>
+    <svg
+      className="h-auto w-full max-w-80 overflow-visible"
+      viewBox="0 0 200 200"
+      role="img"
+      aria-label={label}
+    >
       {slices.map((slice, index) => {
         const leftUntil = slice.from + (slice.to - slice.from) * slice.left;
 
         return (
-          <g key={slice.id} className="pie__wedge" style={{ animationDelay: `${index * 90}ms` }}>
-            <path className="pie__crumbs" d={wedgePath(leftUntil, slice.to, radius)} />
-            <path fill={crustOf(index)} d={wedgePath(slice.from, leftUntil, radius)} />
-            <path className="pie__gap" d={wedgePath(slice.from, slice.to, radius)} />
+          <g
+            key={slice.id}
+            className="animate-ink-on"
+            style={{ animationDelay: `${index * 90}ms` }}
+          >
+            <path
+              className="fill-plate stroke-border [stroke-dasharray:2_4]"
+              d={wedgePath(leftUntil, slice.to, radius)}
+            />
+            <path className={crustFill(index)} d={wedgePath(slice.from, leftUntil, radius)} />
+            <path
+              className="fill-none stroke-background stroke-3"
+              d={wedgePath(slice.from, slice.to, radius)}
+            />
           </g>
         );
       })}

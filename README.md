@@ -32,13 +32,14 @@ Managed with [moon](https://moonrepo.dev) (tasks, project graph, boundaries, CI)
 ```
 packages/core   @pienance/core  Pure TypeScript: domain, use cases, views. No Node, DOM or framework.
 packages/db     @pienance/db    Prisma Postgres adapter for the PieRepository port. Server only.
+packages/ui     @pienance/ui    Shared shadcn/ui components + design system (Tailwind v4).
 apps/web        @pienance/web   Next.js app (Vercel): UI, server actions, WebMCP tools.
 tools/oxlint    anti-slop       Vendored Oxlint rules (github.com/dmmulroy/anti-slop).
 .claude/skills  hallmark, install-anti-slop   Vendored agent skills for design and lint upkeep.
 ```
 
 `@pienance/core` holds everything a future native app needs: the domain (`Pie`, `Slice`, `Bite`,
-`Money`, `Proportion`, `roughly()`), the use cases wired through `Ports` (repository, ids, clock),
+`Money`, `Currency`, `Proportion`, `roughly()`), the use cases wired through `Ports` (repository, ids, clock),
 serialisable views, the sentences users read, and the SVG geometry of the pie. Its `tsconfig.json`
 has no DOM or Node types, so anything platform-specific fails to compile.
 
@@ -54,12 +55,23 @@ Pienance is an app, not a content site: it reads and writes data on every intera
 server actions keep that simple, and React carries over to React Native when the native app comes.
 Astro shines for content-first sites, which this isn't.
 
+## Money and currencies
+
+Every pie has an ISO 4217 currency, chosen when it is baked; its bites are in the same currency.
+`Money` in the core is a thin domain wrapper around [Dinero.js](https://dinerojs.com) v2, which
+does the real work: currency definitions with the right minor units (JPY has none, KWD has
+three), exact integer arithmetic, rounding, and `allocate` to cut the income into slices without
+losing a cent. Amounts are stored in minor units with their currency code. Converting between
+currencies (Dinero's `convert` plus a rates port) is the natural next step when a bite is paid in
+another currency.
+
 ## Design
 
-The UI follows [Hallmark](https://github.com/Nutlope/hallmark) (vendored in `.claude/skills/hallmark`):
+Components are [shadcn/ui](https://ui.shadcn.com), shared from `packages/ui`. The UI follows [Hallmark](https://github.com/Nutlope/hallmark) (vendored in `.claude/skills/hallmark`):
 a custom "cakes and pies, clean, minimalist" theme — cream paper, crust-tone slices, one berry
 accent, Fraunces + Geist — on a mobile-first Map / Diagram layout where the pie is the page. The
-system is stamped in `apps/web/src/app/tokens.css`; every colour and font goes through those tokens.
+system is stamped in `packages/ui/src/styles/globals.css`, using shadcn's token names
+(`--background`, `--primary`, `--ring`…) so shadcn components pick it up unchanged.
 
 ## AI agents (WebMCP)
 

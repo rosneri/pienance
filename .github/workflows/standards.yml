@@ -70,11 +70,13 @@ jobs:
                KISS and YAGNI. @pienance/core stays pure TypeScript (no Node, DOM or frameworks) so a
                native app can reuse it; business logic never lives in apps/.
             2. Code quality: the intent behind the anti-slop rules in tools/oxlint/anti-slop
-               (parse input at boundaries, no type laundering, readable code).
-            3. Design: if the PR touches UI (apps/web/src/app or apps/web/src/components), run a
-               Hallmark audit as described in .claude/skills/hallmark/SKILL.md (`hallmark audit`) and
+               (parse input at boundaries, no type laundering, readable code). Money only through
+               the core's Money/Currency (Dinero.js), never plain-number arithmetic.
+            3. Design: if the PR touches UI (apps/web/src or packages/ui), run a Hallmark audit as
+               described in .claude/skills/hallmark/SKILL.md (`hallmark audit`) and
                .claude/skills/hallmark/references/verbs/audit.md, against the system stamped in
-               apps/web/src/app/tokens.css. Mobile first, locked tokens, no slop-test failures.
+               packages/ui/src/styles/globals.css. Mobile first, shadcn components from
+               @pienance/ui, locked tokens, no slop-test failures.
 
             Use inline comments for specific lines. Finish with one `gh pr comment` summary: a short
             verdict and a checklist of the three areas. Only report real problems; say so when there

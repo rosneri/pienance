@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Bite } from "./bite";
+import { currencyOf } from "./currency";
 import { Money } from "./money";
 import { Pie, PieError } from "./pie";
 import { Proportion } from "./proportion";
+
+const eur = (amount: number) => Money.parse(String(amount), currencyOf("EUR"));
 
 const slices = [
   { id: "needs", name: "Needs", share: Proportion.of(0.5) },
@@ -14,19 +17,18 @@ let biteCount = 0;
 const bite = (sliceId: string, amount: number): Bite => ({
   id: `bite-${++biteCount}`,
   sliceId,
-  amount: Money.of(amount),
+  amount: eur(amount),
   note: "",
   eatenAt: new Date(),
 });
 
-const pieOf = (bites: Bite[] = []) =>
-  Pie.bake({ id: "pie", income: Money.of(1000), slices, bites });
+const pieOf = (bites: Bite[] = []) => Pie.bake({ id: "pie", income: eur(1000), slices, bites });
 
 describe("Pie", () => {
   it("refuses slices that do not add up to the whole pie", () => {
-    expect(() =>
-      Pie.bake({ id: "pie", income: Money.of(1000), slices: slices.slice(0, 1) }),
-    ).toThrow(PieError);
+    expect(() => Pie.bake({ id: "pie", income: eur(1000), slices: slices.slice(0, 1) })).toThrow(
+      PieError,
+    );
   });
 
   it("refuses bites from unknown slices", () => {
@@ -45,7 +47,7 @@ describe("Pie", () => {
   });
 
   it("weighs a bite that fits", () => {
-    const weighing = pieOf().weigh({ sliceId: "wants", amount: Money.of(50) });
+    const weighing = pieOf().weigh({ sliceId: "wants", amount: eur(50) });
     expect(weighing.verdict).toBe("fits");
     expect(weighing.ofSlice.ratio).toBe(0.1);
     expect(weighing.ofPie.ratio).toBe(0.05);
@@ -55,7 +57,7 @@ describe("Pie", () => {
   it("weighs a bite that leaves only crumbs as tight", () => {
     const weighing = pieOf([bite("wants", 400)]).weigh({
       sliceId: "wants",
-      amount: Money.of(80),
+      amount: eur(80),
     });
 
     expect(weighing.verdict).toBe("tight");
@@ -65,16 +67,22 @@ describe("Pie", () => {
   it("weighs a bite bigger than what is left as overflowing", () => {
     const weighing = pieOf([bite("wants", 400)]).weigh({
       sliceId: "wants",
-      amount: Money.of(200),
+      amount: eur(200),
     });
 
     expect(weighing.verdict).toBe("overflows");
     expect(weighing.leftAfter.ratio).toBe(0);
   });
 
+  it("refuses a bite in another currency", () => {
+    const dollars = Money.parse("5", currencyOf("USD"));
+
+    expect(() => pieOf().weigh({ sliceId: "wants", amount: dollars })).toThrow(PieError);
+  });
+
   it("does not take a bite when only weighing it", () => {
     const pie = pieOf();
-    pie.weigh({ sliceId: "wants", amount: Money.of(50) });
+    pie.weigh({ sliceId: "wants", amount: eur(50) });
     expect(pie.bites).toHaveLength(0);
   });
 });

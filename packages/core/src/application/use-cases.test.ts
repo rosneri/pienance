@@ -22,7 +22,7 @@ describe("use cases", () => {
 
   it("bakes a 50/30/20 pie", async () => {
     const { app } = kitchen();
-    await app.bakePie({ monthlyIncome: 3000 });
+    await app.bakePie({ monthlyIncome: "3000", currency: "EUR" });
     const pie = await app.servePie();
     expect(pie?.slices.map((slice) => [slice.name, slice.share.ratio])).toEqual([
       ["Needs", 0.5],
@@ -31,16 +31,29 @@ describe("use cases", () => {
     ]);
   });
 
+  it("bakes in the chosen currency", async () => {
+    const { app } = kitchen();
+    const pie = await app.bakePie({ monthlyIncome: "450000", currency: "jpy" });
+
+    expect(pie.currency.code).toBe("JPY");
+  });
+
+  it("refuses an unknown currency", async () => {
+    await expect(kitchen().app.bakePie({ monthlyIncome: "1", currency: "XYZ" })).rejects.toThrow(
+      RangeError,
+    );
+  });
+
   it("weighs, then takes a bite", async () => {
     const { app } = kitchen();
-    const pie = await app.bakePie({ monthlyIncome: 3000 });
+    const pie = await app.bakePie({ monthlyIncome: "3000", currency: "EUR" });
     const wants = pie.slices[1]!.id;
 
-    const weighing = await app.weighBite({ sliceId: wants, amount: 225 });
+    const weighing = await app.weighBite({ sliceId: wants, amount: "225" });
     expect(weighing.ofSlice.ratio).toBe(0.25);
     expect((await app.servePie())?.bites).toHaveLength(0);
 
-    await app.takeBite({ sliceId: wants, amount: 225, note: " Shoes " });
+    await app.takeBite({ sliceId: wants, amount: "225", note: " Shoes " });
     const served = await app.servePie();
     expect(served?.bites.map((bite) => bite.note)).toEqual(["Shoes"]);
     expect(served?.leftover().ratio).toBe(0.925);
@@ -48,8 +61,8 @@ describe("use cases", () => {
 
   it("starts every month with a fresh pie", async () => {
     const { app, clock } = kitchen();
-    const pie = await app.bakePie({ monthlyIncome: 3000 });
-    await app.takeBite({ sliceId: pie.slices[0]!.id, amount: 100, note: "" });
+    const pie = await app.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+    await app.takeBite({ sliceId: pie.slices[0]!.id, amount: "100", note: "" });
 
     clock.now = new Date(Date.UTC(2026, 10, 1));
     expect((await app.servePie())?.bites).toHaveLength(0);

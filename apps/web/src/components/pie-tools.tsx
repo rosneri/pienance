@@ -1,6 +1,6 @@
 "use client";
 
-import { describeLeftover, describeWeighing, type SliceView } from "@pienance/core";
+import { describeLeftover, describeWeighing, type PieView } from "@pienance/core";
 import { useEffect } from "react";
 import { bakePie, readPie, takeBite, weighBite } from "@/app/actions";
 
@@ -10,7 +10,7 @@ import { bakePie, readPie, takeBite, weighBite } from "@/app/actions";
  * "bake_pie" before there is a pie, reading and weighing tools after.
  * Every tool goes through the same server actions as the UI, so the page stays in sync.
  */
-export function PieTools({ slices }: { slices: readonly SliceView[] | null }) {
+export function PieTools({ pie }: { pie: PieView | null }) {
   useEffect(() => {
     const modelContext = document.modelContext;
 
@@ -19,22 +19,26 @@ export function PieTools({ slices }: { slices: readonly SliceView[] | null }) {
     const controller = new AbortController();
     const options = { signal: controller.signal };
 
-    if (!slices) {
+    if (!pie) {
       void modelContext.registerTool(
         {
           name: "bake_pie",
           title: "Bake this month's pie",
           description:
-            "Creates the user's monthly pie from their monthly income. It is cut into Needs (half), Wants (about a third) and Savings (a fifth).",
+            "Creates the user's monthly pie from their monthly income, in any currency. It is cut into Needs (half), Wants (about a third) and Savings (a fifth).",
           inputSchema: {
             type: "object",
             properties: {
               monthlyIncome: { type: "number", description: "Money that comes in each month." },
+              currency: { type: "string", description: "ISO 4217 code of that money, e.g. EUR." },
             },
-            required: ["monthlyIncome"],
+            required: ["monthlyIncome", "currency"],
           } as const,
           async execute(input) {
-            const outcome = await bakePie({ monthlyIncome: input.monthlyIncome });
+            const outcome = await bakePie({
+              monthlyIncome: String(input.monthlyIncome),
+              currency: input.currency,
+            });
 
             return outcome.ok ? describeLeftover(outcome.value.leftoverWords) : outcome.error;
           },
@@ -45,12 +49,16 @@ export function PieTools({ slices }: { slices: readonly SliceView[] | null }) {
       return () => controller.abort();
     }
 
-    const sliceNames = slices.map((slice) => slice.name);
+    const { slices } = pie;
     const sliceIdOf = (name: string) => slices.find((slice) => slice.name === name)?.id ?? "";
 
     const biteProperties = {
-      amount: { type: "number", description: "Price of the expense, in the user's currency." },
-      slice: { type: "string", enum: sliceNames, description: "The slice the expense eats from." },
+      amount: { type: "number", description: `Price of the expense, in ${pie.currency}.` },
+      slice: {
+        type: "string",
+        enum: slices.map((slice) => slice.name),
+        description: "The slice the expense eats from.",
+      },
     } as const;
 
     void modelContext.registerTool(
@@ -61,14 +69,15 @@ export function PieTools({ slices }: { slices: readonly SliceView[] | null }) {
           "Returns how much of the user's monthly pie is left, per slice, and what was eaten this month. Everything is described in rough proportions.",
         annotations: { readOnlyHint: true },
         async execute() {
-          const pie = await readPie();
+          const current = await readPie();
 
-          if (!pie) return "There is no pie yet.";
+          if (!current) return "There is no pie yet.";
 
           return {
-            summary: describeLeftover(pie.leftoverWords),
-            slices: pie.slices.map((slice) => `${slice.name}: ${slice.leftWords} left`),
-            bites: pie.bites.map(
+            summary: describeLeftover(current.leftoverWords),
+            currency: current.currency,
+            slices: current.slices.map((slice) => `${slice.name}: ${slice.leftWords} left`),
+            bites: current.bites.map(
               (bite) => `${bite.note || "Something"}: ${bite.portionWords} of ${bite.sliceName}`,
             ),
           };
@@ -92,7 +101,7 @@ export function PieTools({ slices }: { slices: readonly SliceView[] | null }) {
         async execute(input) {
           const outcome = await weighBite({
             sliceId: sliceIdOf(input.slice),
-            amount: input.amount,
+            amount: String(input.amount),
           });
 
           return outcome.ok ? describeWeighing(outcome.value) : outcome.error;
@@ -117,7 +126,7 @@ export function PieTools({ slices }: { slices: readonly SliceView[] | null }) {
         async execute(input) {
           const outcome = await takeBite({
             sliceId: sliceIdOf(input.slice),
-            amount: input.amount,
+            amount: String(input.amount),
             note: input.note,
           });
 
@@ -128,7 +137,7 @@ export function PieTools({ slices }: { slices: readonly SliceView[] | null }) {
     );
 
     return () => controller.abort();
-  }, [slices]);
+  }, [pie]);
 
   return null;
 }

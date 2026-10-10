@@ -1,4 +1,4 @@
-import { Money, type Month, Pie, type PieRepository, Proportion } from "@pienance/core";
+import { currencyOf, Money, type Month, Pie, type PieRepository, Proportion } from "@pienance/core";
 import type { PrismaClient } from "./generated/client";
 
 export class PrismaPieRepository implements PieRepository {
@@ -19,7 +19,7 @@ export class PrismaPieRepository implements PieRepository {
 
     return Pie.bake({
       id: row.id,
-      income: Money.ofCents(row.incomeCents),
+      income: Money.ofMinor(Number(row.incomeMinor), currencyOf(row.currency)),
       slices: row.slices.map((slice) => ({
         id: slice.id,
         name: slice.name,
@@ -31,7 +31,7 @@ export class PrismaPieRepository implements PieRepository {
         .map((bite) => ({
           id: bite.id,
           sliceId: bite.sliceId,
-          amount: Money.ofCents(bite.amountCents),
+          amount: Money.ofMinor(Number(bite.amountMinor), currencyOf(bite.currency)),
           note: bite.note,
           eatenAt: bite.eatenAt,
         })),
@@ -39,11 +39,13 @@ export class PrismaPieRepository implements PieRepository {
   }
 
   async save(pie: Pie): Promise<void> {
+    const income = { currency: pie.currency.code, incomeMinor: BigInt(pie.income.minor) };
+
     await this.db.$transaction([
       this.db.pie.upsert({
         where: { id: pie.id },
-        create: { id: pie.id, incomeCents: pie.income.cents },
-        update: { incomeCents: pie.income.cents },
+        create: { id: pie.id, ...income },
+        update: income,
       }),
       ...pie.slices.map((slice, position) => {
         const data = { name: slice.name, share: slice.share.ratio, position };
@@ -59,7 +61,8 @@ export class PrismaPieRepository implements PieRepository {
         data: pie.bites.map((bite) => ({
           id: bite.id,
           sliceId: bite.sliceId,
-          amountCents: bite.amount.cents,
+          currency: bite.amount.currency.code,
+          amountMinor: BigInt(bite.amount.minor),
           note: bite.note,
           eatenAt: bite.eatenAt,
         })),

@@ -24,6 +24,8 @@ export interface BiteView {
 }
 
 export interface PieView {
+  /** ISO 4217 code of the pie, e.g. "EUR". */
+  readonly currency: string;
   readonly leftoverWords: string;
   readonly slices: readonly SliceView[];
   readonly bites: readonly BiteView[];
@@ -59,6 +61,7 @@ export function viewPie(pie: Pie): PieView {
   });
 
   return {
+    currency: pie.currency.code,
     leftoverWords: roughly(pie.leftover()),
     slices,
     bites: pie.bites.toReversed().map((bite) => ({

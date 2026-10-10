@@ -3,7 +3,8 @@ import type { Ports } from "./ports";
 
 export interface TakeBiteInput {
   readonly sliceId: string;
-  readonly amount: number;
+  /** As typed, in the pie's currency. */
+  readonly amount: string;
   readonly note: string;
 }
 
@@ -18,7 +19,7 @@ export function takeBite(ports: Ports) {
     const bite: Bite = {
       id: ports.newId(),
       sliceId: input.sliceId,
-      amount: Money.of(input.amount),
+      amount: Money.parse(input.amount, pie.currency),
       note: input.note.trim(),
       eatenAt,
     };

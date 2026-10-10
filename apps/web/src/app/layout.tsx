@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist } from "next/font/google";
 import type { ReactNode } from "react";
-import "./tokens.css";
-import "./globals.css";
+import "@pienance/ui/globals.css";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
