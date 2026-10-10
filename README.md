@@ -167,6 +167,12 @@ Traces, web vitals, product analytics and clickstream go into the same Postgres,
 
 Telemetry never records amounts or incomes.
 
+**Admin**: `/admin` shows it over the last day, week or two weeks: totals, requests by route
+(median and p95), failed and slowest requests with their trace waterfall, web vitals judged at
+p75, the product funnel, pages and clicks. Only user ids listed in `ADMIN_USER_IDS` get in;
+everyone else gets a 404. Ids, not emails: emails are not verified, so anyone could sign up with
+an admin's address.
+
 ## Deploying to Vercel
 
 The repository deploys as is: `vercel.json` declares the web app as a Vercel service rooted at
@@ -185,3 +191,5 @@ Environment:
 - **Telemetry**: set `CRON_SECRET` so the daily maintenance cron can run. Optionally set
   `TELEMETRY_DATABASE_URL` (a pooled URL for a `telemetry_writer` role) and
   `TELEMETRY_SAMPLE_RATIO` (share of ordinary traces kept, default `1`).
+- **Admin**: set `ADMIN_USER_IDS` to the user ids allowed into `/admin`
+  (`SELECT id FROM "user" WHERE email = '…'`).

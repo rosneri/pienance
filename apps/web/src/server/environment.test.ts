@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminIdsFrom,
   authSecretFrom,
   baseUrlFrom,
   deploymentFrom,
@@ -87,5 +88,15 @@ describe("deploymentFrom", () => {
     );
     expect(deploymentFrom({ VERCEL_GIT_COMMIT_SHA: "abc" })).toBe("abc");
     expect(deploymentFrom({})).toBeNull();
+  });
+});
+
+describe("adminIdsFrom", () => {
+  it("reads a comma-separated list of user ids", () => {
+    expect([...adminIdsFrom({ ADMIN_USER_IDS: " u1, u2 ,," })]).toEqual(["u1", "u2"]);
+  });
+
+  it("has no admins by default", () => {
+    expect(adminIdsFrom({}).size).toBe(0);
   });
 });

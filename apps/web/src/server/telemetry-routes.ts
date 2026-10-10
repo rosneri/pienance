@@ -36,7 +36,8 @@ export function ingestBeacon(deps: IngestDeps) {
 
     const rows = beaconRows(beacon, {
       at: deps.now(),
-      userId: await deps.owner(request),
+      // A failed session lookup must not lose the beacon: store it as anonymous.
+      userId: await deps.owner(request).catch(() => null),
       deployment: deps.deployment,
       device: deviceOf(request.headers.get("user-agent")),
       country:
