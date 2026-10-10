@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Fraunces, Geist } from "next/font/google";
 import type { ReactNode } from "react";
 import "@pienance/ui/globals.css";
+import { Telemetry } from "@/components/telemetry";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -30,7 +31,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${fraunces.variable} ${geist.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Telemetry />
+      </body>
     </html>
   );
 }

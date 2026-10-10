@@ -11,7 +11,7 @@ import type {
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth, pienance } from "@/pienance";
+import { auth, pienance, track } from "@/pienance";
 import { accountActions, type Credentials, type SignUpDetails } from "@/server/account-actions";
 import type { Outcome } from "@/server/outcome";
 import { pieActions, type Asked } from "@/server/pie-actions";
@@ -22,6 +22,7 @@ const pies = pieActions({
   app: pienance,
   owner: async () => ownerOf(auth(), await headers()),
   refresh: () => revalidatePath("/"),
+  track,
 });
 
 const accounts = () => accountActions(auth(), headers);

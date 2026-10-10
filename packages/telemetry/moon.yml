@@ -1,0 +1,19 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+layer: "library"
+stack: "backend"
+tags: ["server", "tested"]
+
+project:
+  title: "Telemetry"
+  description: "OpenTelemetry traces, web vitals, product events and clickstream, written to Postgres."
+
+# db is only used by the integration tests, as a real Postgres with the telemetry migration.
+dependsOn: ["db"]
+
+tasks:
+  test:
+    deps: ["db:generate"]
+
+  typecheck:
+    deps: ["db:generate"]

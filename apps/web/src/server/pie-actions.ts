@@ -9,6 +9,7 @@ import {
   type WeighBiteInput,
   type WeighingView,
 } from "@pienance/core";
+import type { ProductEvent } from "@pienance/telemetry/contract";
 import { failed, succeeded, type Outcome } from "./outcome";
 
 /** What a signed-in person sends; who they are comes from their session. */
@@ -20,6 +21,8 @@ export interface PieActionsDeps {
   readonly owner: () => Promise<string | null>;
   /** Re-renders the page after a change. */
   readonly refresh: () => void;
+  /** Records a product event for the signed-in user. */
+  readonly track: (event: ProductEvent, ownerId: string) => void;
 }
 
 const signInFirst = "Sign in first.";
@@ -52,6 +55,7 @@ export function pieActions(deps: PieActionsDeps) {
       return attempt(async (ownerId) => {
         const pie = await deps.app.bakePie({ ...input, ownerId });
 
+        deps.track({ name: "pie.baked", properties: { currency: pie.currency.code } }, ownerId);
         deps.refresh();
 
         return viewPie(pie);
@@ -59,15 +63,20 @@ export function pieActions(deps: PieActionsDeps) {
     },
 
     weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<WeighingView>> {
-      return attempt(async (ownerId) =>
-        viewWeighing(await deps.app.weighBite({ ...input, ownerId })),
-      );
+      return attempt(async (ownerId) => {
+        const weighing = await deps.app.weighBite({ ...input, ownerId });
+
+        deps.track({ name: "bite.weighed", properties: { verdict: weighing.verdict } }, ownerId);
+
+        return viewWeighing(weighing);
+      });
     },
 
     takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<string>> {
       return attempt(async (ownerId) => {
         const bite = await deps.app.takeBite({ ...input, ownerId });
 
+        deps.track({ name: "bite.taken", properties: {} }, ownerId);
         deps.refresh();
 
         return bite.id;

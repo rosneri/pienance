@@ -124,10 +124,17 @@ export function WeighForm({
           </FieldSet>
 
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="lg" name="intent" value="weigh" disabled={pending}>
+            <Button size="lg" name="intent" value="weigh" disabled={pending} data-track="weigh">
               Weigh it
             </Button>
-            <Button size="lg" variant="outline" name="intent" value="take" disabled={pending}>
+            <Button
+              size="lg"
+              variant="outline"
+              name="intent"
+              value="take"
+              disabled={pending}
+              data-track="take"
+            >
               Take the bite
             </Button>
           </div>

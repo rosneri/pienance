@@ -1,7 +1,12 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "react", "nextjs", "import", "vitest"],
-  "jsPlugins": [{ "name": "anti-slop", "specifier": "./tools/oxlint/anti-slop/index.ts" }],
+  "jsPlugins": [
+    {
+      "name": "anti-slop",
+      "specifier": "./tools/oxlint/anti-slop/index.ts"
+    }
+  ],
   "categories": {
     "correctness": "error",
     "suspicious": "warn",
@@ -11,7 +16,9 @@
     "import/no-cycle": "error",
     "import/no-unassigned-import": [
       "warn",
-      { "allow": ["**/*.css", "dotenv/config", "@testing-library/jest-dom/vitest"] }
+      {
+        "allow": ["**/*.css", "dotenv/config", "@testing-library/jest-dom/vitest"]
+      }
     ],
     "react/react-in-jsx-scope": "off",
     "oxc/no-accumulating-spread": "error",
@@ -103,6 +110,78 @@
               {
                 "group": ["next", "next/*", "react", "react-*"],
                 "message": "@pienance/db is a server-side adapter: no UI frameworks."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/telemetry/src/contract/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@pienance/*",
+                  "next",
+                  "next/*",
+                  "react",
+                  "react-*",
+                  "pg",
+                  "@opentelemetry/*",
+                  "node:*",
+                  "../browser",
+                  "../browser/*",
+                  "../server",
+                  "../server/*"
+                ],
+                "message": "The telemetry contract is shared by browser, server and a future native app: plain TypeScript and zod only."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/telemetry/src/browser/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@pienance/*",
+                  "next",
+                  "next/*",
+                  "react",
+                  "react-*",
+                  "pg",
+                  "@opentelemetry/*",
+                  "node:*",
+                  "../server",
+                  "../server/*"
+                ],
+                "message": "Browser telemetry runs in the page: no server, Node or framework imports."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/telemetry/src/server/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["next", "next/*", "react", "react-*", "../browser", "../browser/*"],
+                "message": "Server telemetry is framework-free: the app adapts it to Next.js."
               }
             ]
           }

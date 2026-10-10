@@ -7,10 +7,14 @@
     "vercel-build": "node scripts/vercel-build.mjs"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.9.1",
     "@pienance/auth": "workspace:*",
     "@pienance/core": "workspace:*",
     "@pienance/db": "workspace:*",
+    "@pienance/telemetry": "workspace:*",
     "@pienance/ui": "workspace:*",
+    "@prisma/instrumentation": "7.10.0",
+    "@vercel/functions": "3.9.9",
     "better-auth": "1.7.7",
     "next": "^16.4.0",
     "react": "^19.3.0",
