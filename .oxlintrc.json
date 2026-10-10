@@ -9,7 +9,10 @@
   },
   "rules": {
     "import/no-cycle": "error",
-    "import/no-unassigned-import": ["warn", { "allow": ["**/*.css", "dotenv/config"] }],
+    "import/no-unassigned-import": [
+      "warn",
+      { "allow": ["**/*.css", "dotenv/config", "@testing-library/jest-dom/vitest"] }
+    ],
     "react/react-in-jsx-scope": "off",
     "oxc/no-accumulating-spread": "error",
     "anti-slop/no-array-filter-map": "error",

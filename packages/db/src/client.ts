@@ -6,13 +6,21 @@ declare global {
   var pienancePrisma: PrismaClient | undefined;
 }
 
-function createClient(connectionString: string): PrismaClient {
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
+export type { PrismaClient };
+
+export function createPrismaClient(
+  connectionString: string,
+  maxConnections?: number,
+): PrismaClient {
+  const pool =
+    maxConnections === undefined ? { connectionString } : { connectionString, max: maxConnections };
+
+  return new PrismaClient({ adapter: new PrismaPg(pool) });
 }
 
 /** One client per process. */
 export function prisma(connectionString: string): PrismaClient {
-  globalThis.pienancePrisma ??= createClient(connectionString);
+  globalThis.pienancePrisma ??= createPrismaClient(connectionString);
 
   return globalThis.pienancePrisma;
 }

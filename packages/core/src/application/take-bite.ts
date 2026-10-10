@@ -2,6 +2,7 @@ import { Money, Month, PieError, type Bite } from "../domain";
 import type { Ports } from "./ports";
 
 export interface TakeBiteInput {
+  readonly ownerId: string;
   readonly sliceId: string;
   /** As typed, in the pie's currency. */
   readonly amount: string;
@@ -12,7 +13,7 @@ export interface TakeBiteInput {
 export function takeBite(ports: Ports) {
   return async (input: TakeBiteInput): Promise<Bite> => {
     const eatenAt = ports.now();
-    const pie = await ports.pies.find(Month.of(eatenAt));
+    const pie = await ports.pies.find(input.ownerId, Month.of(eatenAt));
 
     if (!pie) throw new PieError("Bake a pie first");
 

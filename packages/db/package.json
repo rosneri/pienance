@@ -5,7 +5,8 @@
   "description": "Prisma Postgres persistence for pienance.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./testing": "./src/testing/test-database.ts"
   },
   "scripts": {
     "postinstall": "prisma generate"
@@ -16,7 +17,10 @@
     "@prisma/client": "7.10.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "dotenv": "^18.0.7",
-    "prisma": "7.10.0"
+    "prisma": "7.10.0",
+    "vitest": "^5.0.3"
   }
 }

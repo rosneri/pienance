@@ -24,7 +24,7 @@ export class PieError extends Error {
 }
 
 /**
- * The aggregate root: the monthly income (the pie), cut into slices,
+ * The aggregate root: one person's monthly income (the pie), cut into slices,
  * with the bites eaten from it during one month.
  */
 export class Pie {
@@ -32,6 +32,8 @@ export class Pie {
 
   private constructor(
     readonly id: string,
+    /** Who the pie belongs to: an id from the identity provider. */
+    readonly ownerId: string,
     readonly income: Money,
     readonly slices: readonly Slice[],
     private readonly eaten: Bite[],
@@ -45,6 +47,7 @@ export class Pie {
 
   static bake(props: {
     id: string;
+    ownerId: string;
     income: Money;
     slices: readonly Slice[];
     bites?: readonly Bite[];
@@ -58,7 +61,7 @@ export class Pie {
       );
     }
 
-    const pie = new Pie(props.id, props.income, props.slices, []);
+    const pie = new Pie(props.id, props.ownerId, props.income, props.slices, []);
 
     for (const bite of props.bites ?? []) pie.take(bite);
 

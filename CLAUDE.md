@@ -23,6 +23,11 @@ in code, UI and agent tools.
   routes them there) and Tailwind utilities on the shared tokens. It follows Hallmark
   (`.claude/skills/hallmark`): mobile first, tokens only (`packages/ui/src/styles/globals.css`),
   no slop-test failures. Run `hallmark audit` on UI changes.
+- Authentication is Better Auth via `@pienance/auth`; pages and actions get the user with
+  `ownerOf(auth(), headers)`. Business code never reads sessions: it receives an `ownerId`.
+- Every feature ships with Vitest tests: unit tests for logic, integration tests across real
+  adapters (in-memory, or Postgres via `@pienance/db/testing`). No `vi.mock`: pass dependencies
+  in. UI components take their actions as props so tests can hand in plain functions.
 - WebMCP tools (`apps/web/src/components/pie-tools.tsx`) mirror the UI's actions; keep them in
   sync when use cases change.
 

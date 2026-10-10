@@ -6,22 +6,40 @@ import { Field, FieldGroup, FieldLabel } from "@pienance/ui/components/field";
 import { Input } from "@pienance/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@pienance/ui/components/native-select";
 import { useActionState } from "react";
-import { bakePie } from "@/app/actions";
+import type { PieActions } from "@/server/pie-actions";
 import { Answer } from "./answer";
 
 const currencyNames = new Intl.DisplayNames("en", { type: "currency" });
 
-async function bake(_previous: string | null, form: FormData): Promise<string | null> {
-  const outcome = await bakePie({
-    monthlyIncome: String(form.get("monthlyIncome") ?? ""),
-    currency: String(form.get("currency") ?? ""),
-  });
-
-  return outcome.ok ? null : outcome.error;
+/** What a refused attempt hands back: the reason, and what was typed (React resets the form). */
+interface Refusal {
+  readonly error: string;
+  readonly monthlyIncome: string;
+  readonly currency: string;
 }
 
-export function BakeForm({ defaultCurrency }: { defaultCurrency: string }) {
-  const [error, dispatch, pending] = useActionState(bake, null);
+async function bake(bakePie: PieActions["bakePie"], form: FormData): Promise<Refusal | null> {
+  const input = {
+    monthlyIncome: String(form.get("monthlyIncome") ?? ""),
+    currency: String(form.get("currency") ?? ""),
+  };
+
+  const outcome = await bakePie(input);
+
+  return outcome.ok ? null : { error: outcome.error, ...input };
+}
+
+export function BakeForm({
+  defaultCurrency,
+  bakePie,
+}: {
+  defaultCurrency: string;
+  bakePie: PieActions["bakePie"];
+}) {
+  const [refusal, dispatch, pending] = useActionState(
+    (_previous: Refusal | null, form: FormData) => bake(bakePie, form),
+    null,
+  );
 
   return (
     <form action={dispatch} aria-busy={pending}>
@@ -31,7 +49,7 @@ export function BakeForm({ defaultCurrency }: { defaultCurrency: string }) {
           <NativeSelect
             id="currency"
             name="currency"
-            defaultValue={defaultCurrency}
+            defaultValue={refusal?.currency ?? defaultCurrency}
             className="h-12 text-base"
           >
             {currencyCodes.map((code) => (
@@ -49,8 +67,9 @@ export function BakeForm({ defaultCurrency }: { defaultCurrency: string }) {
             name="monthlyIncome"
             inputMode="decimal"
             autoComplete="off"
+            defaultValue={refusal?.monthlyIncome}
             required
-            aria-invalid={error !== null}
+            aria-invalid={refusal !== null}
             className="h-12"
           />
         </Field>
@@ -61,7 +80,7 @@ export function BakeForm({ defaultCurrency }: { defaultCurrency: string }) {
           </Button>
         </div>
 
-        <Answer tone={error ? "error" : undefined}>{error}</Answer>
+        <Answer tone={refusal ? "error" : undefined}>{refusal?.error}</Answer>
       </FieldGroup>
     </form>
   );

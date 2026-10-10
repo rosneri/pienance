@@ -22,13 +22,14 @@ const bite = (sliceId: string, amount: number): Bite => ({
   eatenAt: new Date(),
 });
 
-const pieOf = (bites: Bite[] = []) => Pie.bake({ id: "pie", income: eur(1000), slices, bites });
+const pieOf = (bites: Bite[] = []) =>
+  Pie.bake({ id: "pie", ownerId: "ada", income: eur(1000), slices, bites });
 
 describe("Pie", () => {
   it("refuses slices that do not add up to the whole pie", () => {
-    expect(() => Pie.bake({ id: "pie", income: eur(1000), slices: slices.slice(0, 1) })).toThrow(
-      PieError,
-    );
+    expect(() =>
+      Pie.bake({ id: "pie", ownerId: "ada", income: eur(1000), slices: slices.slice(0, 1) }),
+    ).toThrow(PieError);
   });
 
   it("refuses bites from unknown slices", () => {
@@ -72,6 +73,23 @@ describe("Pie", () => {
 
     expect(weighing.verdict).toBe("overflows");
     expect(weighing.leftAfter.ratio).toBe(0);
+  });
+
+  it("tells how much of its slice a bite took", () => {
+    const coffee = bite("wants", 50);
+
+    expect(pieOf([coffee]).portionOf(coffee).ratio).toBe(0.1);
+  });
+
+  it("refuses to weigh a bite from an unknown slice", () => {
+    expect(() => pieOf().weigh({ sliceId: "dessert", amount: eur(1) })).toThrow(PieError);
+  });
+
+  it("belongs to its owner and keeps the income's currency", () => {
+    const pie = pieOf();
+
+    expect(pie.ownerId).toBe("ada");
+    expect(pie.currency.code).toBe("EUR");
   });
 
   it("refuses a bite in another currency", () => {

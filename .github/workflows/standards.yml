@@ -68,7 +68,8 @@ jobs:
 
             1. Architecture: domain-driven design with the ubiquitous language in README.md, SOLID,
                KISS and YAGNI. @pienance/core stays pure TypeScript (no Node, DOM or frameworks) so a
-               native app can reuse it; business logic never lives in apps/.
+               native app can reuse it; business logic never lives in apps/. New behaviour comes
+               with Vitest unit and integration tests, without module mocking.
             2. Code quality: the intent behind the anti-slop rules in tools/oxlint/anti-slop
                (parse input at boundaries, no type laundering, readable code). Money only through
                the core's Money/Currency (Dinero.js), never plain-number arithmetic.

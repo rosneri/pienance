@@ -33,6 +33,7 @@ Managed with [moon](https://moonrepo.dev) (tasks, project graph, boundaries, CI)
 packages/core   @pienance/core  Pure TypeScript: domain, use cases, views. No Node, DOM or framework.
 packages/db     @pienance/db    Prisma Postgres adapter for the PieRepository port. Server only.
 packages/ui     @pienance/ui    Shared shadcn/ui components + design system (Tailwind v4).
+packages/auth   @pienance/auth  Better Auth: email + password, JWT sessions, JWKS. Server only.
 apps/web        @pienance/web   Next.js app (Vercel): UI, server actions, WebMCP tools.
 tools/oxlint    anti-slop       Vendored Oxlint rules (github.com/dmmulroy/anti-slop).
 .claude/skills  hallmark, install-anti-slop   Vendored agent skills for design and lint upkeep.
@@ -54,6 +55,15 @@ Boundaries are enforced three ways:
 Pienance is an app, not a content site: it reads and writes data on every interaction. Next.js
 server actions keep that simple, and React carries over to React Native when the native app comes.
 Astro shines for content-first sites, which this isn't.
+
+## Authentication
+
+[Better Auth](https://www.better-auth.com) (`packages/auth`), with email and password accounts.
+Sessions are cached in a signed **JWT** cookie, and the JWT plugin issues JWTs at
+`GET /api/auth/token` and publishes their public keys at `GET /api/auth/jwks`, so APIs and a
+future native app (Better Auth has an Expo client) can verify users without calling back. Users,
+sessions and keys live in Postgres next to the pies; every pie belongs to a user, and the core's
+use cases take that `ownerId` explicitly.
 
 ## Money and currencies
 
@@ -90,10 +100,28 @@ moon run web:dev    # runs in memory when DATABASE_URL is not set
 With a database:
 
 ```sh
-cp packages/db/.env.example packages/db/.env   # DATABASE_URL (Prisma Postgres)
+cp packages/db/.env.example packages/db/.env    # DATABASE_URL, for migrations
+cp apps/web/.env.example apps/web/.env.local    # DATABASE_URL, BETTER_AUTH_SECRET
 moon run db:migrate
 moon run web:dev
 ```
+
+## Tests
+
+Vitest everywhere, `moon run :test` (or `moon ci`) runs them all. No module mocking (anti-slop
+forbids it): dependencies are passed in, so tests hand in real in-memory adapters or plain
+functions instead.
+
+| Project | Unit                                                                         | Integration                                                                            |
+| ------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| core    | Money, Currency, Proportion, Month, roughly, Pie, views, sentences, geometry | use cases with the in-memory repository                                                |
+| db      | —                                                                            | `PrismaPieRepository` against a real Postgres                                          |
+| auth    | —                                                                            | sign up/in/out, JWT cookie, `/token` JWTs verified with the JWKS (`jose`), on Postgres |
+| ui      | shadcn components (variants, states, form posting)                           | —                                                                                      |
+| web     | components and forms (Testing Library + jsdom), WebMCP tools                 | server actions with auth + Postgres users                                              |
+
+Integration tests get a throwaway Postgres from `@pienance/db/testing`: PGlite runs in-process,
+served over the Postgres wire protocol, with the real migrations applied. No Docker needed.
 
 ## Tasks
 
@@ -124,5 +152,6 @@ moon installs a pre-commit hook that lints and format-checks staged changes.
 ## Deploying to Vercel
 
 1. Import the repository in Vercel and set the **Root Directory** to `apps/web`.
-2. Connect a Prisma Postgres database (Storage tab / Marketplace) so `DATABASE_URL` is set.
+2. Connect a Prisma Postgres database (Storage tab / Marketplace) so `DATABASE_URL` is set, and
+   add `BETTER_AUTH_SECRET` (`openssl rand -base64 32`) to the project's environment variables.
 3. Deploy. Vercel runs `vercel-build`: `prisma migrate deploy`, then `next build`.

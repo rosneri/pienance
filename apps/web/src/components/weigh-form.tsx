@@ -12,7 +12,7 @@ import {
 import { Input } from "@pienance/ui/components/input";
 import { RadioGroup, RadioGroupItem } from "@pienance/ui/components/radio-group";
 import { startTransition, useActionState, type FormEvent } from "react";
-import { takeBite, weighBite } from "@/app/actions";
+import type { PieActions } from "@/server/pie-actions";
 import { Answer, type Tone } from "./answer";
 import { currencySymbol } from "./currency-symbol";
 
@@ -21,7 +21,10 @@ interface Said {
   readonly sentence: string;
 }
 
-async function answer(_previous: Said | null, form: FormData): Promise<Said | null> {
+async function answer(
+  actions: Pick<PieActions, "weighBite" | "takeBite">,
+  form: FormData,
+): Promise<Said | null> {
   const bite = {
     sliceId: String(form.get("sliceId") ?? ""),
     amount: String(form.get("amount") ?? ""),
@@ -29,13 +32,13 @@ async function answer(_previous: Said | null, form: FormData): Promise<Said | nu
   };
 
   if (form.get("intent") === "take") {
-    const outcome = await takeBite(bite);
+    const outcome = await actions.takeBite(bite);
 
     // Silent success: the bite shows up in the list.
     return outcome.ok ? null : { tone: "error", sentence: outcome.error };
   }
 
-  const outcome = await weighBite(bite);
+  const outcome = await actions.weighBite(bite);
 
   if (!outcome.ok) return { tone: "error", sentence: outcome.error };
 
@@ -45,11 +48,16 @@ async function answer(_previous: Said | null, form: FormData): Promise<Said | nu
 export function WeighForm({
   slices,
   currency,
+  actions,
 }: {
   slices: readonly SliceView[];
   currency: string;
+  actions: Pick<PieActions, "weighBite" | "takeBite">;
 }) {
-  const [said, dispatch, pending] = useActionState(answer, null);
+  const [said, dispatch, pending] = useActionState(
+    (_previous: Said | null, form: FormData) => answer(actions, form),
+    null,
+  );
 
   // Dispatched by hand rather than via `action`, so React keeps the fields after weighing.
   function submit(event: FormEvent<HTMLFormElement>) {

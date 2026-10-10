@@ -1,61 +1,64 @@
 "use server";
 
-import {
-  PieError,
-  viewPie,
-  viewWeighing,
-  type BakePieInput,
-  type PieView,
-  type TakeBiteInput,
-  type WeighBiteInput,
-  type WeighingView,
+import { ownerOf } from "@pienance/auth";
+import type {
+  BakePieInput,
+  PieView,
+  TakeBiteInput,
+  WeighBiteInput,
+  WeighingView,
 } from "@pienance/core";
 import { revalidatePath } from "next/cache";
-import { pienance } from "@/pienance";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { auth, pienance } from "@/pienance";
+import { accountActions, type Credentials, type SignUpDetails } from "@/server/account-actions";
+import type { Outcome } from "@/server/outcome";
+import { pieActions, type Asked } from "@/server/pie-actions";
 
-/** Server actions never throw expected errors: the UI and agents get them as values. */
-export type Outcome<T> =
-  | { readonly ok: true; readonly value: T }
-  | { readonly ok: false; readonly error: string };
+// Thin Next.js wrappers: the logic lives in src/server, where it is tested.
 
-async function attempt<T>(run: () => Promise<T>): Promise<Outcome<T>> {
-  try {
-    return { ok: true, value: await run() };
-  } catch (error) {
-    if (error instanceof PieError || error instanceof RangeError) {
-      return { ok: false, error: error.message };
-    }
+const pies = pieActions({
+  app: pienance,
+  owner: async () => ownerOf(auth(), await headers()),
+  refresh: () => revalidatePath("/"),
+});
 
-    throw error;
-  }
-}
+const accounts = () => accountActions(auth(), headers);
 
 export async function readPie(): Promise<PieView | null> {
-  const pie = await pienance.servePie();
-
-  return pie ? viewPie(pie) : null;
+  return pies.readPie();
 }
 
-export async function bakePie(input: BakePieInput): Promise<Outcome<PieView>> {
-  return attempt(async () => {
-    const pie = await pienance.bakePie(input);
-
-    revalidatePath("/");
-
-    return viewPie(pie);
-  });
+export async function bakePie(input: Asked<BakePieInput>): Promise<Outcome<PieView>> {
+  return pies.bakePie(input);
 }
 
-export async function weighBite(input: WeighBiteInput): Promise<Outcome<WeighingView>> {
-  return attempt(async () => viewWeighing(await pienance.weighBite(input)));
+export async function weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<WeighingView>> {
+  return pies.weighBite(input);
 }
 
-export async function takeBite(input: TakeBiteInput): Promise<Outcome<string>> {
-  return attempt(async () => {
-    const bite = await pienance.takeBite(input);
+export async function takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<string>> {
+  return pies.takeBite(input);
+}
 
-    revalidatePath("/");
+export async function signUp(details: SignUpDetails): Promise<Outcome<null>> {
+  const outcome = await accounts().signUp(details);
 
-    return bite.id;
-  });
+  if (outcome.ok) redirect("/");
+
+  return outcome;
+}
+
+export async function signIn(credentials: Credentials): Promise<Outcome<null>> {
+  const outcome = await accounts().signIn(credentials);
+
+  if (outcome.ok) redirect("/");
+
+  return outcome;
+}
+
+export async function signOut(): Promise<void> {
+  await accounts().signOut();
+  redirect("/sign-in");
 }

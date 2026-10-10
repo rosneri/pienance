@@ -6,6 +6,7 @@ const eur = (amount: number) => Money.parse(String(amount), currencyOf("EUR"));
 
 const pie = Pie.bake({
   id: "pie",
+  ownerId: "ada",
   income: eur(1000),
   slices: [
     { id: "needs", name: "Needs", share: Proportion.of(0.5) },

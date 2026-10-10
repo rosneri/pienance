@@ -1,0 +1,19 @@
+$schema: "https://moonrepo.dev/schemas/project.json"
+
+layer: "library"
+stack: "backend"
+tags: ["server", "tested"]
+
+project:
+  title: "Auth"
+  description: "Better Auth setup: email and password, JWT sessions, JWKS for API and native clients."
+
+# db is only used by the integration tests, as a real Postgres.
+dependsOn: ["db"]
+
+tasks:
+  test:
+    deps: ["db:generate"]
+
+  typecheck:
+    deps: ["db:generate"]

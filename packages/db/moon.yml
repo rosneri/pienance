@@ -2,7 +2,7 @@ $schema: "https://moonrepo.dev/schemas/project.json"
 
 layer: "library"
 stack: "backend"
-tags: ["server"]
+tags: ["server", "tested"]
 
 project:
   title: "Database"
@@ -29,3 +29,11 @@ tasks:
 
   typecheck:
     deps: ["~:generate"]
+
+  # Integration tests against a real Postgres (PGlite), with the migrations applied.
+  test:
+    deps: ["~:generate"]
+    inputs:
+      - "@group(sources)"
+      - "prisma/**/*"
+      - "vitest.config.ts"

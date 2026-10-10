@@ -2,7 +2,7 @@
 
 import { describeLeftover, describeWeighing, type PieView } from "@pienance/core";
 import { useEffect } from "react";
-import { bakePie, readPie, takeBite, weighBite } from "@/app/actions";
+import type { PieActions } from "@/server/pie-actions";
 
 /**
  * WebMCP: exposes pienance to in-browser AI agents as tools
@@ -10,7 +10,7 @@ import { bakePie, readPie, takeBite, weighBite } from "@/app/actions";
  * "bake_pie" before there is a pie, reading and weighing tools after.
  * Every tool goes through the same server actions as the UI, so the page stays in sync.
  */
-export function PieTools({ pie }: { pie: PieView | null }) {
+export function PieTools({ pie, actions }: { pie: PieView | null; actions: PieActions }) {
   useEffect(() => {
     const modelContext = document.modelContext;
 
@@ -35,7 +35,7 @@ export function PieTools({ pie }: { pie: PieView | null }) {
             required: ["monthlyIncome", "currency"],
           } as const,
           async execute(input) {
-            const outcome = await bakePie({
+            const outcome = await actions.bakePie({
               monthlyIncome: String(input.monthlyIncome),
               currency: input.currency,
             });
@@ -69,7 +69,7 @@ export function PieTools({ pie }: { pie: PieView | null }) {
           "Returns how much of the user's monthly pie is left, per slice, and what was eaten this month. Everything is described in rough proportions.",
         annotations: { readOnlyHint: true },
         async execute() {
-          const current = await readPie();
+          const current = await actions.readPie();
 
           if (!current) return "There is no pie yet.";
 
@@ -99,7 +99,7 @@ export function PieTools({ pie }: { pie: PieView | null }) {
           required: ["amount", "slice"],
         } as const,
         async execute(input) {
-          const outcome = await weighBite({
+          const outcome = await actions.weighBite({
             sliceId: sliceIdOf(input.slice),
             amount: String(input.amount),
           });
@@ -124,7 +124,7 @@ export function PieTools({ pie }: { pie: PieView | null }) {
           required: ["amount", "slice", "note"],
         } as const,
         async execute(input) {
-          const outcome = await takeBite({
+          const outcome = await actions.takeBite({
             sliceId: sliceIdOf(input.slice),
             amount: String(input.amount),
             note: input.note,
@@ -137,7 +137,7 @@ export function PieTools({ pie }: { pie: PieView | null }) {
     );
 
     return () => controller.abort();
-  }, [pie]);
+  }, [pie, actions]);
 
   return null;
 }

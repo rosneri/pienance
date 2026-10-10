@@ -9,6 +9,7 @@ const defaultSlices = [
 ] as const;
 
 export interface BakePieInput {
+  readonly ownerId: string;
   /** As typed, e.g. "3000" or "2450,50". */
   readonly monthlyIncome: string;
   /** ISO 4217 code, e.g. "EUR". */
@@ -19,6 +20,7 @@ export function bakePie(ports: Ports) {
   return async (input: BakePieInput): Promise<Pie> => {
     const pie = Pie.bake({
       id: ports.newId(),
+      ownerId: input.ownerId,
       income: Money.parse(input.monthlyIncome, currencyOf(input.currency)),
       slices: defaultSlices.map((slice) => ({
         id: ports.newId(),

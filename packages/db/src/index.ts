@@ -1,3 +1,3 @@
-export { prisma } from "./client";
+export { createPrismaClient, prisma, type PrismaClient } from "./client";
 
 export { PrismaPieRepository } from "./prisma-pie-repository";

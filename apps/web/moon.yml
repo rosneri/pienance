@@ -2,13 +2,13 @@ $schema: "https://moonrepo.dev/schemas/project.json"
 
 layer: "application"
 stack: "frontend"
-tags: ["next"]
+tags: ["next", "tested"]
 
 project:
   title: "Web"
   description: "The pienance web app (Next.js), deployed to Vercel."
 
-dependsOn: ["core", "db", "ui"]
+dependsOn: ["core", "db", "ui", "auth"]
 
 tasks:
   dev:
@@ -35,4 +35,7 @@ tasks:
     deps: ["~:build"]
 
   typecheck:
+    deps: ["db:generate"]
+
+  test:
     deps: ["db:generate"]

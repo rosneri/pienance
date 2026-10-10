@@ -4,8 +4,9 @@ import type { PrismaClient } from "./generated/client";
 export class PrismaPieRepository implements PieRepository {
   constructor(private readonly db: PrismaClient) {}
 
-  async find(month: Month): Promise<Pie | null> {
+  async find(ownerId: string, month: Month): Promise<Pie | null> {
     const row = await this.db.pie.findFirst({
+      where: { ownerId },
       orderBy: { createdAt: "desc" },
       include: {
         slices: {
@@ -19,6 +20,7 @@ export class PrismaPieRepository implements PieRepository {
 
     return Pie.bake({
       id: row.id,
+      ownerId: row.ownerId,
       income: Money.ofMinor(Number(row.incomeMinor), currencyOf(row.currency)),
       slices: row.slices.map((slice) => ({
         id: slice.id,
@@ -44,7 +46,7 @@ export class PrismaPieRepository implements PieRepository {
     await this.db.$transaction([
       this.db.pie.upsert({
         where: { id: pie.id },
-        create: { id: pie.id, ...income },
+        create: { id: pie.id, ownerId: pie.ownerId, ...income },
         update: income,
       }),
       ...pie.slices.map((slice, position) => {
