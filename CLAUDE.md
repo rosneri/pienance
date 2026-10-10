@@ -25,6 +25,12 @@ in code, UI and agent tools.
   no slop-test failures. Run `hallmark audit` on UI changes.
 - Authentication is Better Auth via `@pienance/auth`; pages and actions get the user with
   `ownerOf(auth(), headers)`. Business code never reads sessions: it receives an `ownerId`.
+- Authorization is role-based: `user.role` in Postgres (`member` | `admin`), permissions as CASL
+  abilities in `abilityFor()` (`packages/auth/src/access.ts`). Check
+  `abilityFor(await viewerOf(auth(), headers)).can(action, subject)`; never compare role names in
+  pages. Check in every page and action that reads protected data, never only in a layout
+  (Next.js renders them in parallel). Roles are granted in the database only, never through
+  sign-up or profile updates.
 - Every feature ships with Vitest tests: unit tests for logic, integration tests across real
   adapters (in-memory, or Postgres via `@pienance/db/testing`). No `vi.mock`: pass dependencies
   in. UI components take their actions as props so tests can hand in plain functions.

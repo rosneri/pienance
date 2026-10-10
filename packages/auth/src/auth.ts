@@ -1,5 +1,6 @@
 import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { jwt } from "better-auth/plugins";
+import { roleOf, roles, type Viewer } from "./access";
 
 export interface AuthSettings {
   /** A Better Auth database adapter, e.g. `prismaAdapter(prisma, { provider: "postgresql" })`. */
@@ -27,6 +28,12 @@ export function createAuth(settings: AuthSettings) {
     baseURL: settings.baseURL,
     trustedOrigins: [...(settings.trustedOrigins ?? [])],
     emailAndPassword: { enabled: true, minPasswordLength: 8, autoSignIn: true },
+    user: {
+      additionalFields: {
+        // Granted in the database only: sign-up and profile updates can never set it.
+        role: { type: [...roles], required: false, defaultValue: "member", input: false },
+      },
+    },
     session: {
       cookieCache: { enabled: true, maxAge: 5 * 60, strategy: "jwt" },
     },
@@ -41,4 +48,14 @@ export async function ownerOf(auth: Auth, headers: Headers): Promise<string | nu
   const session = await auth.api.getSession({ headers });
 
   return session?.user.id ?? null;
+}
+
+/**
+ * The signed-in user with their role, or null. Roles ride in the session cookie cache, so a
+ * changed role applies within its 5 minutes, or at once after signing in again.
+ */
+export async function viewerOf(auth: Auth, headers: Headers): Promise<Viewer | null> {
+  const session = await auth.api.getSession({ headers });
+
+  return session ? { id: session.user.id, role: roleOf(session.user.role) } : null;
 }

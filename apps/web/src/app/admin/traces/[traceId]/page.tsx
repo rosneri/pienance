@@ -3,10 +3,13 @@ import { notFound } from "next/navigation";
 import { formatDuration, formatTime } from "@/components/admin/format";
 import { TraceWaterfall } from "@/components/admin/trace-waterfall";
 import { telemetryReader } from "@/pienance";
+import { requireTelemetryReader } from "@/server/admin-guard";
 
 export const dynamic = "force-dynamic";
 
 export default async function TracePage({ params }: { params: Promise<{ traceId: string }> }) {
+  await requireTelemetryReader();
+
   const { traceId } = await params;
   const spans = (await telemetryReader()?.trace(traceId)) ?? [];
   const root = spans.find((span) => span.parentSpanId === null) ?? spans[0];

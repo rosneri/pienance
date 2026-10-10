@@ -1,25 +1,15 @@
-import { ownerOf } from "@pienance/auth";
 import type { Metadata } from "next";
-import { headers } from "next/headers";
 import Link from "next/link";
-import { notFound, redirect } from "next/navigation";
 import type { ReactNode } from "react";
 import { PageFrame } from "@/components/page-frame";
-import { auth, isAdmin } from "@/pienance";
 
 export const metadata: Metadata = {
   title: "Admin · pienance",
   robots: { index: false, follow: false },
 };
 
-/** Only the people in ADMIN_USER_IDS get in; everyone else sees a plain 404. */
-export default async function AdminLayout({ children }: { children: ReactNode }) {
-  const userId = await ownerOf(auth(), await headers());
-
-  if (!userId) redirect("/sign-in");
-
-  if (!isAdmin(userId)) notFound();
-
+/** Chrome only: each admin page checks access itself (requireTelemetryReader). */
+export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <PageFrame>
       <header className="flex items-center justify-between gap-4">

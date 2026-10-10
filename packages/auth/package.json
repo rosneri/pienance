@@ -8,6 +8,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@casl/ability": "6.8.1",
     "better-auth": "1.7.7"
   },
   "devDependencies": {

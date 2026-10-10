@@ -66,6 +66,23 @@ future native app (Better Auth has an Expo client) can verify users without call
 sessions and keys live in Postgres next to the pies; every pie belongs to a user, and the core's
 use cases take that `ownerId` explicitly.
 
+### Roles
+
+Every user has a role, stored in Postgres (`user.role`, a `Role` enum): `member` by default, or
+`admin`. Permissions are [CASL](https://casl.js.org) abilities defined in one place,
+`abilityFor(viewer)` in `packages/auth/src/access.ts`; pages check them with
+`abilityFor(await viewerOf(auth(), headers)).can("read", "Telemetry")`. Today admins may read
+telemetry (`/admin`). Pies need no rule: the use cases already scope them to their owner.
+
+Roles are granted in the database only. Sign-up and profile updates can never set them:
+
+```sql
+UPDATE "user" SET "role" = 'admin' WHERE "email" = 'you@example.com';
+```
+
+The role rides in the session cookie cache, so a change applies within 5 minutes, or at once
+after signing in again.
+
 ## Money and currencies
 
 Every pie has an ISO 4217 currency, chosen when it is baked; its bites are in the same currency.
@@ -169,9 +186,8 @@ Telemetry never records amounts or incomes.
 
 **Admin**: `/admin` shows it over the last day, week or two weeks: totals, requests by route
 (median and p95), failed and slowest requests with their trace waterfall, web vitals judged at
-p75, the product funnel, pages and clicks. Only user ids listed in `ADMIN_USER_IDS` get in;
-everyone else gets a 404. Ids, not emails: emails are not verified, so anyone could sign up with
-an admin's address.
+p75, the product funnel, pages and clicks. Only admins get in (see Roles); everyone else gets
+a 404.
 
 ## Deploying to Vercel
 
@@ -191,5 +207,4 @@ Environment:
 - **Telemetry**: set `CRON_SECRET` so the daily maintenance cron can run. Optionally set
   `TELEMETRY_DATABASE_URL` (a pooled URL for a `telemetry_writer` role) and
   `TELEMETRY_SAMPLE_RATIO` (share of ordinary traces kept, default `1`).
-- **Admin**: set `ADMIN_USER_IDS` to the user ids allowed into `/admin`
-  (`SELECT id FROM "user" WHERE email = '…'`).
+- **Admins**: grant the role in the database (see Roles).

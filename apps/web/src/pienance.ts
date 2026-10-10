@@ -31,7 +31,6 @@ import { after } from "next/server";
 import {
   authSecretFrom,
   baseUrlFrom,
-  adminIdsFrom,
   deploymentFrom,
   sampleRatioFrom,
   trustedOriginsFrom,
@@ -165,11 +164,4 @@ export function telemetryReader(): TelemetryReader | null {
   const database = telemetryDatabase();
 
   return database ? new PostgresTelemetryReader(database) : null;
-}
-
-const admins = adminIdsFrom(process.env);
-
-/** Whether a signed-in user may open /admin (ADMIN_USER_IDS). */
-export function isAdmin(userId: string): boolean {
-  return admins.has(userId);
 }

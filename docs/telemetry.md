@@ -298,7 +298,7 @@ when the secret is unset. It runs `maintain_partitions(3, 14)` and refreshes bot
 ### 5.6 Admin panel
 
 `/admin` reads the raw tables through `PostgresTelemetryReader` for the last day, week or two
-weeks. It is gated by `ADMIN_USER_IDS`: anyone else gets a 404, and signed-out visitors go to sign-in.
+weeks. Only users whose role may `read` `Telemetry` (admins, a CASL ability in `@pienance/auth`; see the README's Roles) get in: anyone else gets a 404, and signed-out visitors go to sign-in.
 It shows totals, requests by route (median, p95, errors), failed and slowest requests, web vitals
 at p75 with web.dev's verdicts, the product funnel by people, and top pages and clicks.
 `/admin/traces/[traceId]` draws a trace as a waterfall, with failed spans named in words. Every

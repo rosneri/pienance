@@ -1,6 +1,7 @@
 import { AdminOverview } from "@/components/admin/admin-overview";
 import { adminWindowOf, windowStart } from "@/components/admin/window";
 import { clock, telemetryReader } from "@/pienance";
+import { requireTelemetryReader } from "@/server/admin-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ export default async function AdminPage({
 }: {
   searchParams: Promise<{ window?: string }>;
 }) {
+  await requireTelemetryReader();
+
   const reader = telemetryReader();
 
   if (!reader) {

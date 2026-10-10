@@ -54,13 +54,3 @@ export function sampleRatioFrom(env: Env): number {
 export function deploymentFrom(env: Env): string | null {
   return env.VERCEL_DEPLOYMENT_ID ?? env.VERCEL_GIT_COMMIT_SHA ?? null;
 }
-
-/** Who may open /admin: ADMIN_USER_IDS, comma-separated user ids (ids, not emails, which anyone could sign up with). */
-export function adminIdsFrom(env: Env): ReadonlySet<string> {
-  return new Set(
-    (env.ADMIN_USER_IDS ?? "")
-      .split(",")
-      .map((id) => id.trim())
-      .filter(Boolean),
-  );
-}

@@ -51,12 +51,20 @@ model Bite {
 
 // ── Identity (Better Auth: core tables + the JWT plugin's keys) ──
 
+/// Role-based access: members use pienance, admins also operate it.
+enum Role {
+  member
+  admin
+}
+
 model User {
   id            String    @id
   name          String
   email         String
   emailVerified Boolean   @default(false)
   image         String?
+  /// What the user may do beyond their own pies (see abilityFor in @pienance/auth)
+  role          Role      @default(member)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
