@@ -1,4 +1,9 @@
-import type { DropStapleInput, ShelfMonthView, StapleView } from "@pienance/core";
+import {
+  wedgePath,
+  type DropStapleInput,
+  type ShelfMonthView,
+  type StapleView,
+} from "@pienance/core";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -35,19 +40,27 @@ describe("PieDiagram", () => {
 });
 
 describe("PieDiagram pace", () => {
-  it("hatches the share of each slice the month has used, only while it runs", () => {
+  it("dots staples off a slice's end and hatches pace over the rest, only while it runs", () => {
     const { container, rerender } = render(<PieDiagram slices={pieView.slices} label="Pie" />);
 
     expect(container.querySelectorAll("[data-pace]")).toHaveLength(0);
+    // Staples are a given whether or not the month runs.
+    expect(container.querySelectorAll("[data-staples]")).toHaveLength(1);
 
     rerender(<PieDiagram slices={pieView.slices} label="Pie" gone={0.5} />);
 
-    const hatched = [...container.querySelectorAll("[data-pace]")];
+    const needs = container.querySelector('[data-slice="needs"]')!;
+    const wants = container.querySelector('[data-slice="wants"]')!;
 
-    // Needs spans the first half of the pie: the month's half starts a quarter turn in.
-    expect(hatched).toHaveLength(3);
-    expect(hatched[0]?.getAttribute("d")).toBe("M 100 100 L 200 100 A 100 100 0 0 1 100 200 Z");
-    expect(hatched[0]?.getAttribute("fill")).toMatch(/^url\(#/);
+    // Needs spans half the pie and rent takes half of it: the second quarter turn.
+    expect(needs.querySelector("[data-staples]")?.getAttribute("d")).toBe(
+      wedgePath(0.25, 0.5, 100),
+    );
+    // Half the month is gone: half of what rent leaves, just before the staples.
+    expect(needs.querySelector("[data-pace]")?.getAttribute("d")).toBe(wedgePath(0.125, 0.25, 100));
+    // Wants has no staples: the month's half is the end half of the slice.
+    expect(wants.querySelector("[data-pace]")?.getAttribute("d")).toBe(wedgePath(0.65, 0.8, 100));
+    expect(wants.querySelector("[data-staples]")).toBeNull();
   });
 
   it("shows no pace on the first day", () => {

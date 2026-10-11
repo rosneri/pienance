@@ -46,7 +46,7 @@ export function FocusStory({ pie }: { pie: PieView }) {
           <p className="max-w-[60ch] text-sm text-muted-foreground">
             {pie.gone === undefined
               ? "Tap a slice, or every month or one time, to see only its part."
-              : "The hatching shows how much of each slice the month has used so far. Tap a slice for its pace, or every month or one time, to see only that part."}
+              : `${pie.staples.length > 0 ? "Dots are staples, a given that comes off each slice first. " : ""}The hatching shows how much of the rest the month has used so far. Tap a slice for its pace, or every month or one time, to see only that part.`}
           </p>
         )}
       </div>

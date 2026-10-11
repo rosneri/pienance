@@ -1,4 +1,4 @@
-import type { Proportion } from "./proportion";
+import { Proportion } from "./proportion";
 import type { Serving } from "./pie";
 
 /**
@@ -32,9 +32,19 @@ export function paceOf(serving: Serving, gone: Proportion): Pace {
 
 /** How far eating of the free part of the slice is ahead of the month (negative when behind). */
 export function aheadOf(serving: Serving, gone: Proportion): number {
+  if (serving.stapled.ratio >= 1) return serving.eaten.ratio - serving.stapled.ratio;
+
+  return freeEatenOf(serving).ratio - gone.ratio;
+}
+
+/**
+ * How much of the free part of a slice (what its staples leave) has been eaten.
+ * Staples are a given, so this is what pace is measured on.
+ */
+export function freeEatenOf(serving: Serving): Proportion {
   const stapled = Math.min(serving.stapled.ratio, 1);
 
-  if (stapled >= 1) return serving.eaten.ratio - stapled;
+  if (stapled >= 1) return Proportion.whole;
 
-  return (serving.eaten.ratio - stapled) / (1 - stapled) - gone.ratio;
+  return Proportion.of(Math.max(serving.eaten.ratio - stapled, 0) / (1 - stapled));
 }

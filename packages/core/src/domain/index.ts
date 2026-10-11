@@ -12,7 +12,7 @@ export { focusOn, type Focus } from "./focus";
 
 export { Month } from "./month";
 
-export { aheadOf, paceOf, type Pace } from "./pace";
+export { aheadOf, freeEatenOf, paceOf, type Pace } from "./pace";
 
 export { Pie, PieError, type BiteCandidate, type Food, type Serving } from "./pie";
 

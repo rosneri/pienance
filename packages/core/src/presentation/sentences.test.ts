@@ -86,6 +86,7 @@ describe("sentences", () => {
       to: 1,
       left: 0.5,
       leftWords: "about half",
+      stapled: 0,
       pace,
       eatenWords: "about half",
       ahead,
@@ -114,6 +115,14 @@ describe("sentences", () => {
     it("says every slice is on pace when none is fast", () => {
       expect(describePace(paced(0.33, [slice("Wants", "slow", -0.2)]))).toBe(
         "Every slice is on pace.",
+      );
+    });
+
+    it("says a slice with staples is paced after them", () => {
+      expect(
+        describePace(paced(0.33, [{ ...slice("Needs", "fast", 0.2), stapledWords: "about half" }])),
+      ).toBe(
+        "Needs is going fast: about half eaten after staples, about a third of the month gone.",
       );
     });
 
@@ -146,6 +155,7 @@ describe("sentences", () => {
       to: 1,
       left: 0.5,
       leftWords: "about half",
+      stapled: 0,
       pace,
     });
 
@@ -174,8 +184,13 @@ describe("sentences", () => {
 
     it("adds what staples take", () => {
       expect(
-        describeSlice({ ...wants("steady"), stapledWords: "about a third" }, october),
-      ).toContain("Staples take about a third of it.");
+        describeSlice(
+          { ...wants("steady"), stapledWords: "about a third", eatenWords: "about a third" },
+          october,
+        ),
+      ).toContain(
+        "Staples take about a third of it, so pace counts only the rest: about a third of it eaten.",
+      );
     });
 
     it("tells a month that is over in the past tense", () => {
@@ -219,6 +234,7 @@ describe("sentences", () => {
           to: 1,
           left: 0.5,
           leftWords: "about half",
+          stapled: 0,
           pace: "fast",
         },
       ],

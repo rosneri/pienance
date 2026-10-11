@@ -34,7 +34,7 @@ describe("viewPie", () => {
 
   it("lays slices around the pie with what is left", () => {
     expect(viewPie(pie, { month: october }).slices).toEqual([
-      { id: "needs", name: "Needs", from: 0, to: 0.5, left: 1, leftWords: "all" },
+      { id: "needs", name: "Needs", from: 0, to: 0.5, left: 1, leftWords: "all", stapled: 0 },
       {
         id: "wants",
         name: "Wants",
@@ -42,6 +42,7 @@ describe("viewPie", () => {
         to: 1,
         left: 0.75,
         leftWords: "about three quarters",
+        stapled: 0,
       },
     ]);
   });
@@ -92,6 +93,29 @@ describe("viewPie", () => {
     expect(view.slices.map((slice) => [slice.name, slice.pace, slice.eatenWords])).toEqual([
       ["Needs", "steady", "nothing"],
       ["Wants", "fast", "about a quarter"],
+    ]);
+  });
+
+  it("paces only what staples leave", () => {
+    const rentAndLunch = Pie.bake({
+      id: "pie",
+      ownerId: "ada",
+      income: eur(1000),
+      slices: [{ id: "needs", name: "Needs", share: Proportion.whole }],
+      bakedAt: october.start,
+      bites: [
+        { id: "lunch", sliceId: "needs", amount: eur(100), note: "", eatenAt: october.start },
+      ],
+      staples: [{ id: "rent", sliceId: "needs", amount: eur(500), note: "", since: october }],
+    });
+
+    const [needs] = viewPie(rentAndLunch, { month: october, gone: Proportion.of(0.2) }).slices;
+
+    // A fifth of what rent leaves is eaten a fifth into the month: on pace, despite rent.
+    expect([needs?.stapled, needs?.eatenWords, needs?.pace]).toEqual([
+      0.5,
+      "about a fifth",
+      "steady",
     ]);
   });
 
@@ -147,6 +171,7 @@ describe("viewPie", () => {
       },
     ]);
     expect(view.slices[0]?.stapledWords).toBe("about two thirds");
+    expect(view.slices[0]?.stapled).toBeCloseTo(0.69);
   });
 });
 

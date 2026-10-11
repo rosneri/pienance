@@ -62,7 +62,8 @@ export function describePace(view: PieView): string | null {
 
   const others = fast.filter((slice) => slice !== fastest);
 
-  const sentence = `${fastest.name} is going fast: ${fastest.eatenWords ?? "some"} eaten, ${view.goneWords} of the month gone`;
+  const afterStaples = fastest.stapledWords ? " after staples" : "";
+  const sentence = `${fastest.name} is going fast: ${fastest.eatenWords ?? "some"} eaten${afterStaples}, ${view.goneWords} of the month gone`;
 
   if (others.length === 0) return `${sentence}.`;
 
@@ -74,11 +75,15 @@ export function describePace(view: PieView): string | null {
  * go, and what its staples take. A month that is over just says what was left.
  */
 export function describeSlice(slice: SliceView, view: PieView): string {
-  const staples = slice.stapledWords ? ` Staples take ${slice.stapledWords} of it.` : "";
-
   if (view.gone === undefined) {
+    const staples = slice.stapledWords ? ` Staples took ${slice.stapledWords} of it.` : "";
+
     return `${capitalise(slice.leftWords)} of ${slice.name} was left in ${view.monthName}.${staples}`;
   }
+
+  const staples = slice.stapledWords
+    ? ` Staples take ${slice.stapledWords} of it, so pace counts only the rest: ${slice.eatenWords ?? "nothing"} of it eaten.`
+    : "";
 
   const toGo = roughly(Proportion.of(1 - view.gone));
   const left = `${slice.leftWords} of it is left, with ${toGo} of ${view.monthName} to go`;

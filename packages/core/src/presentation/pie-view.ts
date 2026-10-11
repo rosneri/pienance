@@ -1,6 +1,7 @@
 import {
   aheadOf,
   asFraction,
+  freeEatenOf,
   isVoid,
   paceOf,
   roughly,
@@ -28,10 +29,13 @@ export interface SliceView {
   /** Fraction of the slice still left, between 0 and 1. */
   readonly left: number;
   readonly leftWords: string;
+  /** Fraction of the slice its staples take, between 0 and 1: they come off its end first. */
+  readonly stapled: number;
   /** How much of the slice its staples take, when it has any. */
   readonly stapledWords?: string;
   /** Only while the month is running. */
   readonly pace?: Pace;
+  /** How much of what the staples leave was eaten: what pace is measured on. */
   readonly eatenWords?: string;
   /** How far eating is ahead of the month (negative when behind), to find the fastest slice. */
   readonly ahead?: number;
@@ -136,10 +140,11 @@ export function viewSlices(pie: Pie, gone?: Proportion): SliceView[] {
       to,
       left: Math.min(serving.left.ratio, 1),
       leftWords: roughly(serving.left),
+      stapled: Math.min(serving.stapled.ratio, 1),
       ...(serving.stapled.ratio > 0 && { stapledWords: roughly(serving.stapled) }),
       ...(gone && {
         pace: paceOf(serving, gone),
-        eatenWords: roughly(serving.eaten),
+        eatenWords: roughly(freeEatenOf(serving)),
         ahead: aheadOf(serving, gone),
       }),
     };

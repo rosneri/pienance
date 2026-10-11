@@ -13,9 +13,10 @@ const paceFrom = 0.04;
 
 /**
  * The pie itself. Each slice keeps its full share of the plate; the baked part
- * is what is left, the dashed part is what was eaten. While the month runs, a light
- * hatch covers the share of each slice the month has used so far: eaten past the
- * hatch means eaten faster than the month. Tapping a slice focuses it.
+ * is what is left, the dashed part is what was eaten. Staples are a given, so they
+ * come off the end of a slice first, dotted. While the month runs, a light hatch
+ * covers the share of what staples leave that the month has used so far: eaten past
+ * the hatch means eaten faster than the month. Tapping a slice focuses it.
  */
 export function PieDiagram({
   slices,
@@ -34,6 +35,8 @@ export function PieDiagram({
   className?: string;
 }) {
   const hatch = useId();
+  const dots = useId();
+  const stapled = slices.some((slice) => slice.stapled > 0);
   const { focused, toggle } = useFocus();
   const paced = gone !== undefined && gone >= paceFrom;
 
@@ -43,8 +46,8 @@ export function PieDiagram({
       viewBox="0 0 200 200"
       {...(label ? { role: "img", "aria-label": label } : { "aria-hidden": true })}
     >
-      {paced && (
-        <defs>
+      <defs>
+        {paced && (
           <pattern
             id={hatch}
             width="5"
@@ -54,11 +57,19 @@ export function PieDiagram({
           >
             <line x1="0" y1="0" x2="0" y2="5" className="stroke-foreground/35 stroke-[1.5]" />
           </pattern>
-        </defs>
-      )}
+        )}
+        {stapled && (
+          <pattern id={dots} width="5" height="5" patternUnits="userSpaceOnUse">
+            <circle cx="2.5" cy="2.5" r="1.1" className="fill-foreground/40" />
+          </pattern>
+        )}
+      </defs>
       {slices.map((slice, index) => {
         const span = slice.to - slice.from;
         const leftUntil = slice.from + span * slice.left;
+        // Staples take the end of the slice; pace runs over what they leave.
+        const freeUntil = slice.to - span * slice.stapled;
+        const freeSpan = freeUntil - slice.from;
         // Only a slice's own view isolates it; views across slices leave the pie whole.
         const dimmed = focused?.kind === "slice" && focused.sliceId !== slice.id;
 
@@ -79,11 +90,18 @@ export function PieDiagram({
               d={wedgePath(leftUntil, slice.to, radius)}
             />
             <path className={crustFill(index)} d={wedgePath(slice.from, leftUntil, radius)} />
+            {slice.stapled > 0 && (
+              <path
+                data-staples
+                fill={`url(#${dots})`}
+                d={wedgePath(freeUntil, slice.to, radius)}
+              />
+            )}
             {paced && (
               <path
                 data-pace
                 fill={`url(#${hatch})`}
-                d={wedgePath(slice.from + span * (1 - (gone ?? 0)), slice.to, radius)}
+                d={wedgePath(slice.from + freeSpan * (1 - (gone ?? 0)), freeUntil, radius)}
               />
             )}
             <path
