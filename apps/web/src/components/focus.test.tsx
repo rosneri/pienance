@@ -56,7 +56,7 @@ describe("single views", () => {
       within(bites)
         .getAllByRole("listitem")
         .map((item) => item.textContent),
-    ).toEqual(["Shoes3/4 of Wants"]);
+    ).toEqual(["Shoes3/4 (Wants)"]);
     expect(screen.getByRole("heading", { name: /Every month/ })).toHaveTextContent("Wants");
   });
 

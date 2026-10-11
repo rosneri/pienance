@@ -16,6 +16,7 @@ import {
   describeSwept,
   describeWeighing,
   droppedCarrySentence,
+  portionOf,
   putBackSentence,
   spreadMonths,
   viewSweepSteps,
@@ -148,7 +149,7 @@ export function PieTools({
             slices: served.slices.map(describeSlice),
             staples: inView(served.staples, focus?.stapleIds).map((staple) => ({
               id: staple.id,
-              staple: `${staple.note || "Something"}: ${staple.portionWords} of ${staple.sliceName}${staple.endsAfter ? `, ends after ${staple.endsAfter}` : ""}`,
+              staple: `${staple.note || "Something"}: ${portionOf(staple.portion, staple.sliceName)}${staple.endsAfter ? `, ends after ${staple.endsAfter}` : ""}`,
             })),
             bites: inView(served.bites, focus?.biteIds).map((bite) => ({
               id: bite.id,
@@ -251,7 +252,7 @@ export function PieTools({
           if (!outcome.ok) return outcome.error;
 
           const { swept } = outcome.value;
-          const sweep = swept ? ` Swept ${swept.words} into ${swept.sliceName}.` : "";
+          const sweep = swept ? ` Swept ${portionOf(swept.portion, swept.sliceName)}.` : "";
 
           return input.months === undefined
             ? `Recorded ${input.note} in ${input.slice}.${sweep}`

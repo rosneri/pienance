@@ -1,4 +1,4 @@
-import { Proportion, roughly, type Serving, type Verdict } from "../domain";
+import { asFraction, portionOf, Proportion, roughly, type Serving, type Verdict } from "../domain";
 import type { FocusView } from "./focus-view";
 import type {
   BiteView,
@@ -49,14 +49,14 @@ const eachMonthWords: Record<Verdict, string> = {
 /** The answer to "is it worth it?", in one or two sentences. */
 export function describeWeighing(view: WeighingView): string {
   if (view.spread) {
-    return `${nowWords[view.spread.wholeVerdict]} Spread over ${view.spread.months} months it is ${view.ofSlice} of ${view.sliceName} each month, ${eachMonthWords[view.verdict]}.`;
+    return `${nowWords[view.spread.wholeVerdict]} Spread over ${view.spread.months} months it is ${portionOf(view.ofSlice, view.sliceName)} each month, ${eachMonthWords[view.verdict]}.`;
   }
 
   switch (view.verdict) {
     case "fits":
-      return `Fits. It is ${view.ofSlice} of your ${view.sliceName} slice and leaves ${view.leftAfter} of it.`;
+      return `Fits. It is ${portionOf(view.ofSlice, view.sliceName)} and leaves ${view.leftAfter} of it.`;
     case "tight":
-      return `Tight. It fits, but takes ${view.ofLeftover} of what is left of ${view.sliceName}.${staplesClause(view)}`;
+      return `Tight. It fits, but takes ${view.ofLeftover} of what is left (${view.sliceName}).${staplesClause(view)}`;
     case "overflows":
       return `Too big. It is more than what is left of ${view.sliceName}.${staplesClause(view)}`;
   }
@@ -70,9 +70,9 @@ export function describeVerdict(view: WeighingView): string {
 
   switch (view.verdict) {
     case "fits":
-      return `Fits: leaves ${view.leftAfter} of ${view.sliceName}.`;
+      return `Fits: leaves ${portionOf(view.leftAfter, view.sliceName)}.`;
     case "tight":
-      return `Tight: it takes ${view.ofLeftover} of what is left of ${view.sliceName}.${staplesClause(view)}`;
+      return `Tight: it takes ${view.ofLeftover} of what is left (${view.sliceName}).${staplesClause(view)}`;
     case "overflows":
       return `Too big: more than what is left of ${view.sliceName}.${staplesClause(view)}`;
   }
@@ -151,20 +151,20 @@ export function describeFocus(focus: FocusView, view: PieView): string {
 
 /** The answer after taking a bite; for a spread, this month's part. */
 export function describeTaken(view: BiteView): string {
-  const swept = view.swept ? ` Swept ${view.swept.words} into ${view.swept.sliceName}.` : "";
+  const swept = view.swept ? ` Swept ${portionOf(view.swept.portion, view.swept.sliceName)}.` : "";
 
   if (view.spread) {
-    return `Taken over ${view.spread.toCome + 1} months. ${capitalise(view.portionWords)} of ${view.sliceName} this month.${swept}`;
+    return `Taken over ${view.spread.toCome + 1} months. ${portionOf(view.portion, view.sliceName)} this month.${swept}`;
   }
 
-  return `Taken. ${capitalise(view.portionWords)} of ${view.sliceName}.${swept}`;
+  return `Taken. ${portionOf(view.portion, view.sliceName)}.${swept}`;
 }
 
 /** "Swept this month: a sliver of Savings.", or null when nothing was swept. */
 export function describeSwept(view: PieView): string | null {
   if (view.swept.length === 0) return null;
 
-  return `Swept this month: ${view.swept.map((swept) => `${swept.words} of ${swept.sliceName}`).join(" and ")}.`;
+  return `Swept this month: ${view.swept.map((swept) => portionOf(swept.portion, swept.sliceName)).join(" and ")}.`;
 }
 
 /** The answer after changing the sweep. */
@@ -176,7 +176,7 @@ export function describeSweep(view: PieView): string {
 
 /** The answer after moving a bite, restating where it went. */
 export function describeMoved(view: BiteView): string {
-  return `Moved. It is ${view.portionWords} of ${view.sliceName}.`;
+  return `Moved. ${portionOf(view.portion, view.sliceName)}.`;
 }
 
 /** The answer after putting a bite back. */
@@ -217,7 +217,7 @@ export const droppedCarrySentence = "Undone. The leftover is back on offer.";
 
 /** The answer after stocking a staple. */
 export function describeStaple(view: StapleView): string {
-  return `Added. ${view.note || "It"} takes ${view.portionWords} of ${view.sliceName} every month.`;
+  return `Added. ${view.note || "It"}: ${portionOf(view.portion, view.sliceName)} every month.`;
 }
 
 /** The answer after dropping a staple. */
@@ -262,7 +262,7 @@ function appetiteSentence(view: AppetiteView): string {
     case undefined:
       return view.usualWords === "nothing"
         ? `You usually leave ${view.sliceName} untouched.`
-        : `You usually eat ${view.usualWords} of ${view.sliceName}.`;
+        : `You usually eat ${portionOf(asFraction(Proportion.of(view.usual)), view.sliceName)}.`;
   }
 }
 
@@ -270,7 +270,7 @@ function appetiteSentence(view: AppetiteView): string {
 function monthlyVerdict(view: WeighingView): string {
   switch (view.verdict) {
     case "fits":
-      return `fits and leaves ${view.leftAfter} of ${view.sliceName}`;
+      return `fits and leaves ${portionOf(view.leftAfter, view.sliceName)}`;
     case "tight":
       return "fits, but tightly";
     case "overflows":

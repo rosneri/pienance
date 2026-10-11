@@ -4,6 +4,7 @@ import {
   describeStaple,
   describeTaken,
   describeVerdict,
+  portionOf,
   putBackSentence,
   type SliceView,
   type StapleView,
@@ -324,7 +325,7 @@ export function BiteComposer({
             (weighing && (
               <>
                 <span className="font-medium tabular-nums">
-                  {weighing.portion} of {weighing.sliceName}
+                  {portionOf(weighing.portion, weighing.sliceName)}
                   {weighing.spread && " each month"}
                 </span>
                 {" · "}

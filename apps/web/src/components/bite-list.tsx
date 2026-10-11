@@ -1,6 +1,6 @@
 "use client";
 
-import { describeMoved, type BiteView, type SliceView } from "@pienance/core";
+import { describeMoved, portionOf, type BiteView, type SliceView } from "@pienance/core";
 import { Button } from "@pienance/ui/components/button";
 import { cn } from "@pienance/ui/lib/utils";
 import Link from "next/link";
@@ -150,7 +150,7 @@ export function BiteList({
                   )}
                 </span>
                 <span className="ms-auto text-end text-muted-foreground tabular-nums">
-                  {bite.portion} of {bite.sliceName}
+                  {portionOf(bite.portion, bite.sliceName)}
                 </span>
                 {actions && (
                   <Button

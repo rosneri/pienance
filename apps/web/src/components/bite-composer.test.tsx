@@ -54,7 +54,7 @@ function setup(weighed: Outcome<WeighingView> = { ok: true, value: fits }) {
               ...pieView.bites[1]!,
               id: "tea",
               note: input.note,
-              portionWords: "about a tenth",
+              portion: "1/10",
             },
           };
     },
@@ -124,7 +124,7 @@ describe("BiteComposer", () => {
 
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
-        "1/5 of Wants · Fits: leaves about half of Wants.",
+        "1/5 (Wants) · Fits: leaves about half (Wants).",
       ),
     );
     // Typing pauses are what get weighed, not every key.
@@ -152,7 +152,7 @@ describe("BiteComposer", () => {
       expect(takes).toEqual([{ sliceId: "needs", amount: "12.50", note: "Tea" }]),
     );
     expect(screen.getByRole("button", { name: "Add a bite" })).toBeInTheDocument();
-    expect(screen.getByRole("status")).toHaveTextContent("Taken. About a tenth of Needs.");
+    expect(screen.getByRole("status")).toHaveTextContent("Taken. 1/10 (Needs).");
 
     await user.click(screen.getByRole("button", { name: "Put back" }));
 
@@ -230,9 +230,7 @@ describe("BiteComposer", () => {
     await user.click(screen.getByRole("button", { name: "Add to every month" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Added. Rent takes about half of Needs every month.",
-      ),
+      expect(screen.getByRole("status")).toHaveTextContent("Added. Rent: 1/2 (Needs) every month."),
     );
     expect(stocks).toEqual([{ sliceId: "needs", amount: "900", note: "Rent" }]);
     expect(takes).toEqual([]);

@@ -26,10 +26,10 @@ import {
 const weighing = {
   sliceName: "Wants",
   portion: "1/5",
-  ofSlice: "about a fifth",
-  ofLeftover: "about a quarter",
-  ofPie: "about a tenth",
-  leftAfter: "about half",
+  ofSlice: "1/5",
+  ofLeftover: "1/4",
+  ofPie: "1/10",
+  leftAfter: "1/2",
   stapled: "nothing",
 } as const;
 
@@ -82,9 +82,9 @@ describe("sentences", () => {
   });
 
   it("tells the sweep, and what this month swept", () => {
-    const view = { swept: [{ sliceName: "Savings", words: "a sliver" }] } as const;
+    const view = { swept: [{ sliceName: "Savings", portion: "1/20" }] } as const;
 
-    expect(describeSwept(pieViewFor(view))).toBe("Swept this month: a sliver of Savings.");
+    expect(describeSwept(pieViewFor(view))).toBe("Swept this month: 1/20 (Savings).");
     expect(describeSwept(pieViewFor({ swept: [] }))).toBeNull();
     expect(
       describeSweep(
@@ -100,13 +100,15 @@ describe("sentences", () => {
       sliceId: "needs",
       note: "Shoes",
       sliceName: "Needs",
-      portion: "1/10",
-      portionWords: "about a tenth",
+      portion: "1/30",
       eatenAt: "2026-10-03T10:00:00.000Z",
     };
 
-    expect(describeTaken(bite)).toBe("Taken. About a tenth of Needs.");
-    expect(describeMoved(bite)).toBe("Moved. It is about a tenth of Needs.");
+    expect(describeTaken(bite)).toBe("Taken. 1/30 (Needs).");
+    expect(describeTaken({ ...bite, swept: { sliceName: "Savings", portion: "1/800" } })).toBe(
+      "Taken. 1/30 (Needs). Swept 1/800 (Savings).",
+    );
+    expect(describeMoved(bite)).toBe("Moved. 1/30 (Needs).");
   });
 
   it.each([
@@ -125,19 +127,19 @@ describe("sentences", () => {
     } as const;
 
     expect(describeWeighing(spread)).toBe(
-      "Too big now. Spread over 6 months it is about a fifth of Wants each month, and fits.",
+      "Too big now. Spread over 6 months it is 1/5 (Wants) each month, and fits.",
     );
     expect(describeVerdict(spread)).toBe(
-      "Too big now. Over 6 months it fits and leaves about half of Wants.",
+      "Too big now. Over 6 months it fits and leaves 1/2 (Wants).",
     );
   });
 
   it("describes each verdict", () => {
     expect(describeWeighing({ ...weighing, verdict: "fits" })).toBe(
-      "Fits. It is about a fifth of your Wants slice and leaves about half of it.",
+      "Fits. It is 1/5 (Wants) and leaves 1/2 of it.",
     );
     expect(describeWeighing({ ...weighing, verdict: "tight" })).toBe(
-      "Tight. It fits, but takes about a quarter of what is left of Wants.",
+      "Tight. It fits, but takes 1/4 of what is left (Wants).",
     );
     expect(describeWeighing({ ...weighing, verdict: "overflows" })).toBe(
       "Too big. It is more than what is left of Wants.",
@@ -145,11 +147,9 @@ describe("sentences", () => {
   });
 
   it("gives the verdict alone, for a bite being typed", () => {
-    expect(describeVerdict({ ...weighing, verdict: "fits" })).toBe(
-      "Fits: leaves about half of Wants.",
-    );
-    expect(describeVerdict({ ...weighing, verdict: "tight", stapled: "about half" })).toBe(
-      "Tight: it takes about a quarter of what is left of Wants. Staples already take about half of it.",
+    expect(describeVerdict({ ...weighing, verdict: "fits" })).toBe("Fits: leaves 1/2 (Wants).");
+    expect(describeVerdict({ ...weighing, verdict: "tight", stapled: "1/2" })).toBe(
+      "Tight: it takes 1/4 of what is left (Wants). Staples already take 1/2 of it.",
     );
     expect(describeVerdict({ ...weighing, verdict: "overflows" })).toBe(
       "Too big: more than what is left of Wants.",
@@ -157,13 +157,13 @@ describe("sentences", () => {
   });
 
   it("adds what staples take to a tight or overflowing answer only", () => {
-    const stapled = { ...weighing, stapled: "about two thirds" };
+    const stapled = { ...weighing, stapled: "2/3" };
 
     expect(describeWeighing({ ...stapled, verdict: "tight" })).toBe(
-      "Tight. It fits, but takes about a quarter of what is left of Wants. Staples already take about two thirds of it.",
+      "Tight. It fits, but takes 1/4 of what is left (Wants). Staples already take 2/3 of it.",
     );
     expect(describeWeighing({ ...stapled, verdict: "overflows" })).toBe(
-      "Too big. It is more than what is left of Wants. Staples already take about two thirds of it.",
+      "Too big. It is more than what is left of Wants. Staples already take 2/3 of it.",
     );
     expect(describeWeighing({ ...stapled, verdict: "fits" })).not.toContain("Staples");
   });
@@ -395,12 +395,12 @@ describe("sentences", () => {
       sliceId: "needs",
       note: "Rent",
       sliceName: "Needs",
-      portionWords: "about two thirds",
+      portion: "2/3",
       amount: "650.00",
       stockedThisMonth: false,
     };
 
-    expect(describeStaple(rent)).toBe("Added. Rent takes about two thirds of Needs every month.");
+    expect(describeStaple(rent)).toBe("Added. Rent: 2/3 (Needs) every month.");
     expect(describeDropped({ ...rent, endsAfter: "October" })).toBe(
       "Stopped. Rent ends after October.",
     );
@@ -431,7 +431,7 @@ describe("sentences", () => {
     it("tells the slice whose usual is furthest from all of it", () => {
       expect(
         describeAppetite([usual("Needs", 0.75), usual("Wants", 0.6), usual("Savings", 0.95)]),
-      ).toEqual([{ sentence: "You usually eat about three quarters of Wants." }]);
+      ).toEqual([{ sentence: "You usually eat 3/5 (Wants)." }]);
     });
 
     it("keeps slice order on ties", () => {
