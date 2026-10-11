@@ -199,7 +199,7 @@ export function BiteComposer({
             {undoable && (
               <Button
                 variant="link"
-                className="h-11 px-0"
+                className="h-11 px-0 underline decoration-berry"
                 disabled={pending}
                 onClick={() => putBack(undoable)}
                 data-track="undo-take"
