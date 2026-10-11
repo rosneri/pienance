@@ -454,4 +454,56 @@ describe("Pie", () => {
       ).toThrow("Undo the carry first.");
     });
   });
+
+  describe("sweeping", () => {
+    const sweepInto = (pie: Pie) => pie.setSweep({ sliceId: "wants", step: eur(1) });
+
+    it("sweeps what rounding a bite up leaves, but not into its own slice or on a whole step", () => {
+      const pie = pieOf();
+
+      expect(pie.sweepOf({ sliceId: "needs", amount: eur(4.3) })).toBeUndefined();
+
+      sweepInto(pie);
+
+      expect(pie.sweepOf({ sliceId: "needs", amount: eur(4.3) })?.amount.toDecimal()).toBe("0.70");
+      expect(pie.sweepOf({ sliceId: "wants", amount: eur(4.3) })).toBeUndefined();
+      expect(pie.sweepOf({ sliceId: "needs", amount: eur(4) })).toBeUndefined();
+    });
+
+    it("counts each sweep once: from its slice, and against the whole pie", () => {
+      const lunch = {
+        ...bite("needs", 4.3),
+        swept: { sliceId: "wants", amount: eur(0.7) },
+      };
+
+      const pie = pieOf([lunch]);
+
+      expect(pie.servings().map((serving) => serving.eaten.ratio)).toEqual([0.0086, 0.0014]);
+      expect(pie.leftover().ratio).toBeCloseTo(0.995);
+
+      pie.putBack(lunch.id);
+
+      expect(pie.leftover().ratio).toBe(1);
+    });
+
+    it("refuses a retired or unknown slice, and retiring the sweep's slice", () => {
+      const pie = pieOf();
+
+      expect(() => pie.setSweep({ sliceId: "dessert", step: eur(1) })).toThrow(PieError);
+      expect(() => pie.setSweep({ sliceId: "wants", step: eur(0) })).toThrow(
+        "A sweep needs a step above zero.",
+      );
+
+      sweepInto(pie);
+
+      expect(() =>
+        pie.reslice({
+          slices: [
+            { id: "needs", name: "Needs", share: Proportion.whole },
+            { id: "wants", name: "Wants", share: Proportion.none, retired: true },
+          ],
+        }),
+      ).toThrow("Turn the sweep off first.");
+    });
+  });
 });

@@ -118,6 +118,14 @@ function fakeActions(): PieActions & { calls: string[] } {
       };
     },
     readReslice: async () => null,
+    setSweep: async (input) => {
+      calls.push(`sweep ${JSON.stringify(input)}`);
+
+      return {
+        ok: true,
+        value: { ...pieView, sweep: { sliceId: "savings", sliceName: "Savings", step: "1.00" } },
+      };
+    },
     readCarryOffer: async () => ({
       month: "2026-09",
       monthName: "September",
@@ -225,6 +233,7 @@ describe("PieTools (WebMCP)", () => {
       "read_shelf",
       "read_statement",
       "reslice_pie",
+      "set_sweep",
       "stock_staple",
       "take_bite",
       "take_bites",
@@ -310,6 +319,24 @@ describe("PieTools (WebMCP)", () => {
     );
     expect(await tool("drop_carry").execute({})).toBe("Nothing was carried this month.");
     expect(actions.calls).toEqual(["carry savings", "drop carry"]);
+  });
+
+  it("sets the sweep by slice name and step", async () => {
+    const actions = fakeActions();
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(tool("set_sweep").inputSchema?.properties?.step?.enum).toEqual([
+      "1.00",
+      "5.00",
+      "10.00",
+    ]);
+    expect(await tool("set_sweep").execute({ slice: "Savings", step: "1.00" })).toBe(
+      "Bites now round up to the next 1.00 into Savings.",
+    );
+    expect(actions.calls).toEqual([
+      `sweep ${JSON.stringify({ sliceId: "savings", step: "1.00" })}`,
+    ]);
   });
 
   it("re-slices by name: a known name keeps its slice, a new one is added", async () => {

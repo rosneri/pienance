@@ -17,12 +17,16 @@ export function takeBite(ports: Ports) {
 
     if (!pie) throw new PieError("Bake a pie first");
 
+    const amount = Money.parse(input.amount, pie.currency);
+    const swept = pie.sweepOf({ sliceId: input.sliceId, amount });
+
     const bite: Bite = {
       id: ports.newId(),
       sliceId: input.sliceId,
-      amount: Money.parse(input.amount, pie.currency),
+      amount,
       note: input.note.trim(),
       eatenAt,
+      ...(swept && { swept }),
     };
 
     pie.take(bite);

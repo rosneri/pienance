@@ -56,6 +56,13 @@ export class PrismaPieRepository implements PieRepository {
             bite.spreadOf !== null && {
               spread: { id: bite.spreadId, part: bite.spreadPart, of: bite.spreadOf },
             }),
+          ...(bite.sweptSliceId !== null &&
+            bite.sweptMinor !== null && {
+              swept: {
+                sliceId: bite.sweptSliceId,
+                amount: Money.ofMinor(Number(bite.sweptMinor), currencyOf(bite.currency)),
+              },
+            }),
         })),
       staples: row.slices
         .flatMap((slice) => slice.staples)
@@ -68,6 +75,13 @@ export class PrismaPieRepository implements PieRepository {
           since: Month.of(staple.since),
           ...(staple.until && { until: Month.of(staple.until) }),
         })),
+      ...(row.sweepSliceId !== null &&
+        row.sweepStepMinor !== null && {
+          sweep: {
+            sliceId: row.sweepSliceId,
+            step: Money.ofMinor(Number(row.sweepStepMinor), currencyOf(row.currency)),
+          },
+        }),
       ...(carry && {
         carry: {
           sliceId: carry.sliceId,
@@ -78,7 +92,12 @@ export class PrismaPieRepository implements PieRepository {
   }
 
   async save(pie: Pie): Promise<void> {
-    const income = { currency: pie.currency.code, incomeMinor: BigInt(pie.income.minor) };
+    const income = {
+      currency: pie.currency.code,
+      incomeMinor: BigInt(pie.income.minor),
+      sweepSliceId: pie.sweep?.sliceId ?? null,
+      sweepStepMinor: pie.sweep ? BigInt(pie.sweep.step.minor) : null,
+    };
 
     await this.db.$transaction([
       this.db.pie.upsert({
@@ -133,6 +152,8 @@ export class PrismaPieRepository implements PieRepository {
             spreadId: bite.spread?.id ?? null,
             spreadPart: bite.spread?.part ?? null,
             spreadOf: bite.spread?.of ?? null,
+            sweptSliceId: bite.swept?.sliceId ?? null,
+            sweptMinor: bite.swept ? BigInt(bite.swept.amount.minor) : null,
           },
           update: { sliceId: bite.sliceId },
         }),

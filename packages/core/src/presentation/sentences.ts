@@ -151,11 +151,27 @@ export function describeFocus(focus: FocusView, view: PieView): string {
 
 /** The answer after taking a bite; for a spread, this month's part. */
 export function describeTaken(view: BiteView): string {
+  const swept = view.swept ? ` Swept ${view.swept.words} into ${view.swept.sliceName}.` : "";
+
   if (view.spread) {
-    return `Taken over ${view.spread.toCome + 1} months. ${capitalise(view.portionWords)} of ${view.sliceName} this month.`;
+    return `Taken over ${view.spread.toCome + 1} months. ${capitalise(view.portionWords)} of ${view.sliceName} this month.${swept}`;
   }
 
-  return `Taken. ${capitalise(view.portionWords)} of ${view.sliceName}.`;
+  return `Taken. ${capitalise(view.portionWords)} of ${view.sliceName}.${swept}`;
+}
+
+/** "Swept this month: a sliver of Savings.", or null when nothing was swept. */
+export function describeSwept(view: PieView): string | null {
+  if (view.swept.length === 0) return null;
+
+  return `Swept this month: ${view.swept.map((swept) => `${swept.words} of ${swept.sliceName}`).join(" and ")}.`;
+}
+
+/** The answer after changing the sweep. */
+export function describeSweep(view: PieView): string {
+  return view.sweep
+    ? `Bites now round up to the next ${view.sweep.step} into ${view.sweep.sliceName}.`
+    : "The sweep is off. Past sweeps stay.";
 }
 
 /** The answer after moving a bite, restating where it went. */

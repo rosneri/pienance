@@ -8,6 +8,7 @@ import {
   type PieRepository,
   type Slice,
   type Staple,
+  type Sweep,
 } from "../domain";
 
 /** What is kept of a pie: every month's bites and staples, not just one month's. */
@@ -20,6 +21,7 @@ interface Stored {
   readonly staples: readonly Staple[];
   /** Each month's carry, by month ("2026-10"). */
   readonly carries: ReadonlyMap<string, Carry>;
+  readonly sweep: Sweep | undefined;
 }
 
 /** For tests and running the app without a database. Keeps one pie per owner. */
@@ -41,6 +43,7 @@ export class InMemoryPieRepository implements PieRepository {
       bites: stored.bites.filter((bite) => month.contains(bite.eatenAt)),
       staples: stored.staples.filter((staple) => isActiveIn(staple, month)),
       carry: stored.carries.get(month.toString()),
+      sweep: stored.sweep,
     });
   }
 
@@ -72,6 +75,7 @@ export class InMemoryPieRepository implements PieRepository {
         ...pie.staples,
       ],
       carries,
+      sweep: pie.sweep,
     });
   }
 }

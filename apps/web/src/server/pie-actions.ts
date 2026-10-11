@@ -26,6 +26,7 @@ import {
   type ReslicePreview,
   type ResliceInput,
   type ResliceView,
+  type SweepChoice,
   type ShelfMonthView,
   type StapleView,
   type StockStapleInput,
@@ -217,6 +218,18 @@ export function pieActions(deps: PieActionsDeps) {
         const pie = await deps.app.dropCarry({ ownerId });
 
         deps.track({ name: "carry.dropped", properties: {} }, ownerId);
+        deps.refresh();
+
+        return thisMonth(pie);
+      });
+    },
+
+    /** Turns rounding bites up on, changes it, or turns it off. */
+    setSweep(input: SweepChoice): Promise<Outcome<PieView>> {
+      return attempt(async (ownerId) => {
+        const pie = await deps.app.setSweep({ ...input, ownerId });
+
+        deps.track({ name: "sweep.set", properties: { on: pie.sweep !== undefined } }, ownerId);
         deps.refresh();
 
         return thisMonth(pie);

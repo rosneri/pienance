@@ -91,6 +91,7 @@ export const pienance: Pienance = {
   readCarryOffer: traced("pienance.readCarryOffer", app.readCarryOffer),
   carryOver: traced("pienance.carryOver", app.carryOver),
   dropCarry: traced("pienance.dropCarry", app.dropCarry),
+  setSweep: traced("pienance.setSweep", app.setSweep),
   putBackSpread: traced("pienance.putBackSpread", app.putBackSpread),
   reslicePie: traced("pienance.reslicePie", app.reslicePie),
   previewReslice: traced("pienance.previewReslice", app.previewReslice),

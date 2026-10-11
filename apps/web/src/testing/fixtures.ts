@@ -89,6 +89,7 @@ export const pieView: PieView = {
       endsAfter: "October",
     },
   ],
+  swept: [],
   focuses: [
     {
       key: "slice:needs",

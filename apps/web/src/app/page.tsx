@@ -41,6 +41,7 @@ import {
   readShelf,
   readStatement,
   reslicePie,
+  setSweep,
   signOut,
   stockStaple,
   takeBite,
@@ -52,6 +53,7 @@ export const dynamic = "force-dynamic";
 
 const actions = {
   readPie,
+  setSweep,
   readCarryOffer,
   carryOver,
   dropCarry,

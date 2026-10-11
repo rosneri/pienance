@@ -15,6 +15,7 @@ const view: ResliceView = {
     { id: "wants", name: "Wants", percent: 30, eaten: true, stocked: false },
     { id: "savings", name: "Savings", percent: 20, eaten: false, stocked: false },
   ],
+  sweepSteps: ["1.00", "5.00", "10.00"],
 };
 
 function setup() {

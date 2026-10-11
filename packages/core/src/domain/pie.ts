@@ -6,6 +6,7 @@ import type { Month } from "./month";
 import { Proportion } from "./proportion";
 import { sliceNameLimit, type Slice } from "./slice";
 import { spreadMonths, spreadOver } from "./spread";
+import { sweptBy, type Sweep } from "./sweep";
 import { isVoid, type Staple } from "./staple";
 import type { Verdict, Weighing } from "./weighing";
 
@@ -53,6 +54,8 @@ export class Pie {
   private carried: Carry | undefined;
   /** Whether a carry loaded with the pie was undone since. */
   private dropped = false;
+  /** Rounding bites up into one slice, when it is on. */
+  private sweeping: Sweep | undefined;
   /** Bites put back since the pie was loaded, so repositories can forget them. */
   private readonly putBacks: string[] = [];
   /** Spreads put back from this month on, since the pie was loaded. */
@@ -93,6 +96,8 @@ export class Pie {
     staples?: readonly Staple[];
     /** Last month's leftover, carried into this month. */
     carry?: Carry | undefined;
+    /** Rounding bites up into one slice. */
+    sweep?: Sweep | undefined;
   }): Pie {
     if (!props.slices.some((slice) => !slice.retired)) {
       throw new PieError("A pie needs at least one slice");
@@ -130,6 +135,8 @@ export class Pie {
 
     if (props.carry) pie.holdCarry(props.carry);
 
+    if (props.sweep) pie.holdSweep(props.sweep);
+
     return pie;
   }
 
@@ -160,6 +167,10 @@ export class Pie {
       if (slice.retired && this.carried?.sliceId === slice.id) {
         throw new PieError("Undo the carry first.");
       }
+
+      if (slice.retired && this.sweeping?.sliceId === slice.id) {
+        throw new PieError("Turn the sweep off first.");
+      }
     }
 
     return Pie.bake({
@@ -172,6 +183,7 @@ export class Pie {
       bites: [...this.eaten, ...this.later],
       staples: this.pantry,
       carry: this.carried,
+      sweep: this.sweeping,
     });
   }
 
@@ -187,6 +199,32 @@ export class Pie {
   /** Last month's leftover, when it was carried into this month. */
   get carry(): Carry | undefined {
     return this.carried;
+  }
+
+  /** Rounding bites up into one slice, when it is on. */
+  get sweep(): Sweep | undefined {
+    return this.sweeping;
+  }
+
+  /** Turns the sweep on, changes it, or turns it off. Bites already taken keep their sweeps. */
+  setSweep(sweep: Sweep | undefined): void {
+    if (sweep) this.liveSlice(sweep.sliceId);
+
+    this.sweeping = undefined;
+
+    if (sweep) this.holdSweep(sweep);
+  }
+
+  /**
+   * What a bite would sweep, and into which slice: nothing when the sweep is off, for a bite
+   * into the sweep's own slice, or for one on a whole step.
+   */
+  sweepOf(candidate: BiteCandidate): Bite["swept"] {
+    if (!this.sweeping || candidate.sliceId === this.sweeping.sliceId) return undefined;
+
+    const amount = sweptBy(candidate.amount, this.sweeping.step);
+
+    return amount.minor > 0 ? { sliceId: this.sweeping.sliceId, amount } : undefined;
   }
 
   /** Whether a carry loaded with the pie was undone, so repositories can forget it. */
@@ -212,12 +250,7 @@ export class Pie {
 
   /** What is left of the whole pie in money, never below zero: what a next month can carry. */
   leftoverMoney(): Money {
-    return this.whole.minus(
-      Money.sum(
-        [...this.eaten, ...this.counted()].map((food) => food.amount),
-        this.currency,
-      ),
-    );
+    return this.whole.minus(this.eatenInAll());
   }
 
   /** The bites eaten in the served month. */
@@ -416,12 +449,7 @@ export class Pie {
 
   /** How much of the whole pie is still left. */
   leftover(): Proportion {
-    return Money.sum(
-      [...this.eaten, ...this.counted()].map((food) => food.amount),
-      this.currency,
-    )
-      .proportionOf(this.whole)
-      .complement();
+    return this.eatenInAll().proportionOf(this.whole).complement();
   }
 
   /** Everything eaten from the pie this month: its bites and the staples it counts. */
@@ -441,6 +469,17 @@ export class Pie {
 
   private wholeOf(slice: Slice): Money {
     return slice.retired ? this.whole : this.sizeOf(slice);
+  }
+
+  private holdSweep(sweep: Sweep): void {
+    this.assertInCurrency(sweep.step);
+    this.slice(sweep.sliceId);
+
+    if (!sweep.step.isMoreThan(Money.zero(this.currency))) {
+      throw new PieError("A sweep needs a step above zero.");
+    }
+
+    this.sweeping = sweep;
   }
 
   private holdCarry(carry: Carry): void {
@@ -467,6 +506,11 @@ export class Pie {
     this.assertInCurrency(bite.amount);
     this.slice(bite.sliceId);
 
+    if (bite.swept) {
+      this.assertInCurrency(bite.swept.amount);
+      this.slice(bite.swept.sliceId);
+    }
+
     if (bite.eatenAt < this.month.start) {
       throw new PieError("That bite belongs to an earlier month.");
     }
@@ -487,9 +531,23 @@ export class Pie {
 
   private eatenFrom(slice: Slice): Money {
     return Money.sum(
-      this.eaten.flatMap((bite) => (bite.sliceId === slice.id ? [bite.amount] : [])),
+      this.eaten.flatMap((bite) => [
+        ...(bite.sliceId === slice.id ? [bite.amount] : []),
+        ...(bite.swept?.sliceId === slice.id ? [bite.swept.amount] : []),
+      ]),
       this.currency,
     ).plus(this.stapledFrom(slice));
+  }
+
+  /** Everything eaten from the whole pie: bites, their sweeps, and the staples it counts. */
+  private eatenInAll(): Money {
+    return Money.sum(
+      [
+        ...this.eaten.flatMap((bite) => [bite.amount, ...(bite.swept ? [bite.swept.amount] : [])]),
+        ...this.counted().map((staple) => staple.amount),
+      ],
+      this.currency,
+    );
   }
 
   private stapledFrom(slice: Slice): Money {
