@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryPieRepository } from "../adapters/in-memory-pie-repository";
+import { noAdvice } from "../adapters/no-advice";
 import { PieError } from "../domain";
 import { pienance } from ".";
 
@@ -9,6 +10,7 @@ function kitchen(now = new Date(Date.UTC(2026, 9, 10))) {
 
   const app = pienance({
     pies: new InMemoryPieRepository(),
+    advisor: noAdvice,
     newId: () => `id-${++id}`,
     now: () => clock.now,
   });

@@ -54,3 +54,8 @@ export function sampleRatioFrom(env: Env): number {
 export function deploymentFrom(env: Env): string | null {
   return env.VERCEL_DEPLOYMENT_ID ?? env.VERCEL_GIT_COMMIT_SHA ?? null;
 }
+
+/** Whether the Vercel AI Gateway can be called: with an API key, or on Vercel with its OIDC token. */
+export function aiGatewayFrom(env: Env): boolean {
+  return Boolean(env.AI_GATEWAY_API_KEY) || env.VERCEL === "1";
+}

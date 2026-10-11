@@ -136,6 +136,81 @@ export function PieTools({ pie, actions }: { pie: PieView | null; actions: PieAc
       options,
     );
 
+    void modelContext.registerTool(
+      {
+        name: "read_statement",
+        title: "Read a bank statement",
+        description:
+          "Reads the text of a CSV file exported from the user's bank, in any layout, without recording anything. Returns the expenses found in it, each with a suggested slice; incoming money is skipped. Show them to the user, then record them with take_bites.",
+        annotations: { readOnlyHint: true },
+        inputSchema: {
+          type: "object",
+          properties: { csv: { type: "string", description: "The whole CSV file, as text." } },
+          required: ["csv"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.readStatement({ csv: input.csv });
+
+          if (!outcome.ok) return outcome.error;
+
+          const { bites, incoming, unreadable } = outcome.value;
+
+          return {
+            found: `${bites.length} expenses; skipped ${incoming} incoming and ${unreadable} unreadable rows.`,
+            bites: bites.map((bite) => ({
+              day: bite.eatenOn,
+              amount: Number(bite.amount),
+              note: bite.note,
+              slice: slices.find((slice) => slice.id === bite.sliceId)?.name ?? "",
+            })),
+          };
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "take_bites",
+        title: "Record many expenses",
+        description:
+          "Records many expenses at once, each in the month it was made, such as those read_statement found. Expenses already recorded (same day, amount and note) are skipped.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            bites: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  ...biteProperties,
+                  day: { type: "string", description: "When it was spent, as YYYY-MM-DD." },
+                  note: { type: "string", description: "What the expense was." },
+                },
+                required: ["day", "amount", "slice", "note"],
+              },
+            },
+          },
+          required: ["bites"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.takeBites({
+            bites: input.bites.map((bite) => ({
+              eatenOn: bite.day,
+              amount: String(bite.amount),
+              note: bite.note,
+              sliceId: sliceIdOf(bite.slice),
+            })),
+          });
+
+          if (!outcome.ok) return outcome.error;
+
+          return `Recorded ${outcome.value.taken} expenses; ${outcome.value.duplicates} were already there.`;
+        },
+      },
+      options,
+    );
+
     return () => controller.abort();
   }, [pie, actions]);
 

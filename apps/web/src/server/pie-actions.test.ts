@@ -1,4 +1,4 @@
-import { InMemoryPieRepository, pienance, type PieRepository } from "@pienance/core";
+import { InMemoryPieRepository, noAdvice, pienance, type PieRepository } from "@pienance/core";
 import { describe, expect, it } from "vitest";
 import type { ProductEvent } from "@pienance/telemetry/contract";
 import { pieActions } from "./pie-actions";
@@ -8,6 +8,7 @@ function kitchen(pies: PieRepository = new InMemoryPieRepository()) {
 
   const app = pienance({
     pies,
+    advisor: noAdvice,
     newId: () => `id-${++id}`,
     now: () => new Date(Date.UTC(2026, 9, 10)),
   });
@@ -152,5 +153,64 @@ describe("pie actions", () => {
     await as(null).bakePie({ monthlyIncome: "3000", currency: "EUR" });
 
     expect(tracked).toEqual([]);
+  });
+
+  it("reads a statement, then takes its bites", async () => {
+    const { as, refreshes, tracked } = kitchen();
+    const ada = as("ada");
+
+    const csv = [
+      "Date;Description;Amount",
+      "02.10.2026;Bakery;-4,20",
+      "03.10.2026;Salary;3.000,00",
+      '05.10.2026;"Cinema; two seats";-24,00',
+    ].join("\n");
+
+    await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+
+    const read = await ada.readStatement({ csv });
+    const bites = read.ok ? read.value.bites : [];
+
+    expect(bites.map((bite) => [bite.eatenOn, bite.amount, bite.note])).toEqual([
+      ["2026-10-02", "4.20", "Bakery"],
+      ["2026-10-05", "24.00", "Cinema; two seats"],
+    ]);
+    expect(refreshes).toHaveLength(1);
+
+    expect(await ada.takeBites({ bites })).toEqual({
+      ok: true,
+      value: { taken: 2, duplicates: 0 },
+    });
+    expect(await ada.takeBites({ bites })).toEqual({
+      ok: true,
+      value: { taken: 0, duplicates: 2 },
+    });
+    expect((await ada.readPie())?.bites).toHaveLength(2);
+    expect(refreshes).toHaveLength(3);
+    expect(tracked.slice(1).map(({ event }) => event)).toEqual([
+      { name: "statement.read", properties: { bites: 2 } },
+      { name: "bites.taken", properties: { taken: 2, duplicates: 0 } },
+      { name: "bites.taken", properties: { taken: 0, duplicates: 2 } },
+    ]);
+  });
+
+  it("returns statement problems as values", async () => {
+    const { as } = kitchen();
+    const ada = as("ada");
+
+    await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+
+    expect(await ada.readStatement({ csv: "Name,Email\nAda,ada@example.com" })).toEqual({
+      ok: false,
+      error: "This file does not look like a list of transactions",
+    });
+    expect(await ada.readStatement({ csv: "x".repeat(2_000_001) })).toEqual({
+      ok: false,
+      error: "That file is too big: export a few months at a time",
+    });
+    expect(await as(null).readStatement({ csv: "" })).toEqual({
+      ok: false,
+      error: "Sign in first.",
+    });
   });
 });

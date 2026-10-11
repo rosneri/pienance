@@ -5,12 +5,23 @@ import {
   type BakePieInput,
   type Pienance,
   type PieView,
+  type StatementLayout,
+  type StatementPreview,
   type TakeBiteInput,
+  type TakenBites,
+  type TakeBitesInput,
   type WeighBiteInput,
   type WeighingView,
 } from "@pienance/core";
 import type { ProductEvent } from "@pienance/telemetry/contract";
+import { largestStatement, rowsOf } from "@/import/csv";
 import { failed, succeeded, type Outcome } from "./outcome";
+
+/** A bank statement as uploaded, and how to read it when the person corrected the guess. */
+export interface StatementUpload {
+  readonly csv: string;
+  readonly layout?: StatementLayout | undefined;
+}
 
 /** What a signed-in person sends; who they are comes from their session. */
 export type Asked<T> = Omit<T, "ownerId">;
@@ -80,6 +91,38 @@ export function pieActions(deps: PieActionsDeps) {
         deps.refresh();
 
         return bite.id;
+      });
+    },
+
+    readStatement(upload: StatementUpload): Promise<Outcome<StatementPreview>> {
+      return attempt(async (ownerId) => {
+        if (upload.csv.length > largestStatement) {
+          throw new RangeError("That file is too big: export a few months at a time");
+        }
+
+        const preview = await deps.app.readStatement({
+          ownerId,
+          rows: rowsOf(upload.csv),
+          layout: upload.layout,
+        });
+
+        deps.track(
+          { name: "statement.read", properties: { bites: preview.bites.length } },
+          ownerId,
+        );
+
+        return preview;
+      });
+    },
+
+    takeBites(input: Asked<TakeBitesInput>): Promise<Outcome<TakenBites>> {
+      return attempt(async (ownerId) => {
+        const taken = await deps.app.takeBites({ ...input, ownerId });
+
+        deps.track({ name: "bites.taken", properties: taken }, ownerId);
+        deps.refresh();
+
+        return taken;
       });
     },
   };

@@ -4,7 +4,10 @@ import { ownerOf } from "@pienance/auth";
 import type {
   BakePieInput,
   PieView,
+  StatementPreview,
   TakeBiteInput,
+  TakenBites,
+  TakeBitesInput,
   WeighBiteInput,
   WeighingView,
 } from "@pienance/core";
@@ -14,7 +17,7 @@ import { redirect } from "next/navigation";
 import { auth, pienance, track } from "@/pienance";
 import { accountActions, type Credentials, type SignUpDetails } from "@/server/account-actions";
 import type { Outcome } from "@/server/outcome";
-import { pieActions, type Asked } from "@/server/pie-actions";
+import { pieActions, type Asked, type StatementUpload } from "@/server/pie-actions";
 
 // Thin Next.js wrappers: the logic lives in src/server, where it is tested.
 
@@ -41,6 +44,14 @@ export async function weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<W
 
 export async function takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<string>> {
   return pies.takeBite(input);
+}
+
+export async function readStatement(upload: StatementUpload): Promise<Outcome<StatementPreview>> {
+  return pies.readStatement(upload);
+}
+
+export async function takeBites(input: Asked<TakeBitesInput>): Promise<Outcome<TakenBites>> {
+  return pies.takeBites(input);
 }
 
 export async function signUp(details: SignUpDetails): Promise<Outcome<null>> {

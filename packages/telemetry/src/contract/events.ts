@@ -2,7 +2,12 @@
 export type ProductEvent =
   | { readonly name: "pie.baked"; readonly properties: { readonly currency: string } }
   | { readonly name: "bite.weighed"; readonly properties: { readonly verdict: string } }
-  | { readonly name: "bite.taken"; readonly properties: Readonly<Record<string, never>> };
+  | { readonly name: "bite.taken"; readonly properties: Readonly<Record<string, never>> }
+  | { readonly name: "statement.read"; readonly properties: { readonly bites: number } }
+  | {
+      readonly name: "bites.taken";
+      readonly properties: { readonly taken: number; readonly duplicates: number };
+    };
 
 /** Clickstream events the browser sends. */
 export const browserEventNames = ["$pageview", "$click", "$leave"] as const;

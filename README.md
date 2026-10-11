@@ -21,6 +21,7 @@ It answers two questions:
 | **Serving**    | A slice with how much of it is eaten and left this month.               |
 | **Leftover**   | What is left of the whole pie this month.                               |
 | **Proportion** | A ratio, always shown _roughly_ ("about a quarter"), never as a number. |
+| **Statement**  | A bank's CSV export, in any layout; its spends become draft bites.      |
 
 These words are used as-is in code, UI, agent tools and conversation.
 
@@ -105,7 +106,21 @@ system is stamped in `packages/ui/src/styles/globals.css`, using shadcn's token 
 
 The web app registers [WebMCP](https://github.com/webmachinelearning/webmcp) tools so in-browser
 agents can use pienance directly: `bake_pie` before a pie exists, then `read_pie`, `weigh_bite`
-(read-only) and `take_bite`. They call the same server actions as the UI, so the page stays in sync.
+(read-only) and `take_bite`, plus `read_statement` (read-only) and `take_bites` to import a bank
+statement. They call the same server actions as the UI, so the page stays in sync.
+
+## Importing statements
+
+`/import` takes a CSV export from any bank. [Papa Parse](https://www.papaparse.com) splits the
+file (any delimiter, quoting, line endings); then `@pienance/core` guesses the layout by rules
+(`guessLayout`): preamble rows, which column is the day, amount, money out/in or description,
+day order and decimal mark. Only when the rules are unsure, or to suggest a slice for each bite,
+does the `Advisor` port ask a decision model through the AI SDK's `experimental_decide` and the
+[Vercel AI Gateway](https://vercel.com/docs/ai-gateway): Jev (`typesafe-ai/jev`) for now, to be
+replaced with Cloudflare's Clef once the gateway serves it (`apps/web/src/import/decision-advisor.ts`).
+Only the first rows and the distinct notes are sent. Without gateway access (no
+`AI_GATEWAY_API_KEY` locally), the rules work alone. Re-importing a statement skips the bites
+already taken.
 
 ## Getting started
 
@@ -176,7 +191,8 @@ Traces, web vitals, product analytics and clickstream go into the same Postgres,
 
 - **Traces**: OpenTelemetry in `instrumentation.ts` (Next.js, Prisma and each use case), tail
   sampled per request and written after the response.
-- **Product events**: `pie.baked`, `bite.weighed`, `bite.taken`, from the server actions.
+- **Product events**: `pie.baked`, `bite.weighed`, `bite.taken`, `statement.read`, `bites.taken`,
+  from the server actions.
 - **Clickstream and web vitals**: `<Telemetry />` batches pageviews, `data-track` clicks and
   vitals into beacons to `POST /api/telemetry`.
 - **Upkeep**: a daily Vercel Cron creates partitions, drops data older than 14 days and
@@ -207,4 +223,6 @@ Environment:
 - **Telemetry**: set `CRON_SECRET` so the daily maintenance cron can run. Optionally set
   `TELEMETRY_DATABASE_URL` (a pooled URL for a `telemetry_writer` role) and
   `TELEMETRY_SAMPLE_RATIO` (share of ordinary traces kept, default `1`).
+- **AI**: statement imports call the Vercel AI Gateway with the deployment's OIDC token; nothing
+  to set. Locally, set `AI_GATEWAY_API_KEY` to try it.
 - **Admins**: grant the role in the database (see Roles).

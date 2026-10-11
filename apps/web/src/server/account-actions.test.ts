@@ -1,5 +1,5 @@
 import { createAuth, ownerOf, type Auth } from "@pienance/auth";
-import { InMemoryPieRepository, pienance } from "@pienance/core";
+import { InMemoryPieRepository, noAdvice, pienance } from "@pienance/core";
 import { startTestDatabase, type TestDatabase } from "@pienance/db/testing";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -81,6 +81,7 @@ describe("signed-in pies (auth + pie actions + Postgres users)", () => {
   it("gives each signed-in person their own pie", async () => {
     const app = pienance({
       pies: new InMemoryPieRepository(),
+      advisor: noAdvice,
       newId: () => crypto.randomUUID(),
       now: () => new Date(),
     });

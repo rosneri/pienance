@@ -2,6 +2,7 @@ import { trace } from "@opentelemetry/api";
 import { createAuth, type Auth } from "@pienance/auth";
 import {
   InMemoryPieRepository,
+  noAdvice,
   pienance as wire,
   type Pienance,
   type PieRepository,
@@ -28,7 +29,9 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import { after } from "next/server";
+import { decisionAdvisor } from "./import/decision-advisor";
 import {
+  aiGatewayFrom,
   authSecretFrom,
   baseUrlFrom,
   deploymentFrom,
@@ -70,6 +73,8 @@ export const clock = (): Date => new Date();
 
 const app = wire({
   pies: pieRepository(),
+  // Statements are read by rules alone until the AI Gateway is reachable.
+  advisor: aiGatewayFrom(process.env) ? decisionAdvisor() : noAdvice,
   newId: () => crypto.randomUUID(),
   now: clock,
 });
@@ -80,6 +85,8 @@ export const pienance: Pienance = {
   servePie: traced("pienance.servePie", app.servePie),
   weighBite: traced("pienance.weighBite", app.weighBite),
   takeBite: traced("pienance.takeBite", app.takeBite),
+  readStatement: traced("pienance.readStatement", app.readStatement),
+  takeBites: traced("pienance.takeBites", app.takeBites),
 };
 
 let authInstance: Auth | undefined;

@@ -9,7 +9,11 @@ export default defineConfig({
     projects: [
       {
         extends: true,
-        test: { name: "server", include: ["src/server/**/*.test.ts"], environment: "node" },
+        test: {
+          name: "server",
+          include: ["src/server/**/*.test.ts", "src/import/**/*.test.ts"],
+          environment: "node",
+        },
       },
       {
         extends: true,

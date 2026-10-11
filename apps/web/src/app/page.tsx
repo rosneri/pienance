@@ -12,13 +12,21 @@ import { PieDiagram } from "@/components/pie-diagram";
 import { PieTools } from "@/components/pie-tools";
 import { WeighForm } from "@/components/weigh-form";
 import { auth, clock } from "@/pienance";
-import { bakePie, readPie, signOut, takeBite, weighBite } from "./actions";
+import {
+  bakePie,
+  readPie,
+  readStatement,
+  signOut,
+  takeBite,
+  takeBites,
+  weighBite,
+} from "./actions";
 
 export const dynamic = "force-dynamic";
 
 const monthName = new Intl.DateTimeFormat("en", { month: "long", timeZone: "UTC" });
 
-const actions = { readPie, bakePie, weighBite, takeBite };
+const actions = { readPie, bakePie, weighBite, takeBite, readStatement, takeBites };
 
 export default async function Home() {
   if (!(await ownerOf(auth(), await headers()))) redirect("/sign-in");
