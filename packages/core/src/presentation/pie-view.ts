@@ -5,6 +5,7 @@ import {
   isVoid,
   paceOf,
   roughly,
+  type Bite,
   type Month,
   type Pace,
   type Pie,
@@ -48,6 +49,8 @@ export interface BiteView {
   readonly sliceName: string;
   /** How much of its slice the bite took, as a simple fraction, e.g. "5/9". */
   readonly portion: string;
+  /** The same, in rough words, e.g. "about half". */
+  readonly portionWords: string;
   readonly eatenAt: string;
 }
 
@@ -110,14 +113,7 @@ export function viewPie(pie: Pie, served: Served): PieView {
     monthName: monthName(served.month),
     leftoverWords: roughly(pie.leftover()),
     slices: viewSlices(pie, gone),
-    bites: pie.bites.toReversed().map((bite) => ({
-      id: bite.id,
-      sliceId: bite.sliceId,
-      note: bite.note,
-      sliceName: pie.slice(bite.sliceId).name,
-      portion: asFraction(pie.portionOf(bite)),
-      eatenAt: bite.eatenAt.toISOString(),
-    })),
+    bites: pie.bites.toReversed().map((bite) => viewBite(pie, bite)),
     staples: pie.staples
       .filter((staple) => !isVoid(staple))
       .map((staple) => viewStaple(pie, staple, served.month)),
@@ -153,6 +149,20 @@ export function viewSlices(pie: Pie, gone?: Proportion): SliceView[] {
 
     return view;
   });
+}
+
+export function viewBite(pie: Pie, bite: Bite): BiteView {
+  const portion = pie.portionOf(bite);
+
+  return {
+    id: bite.id,
+    sliceId: bite.sliceId,
+    note: bite.note,
+    sliceName: pie.slice(bite.sliceId).name,
+    portion: asFraction(portion),
+    portionWords: roughly(portion),
+    eatenAt: bite.eatenAt.toISOString(),
+  };
 }
 
 export function viewStaple(pie: Pie, staple: Staple, month: Month): StapleView {

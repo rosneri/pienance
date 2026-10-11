@@ -1,6 +1,6 @@
 import { Proportion, roughly } from "../domain";
 import type { FocusView } from "./focus-view";
-import type { PieView, SliceView, StapleView, WeighingView } from "./pie-view";
+import type { BiteView, PieView, SliceView, StapleView, WeighingView } from "./pie-view";
 import type { AppetiteView, ShelfMonthView } from "./shelf-view";
 
 /** Below this much of the month gone, there is no pace to speak of: "nothing" or "a crumb". */
@@ -121,6 +121,19 @@ export function describeFocus(focus: FocusView, view: PieView): string {
 
   return `${capitalise(count(focus.biteIds.length, "bite"))} taken once ${past ? `in ${view.monthName} ate` : "this month ate"} ${share} of your pie.`;
 }
+
+/** The answer after taking a bite. */
+export function describeTaken(view: BiteView): string {
+  return `Taken. ${capitalise(view.portionWords)} of ${view.sliceName}.`;
+}
+
+/** The answer after moving a bite, restating where it went. */
+export function describeMoved(view: BiteView): string {
+  return `Moved. It is ${view.portionWords} of ${view.sliceName}.`;
+}
+
+/** The answer after putting a bite back. */
+export const putBackSentence = "Put back.";
 
 /** The answer after stocking a staple. */
 export function describeStaple(view: StapleView): string {

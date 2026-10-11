@@ -7,9 +7,14 @@ import { Kitchen } from "./kitchen";
 
 const refused = async () => ({ ok: false, error: "Not now" }) as const;
 
-const actions: Pick<PieActions, "weighBite" | "takeBite" | "stockStaple" | "dropStaple"> = {
+const actions: Pick<
+  PieActions,
+  "weighBite" | "takeBite" | "putBackBite" | "moveBite" | "stockStaple" | "dropStaple"
+> = {
   weighBite: refused,
   takeBite: refused,
+  putBackBite: refused,
+  moveBite: refused,
   stockStaple: refused,
   dropStaple: refused,
 };

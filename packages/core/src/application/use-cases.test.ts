@@ -90,6 +90,54 @@ describe("use cases", () => {
     expect((await app.servePie("ada"))?.bites).toHaveLength(0);
   });
 
+  describe("putting back and moving bites", () => {
+    async function withShoes() {
+      const { app, clock } = kitchen();
+      const pie = await app.bakePie({ ownerId: "ada", monthlyIncome: "3000", currency: "EUR" });
+      const [needs, wants] = pie.slices.map((slice) => slice.id);
+
+      const shoes = await app.takeBite({
+        ownerId: "ada",
+        sliceId: wants!,
+        amount: "225",
+        note: "Shoes",
+      });
+
+      return { app, clock, needs: needs!, wants: wants!, shoes };
+    }
+
+    it("puts a bite back for good", async () => {
+      const { app, shoes } = await withShoes();
+
+      await app.putBackBite({ ownerId: "ada", biteId: shoes.id });
+
+      expect((await app.servePie("ada"))?.bites).toEqual([]);
+    });
+
+    it("moves a bite and keeps its amount, note and day", async () => {
+      const { app, needs, shoes } = await withShoes();
+
+      const moved = await app.moveBite({ ownerId: "ada", biteId: shoes.id, sliceId: needs });
+
+      expect(moved).toEqual({ ...shoes, sliceId: needs });
+      expect((await app.servePie("ada"))?.bites).toEqual([moved]);
+    });
+
+    it("refuses a bite from a past month", async () => {
+      const { app, clock, needs, shoes } = await withShoes();
+
+      clock.now = new Date(Date.UTC(2026, 10, 2));
+
+      await expect(app.putBackBite({ ownerId: "ada", biteId: shoes.id })).rejects.toThrow(
+        "That bite is not in this month's pie.",
+      );
+      await expect(
+        app.moveBite({ ownerId: "ada", biteId: shoes.id, sliceId: needs }),
+      ).rejects.toThrow(PieError);
+      expect((await app.servePie("ada", Month.of(shoes.eatenAt)))?.bites).toHaveLength(1);
+    });
+  });
+
   describe("staples", () => {
     async function stocked() {
       const { app, clock } = kitchen();

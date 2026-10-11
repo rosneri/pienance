@@ -95,6 +95,21 @@ function fakeActions(): PieActions & { calls: string[] } {
 
       return { ok: false, error: "Bake a pie first" };
     },
+    putBackBite: async (input) => {
+      calls.push(`put back ${input.biteId}`);
+
+      return input.biteId === "shoes"
+        ? { ok: true, value: null }
+        : { ok: false, error: "That bite is not in this month's pie." };
+    },
+    moveBite: async (input) => {
+      calls.push(`move ${input.biteId} ${input.sliceId}`);
+
+      return {
+        ok: true,
+        value: { ...pieView.bites[0]!, sliceName: "Needs", portionWords: "about a tenth" },
+      };
+    },
     readStatement: async (upload) => {
       calls.push(`read ${upload.csv}`);
 
@@ -167,6 +182,8 @@ describe("PieTools (WebMCP)", () => {
 
     expect([...tools.keys()].toSorted()).toEqual([
       "drop_staple",
+      "move_bite",
+      "put_back_bite",
       "read_pie",
       "read_shelf",
       "read_statement",
@@ -201,8 +218,18 @@ describe("PieTools (WebMCP)", () => {
         { id: "rent", staple: "Rent: about half of Needs" },
         { id: "gym", staple: "Gym: a sliver of Wants, ends after October" },
       ],
-      bites: ["Shoes: 3/4 of Wants", "Something: under 1/10 of Needs"],
+      bites: [
+        { id: "shoes", note: "Shoes", slice: "Wants", portion: "3/4" },
+        { id: "nameless", note: "Something", slice: "Needs", portion: "under 1/10" },
+      ],
     });
+    expect(await tool("put_back_bite").execute({ biteId: "shoes" })).toBe("Put back.");
+    expect(await tool("put_back_bite").execute({ biteId: "old" })).toBe(
+      "That bite is not in this month's pie.",
+    );
+    expect(await tool("move_bite").execute({ biteId: "shoes", slice: "Needs" })).toBe(
+      "Moved. It is about a tenth of Needs.",
+    );
     expect(await tool("stock_staple").execute({ amount: 1000, slice: "Needs", note: "Rent" })).toBe(
       "Added. Rent takes about half of Needs every month.",
     );
@@ -212,6 +239,9 @@ describe("PieTools (WebMCP)", () => {
     expect(actions.calls).toEqual([
       "weigh wants 80",
       "take needs 5 Tea",
+      "put back shoes",
+      "put back old",
+      "move shoes needs",
       "stock needs 1000 Rent",
       "drop rent",
     ]);

@@ -3,15 +3,19 @@ import {
   Month,
   PieError,
   viewAppetite,
+  viewBite,
   viewPie,
   viewShelf,
   viewStaple,
   viewWeighing,
   type AppetiteSentence,
   type BakePieInput,
+  type BiteView,
   type DropStapleInput,
+  type MoveBiteInput,
   type Pienance,
   type PieView,
+  type PutBackBiteInput,
   type ShelfMonthView,
   type StapleView,
   type StockStapleInput,
@@ -100,6 +104,14 @@ export function pieActions(deps: PieActionsDeps) {
     return viewStaple(pie, staple, Month.of(deps.now()));
   }
 
+  async function thisMonthsBite(ownerId: string, biteId: string): Promise<BiteView> {
+    const pie = await deps.app.servePie(ownerId);
+
+    if (!pie) throw new PieError("Bake a pie first");
+
+    return viewBite(pie, pie.bite(biteId));
+  }
+
   return {
     /** This month's pie, or a past month's when `month` ("2026-09") is on the shelf. */
     async readPie(month?: string): Promise<PieView | null> {
@@ -170,14 +182,36 @@ export function pieActions(deps: PieActionsDeps) {
       });
     },
 
-    takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<string>> {
+    takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<BiteView>> {
       return attempt(async (ownerId) => {
         const bite = await deps.app.takeBite({ ...input, ownerId });
 
         deps.track({ name: "bite.taken", properties: {} }, ownerId);
         deps.refresh();
 
-        return bite.id;
+        return thisMonthsBite(ownerId, bite.id);
+      });
+    },
+
+    putBackBite(input: Asked<PutBackBiteInput>): Promise<Outcome<null>> {
+      return attempt(async (ownerId) => {
+        await deps.app.putBackBite({ ...input, ownerId });
+
+        deps.track({ name: "bite.put-back", properties: {} }, ownerId);
+        deps.refresh();
+
+        return null;
+      });
+    },
+
+    moveBite(input: Asked<MoveBiteInput>): Promise<Outcome<BiteView>> {
+      return attempt(async (ownerId) => {
+        const bite = await deps.app.moveBite({ ...input, ownerId });
+
+        deps.track({ name: "bite.moved", properties: {} }, ownerId);
+        deps.refresh();
+
+        return thisMonthsBite(ownerId, bite.id);
       });
     },
 

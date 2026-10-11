@@ -4,11 +4,13 @@ import {
   describeDropped,
   describeFocus,
   describeLeftover,
+  describeMoved,
   describePace,
   describePastLeftover,
   describeShelfMonth,
   describeStaple,
   describeWeighing,
+  putBackSentence,
   type PieView,
   type SliceView,
 } from "@pienance/core";
@@ -87,7 +89,7 @@ export function PieTools({
         name: "read_pie",
         title: "Read a month's pie",
         description:
-          "Returns how much of the user's monthly pie is left, per slice, how fast slices are eaten, the staples that come back every month (with their ids) and what was eaten. This month by default, or a past month on the shelf; the whole pie by default, or a single view (focus). Everything is described in proportions: rough words, and simple fractions for bites.",
+          "Returns how much of the user's monthly pie is left, per slice, how fast slices are eaten, the staples that come back every month and what was eaten, both with their ids. This month by default, or a past month on the shelf; the whole pie by default, or a single view (focus). Everything is described in proportions: rough words, and simple fractions for bites.",
         annotations: { readOnlyHint: true },
         inputSchema: {
           type: "object",
@@ -129,9 +131,12 @@ export function PieTools({
               id: staple.id,
               staple: `${staple.note || "Something"}: ${staple.portionWords} of ${staple.sliceName}${staple.endsAfter ? `, ends after ${staple.endsAfter}` : ""}`,
             })),
-            bites: inView(served.bites, focus?.biteIds).map(
-              (bite) => `${bite.note || "Something"}: ${bite.portion} of ${bite.sliceName}`,
-            ),
+            bites: inView(served.bites, focus?.biteIds).map((bite) => ({
+              id: bite.id,
+              note: bite.note || "Something",
+              slice: bite.sliceName,
+              portion: bite.portion,
+            })),
           };
         },
       },
@@ -204,6 +209,52 @@ export function PieTools({
           });
 
           return outcome.ok ? `Recorded ${input.note} in ${input.slice}.` : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "put_back_bite",
+        title: "Remove an expense",
+        description:
+          "Removes an expense recorded this month, as if it was never made. Take the id from read_pie.",
+        inputSchema: {
+          type: "object",
+          properties: { biteId: { type: "string", description: "The bite's id." } },
+          required: ["biteId"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.putBackBite({ biteId: input.biteId });
+
+          return outcome.ok ? putBackSentence : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "move_bite",
+        title: "Move an expense to another slice",
+        description:
+          "Moves an expense recorded this month into another slice, keeping its amount and note. Take the id from read_pie.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            biteId: { type: "string", description: "The bite's id." },
+            slice: biteProperties.slice,
+          },
+          required: ["biteId", "slice"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.moveBite({
+            biteId: input.biteId,
+            sliceId: sliceIdOf(input.slice),
+          });
+
+          return outcome.ok ? describeMoved(outcome.value) : outcome.error;
         },
       },
       options,

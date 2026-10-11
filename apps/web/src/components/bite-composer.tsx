@@ -2,7 +2,9 @@
 
 import {
   describeStaple,
+  describeTaken,
   describeVerdict,
+  putBackSentence,
   type SliceView,
   type StapleView,
   type WeighingView,
@@ -18,7 +20,10 @@ import { Answer, type Tone } from "./answer";
 import { currencySymbol } from "./currency-symbol";
 import { useFocus } from "./focus";
 
-export type ComposerActions = Pick<PieActions, "weighBite" | "takeBite" | "stockStaple">;
+export type ComposerActions = Pick<
+  PieActions,
+  "weighBite" | "takeBite" | "putBackBite" | "stockStaple"
+>;
 
 /** How long typing must pause before the bite is weighed. */
 export const weighDelay = 300;
@@ -54,6 +59,8 @@ export function BiteComposer({
   const [replaces, setReplaces] = useState<StapleView | null>(null);
   const [weighing, setWeighing] = useState<WeighingView | null>(null);
   const [said, setSaid] = useState<Said | null>(null);
+  /** The last bite taken: it can be put back until the next one is weighed. */
+  const [undoable, setUndoable] = useState<string | null>(null);
   const [taken, setTaken] = useState(changing);
   const [pending, startTransition] = useTransition();
   const amountInput = useRef<HTMLInputElement>(null);
@@ -104,6 +111,7 @@ export function BiteComposer({
   function start() {
     setOpen(true);
     setSaid(null);
+    setUndoable(null);
 
     // A focused slice is the likely one.
     if (focused?.kind === "slice" && focused.sliceId) setSliceId(focused.sliceId);
@@ -148,8 +156,23 @@ export function BiteComposer({
 
       if (!outcome.ok) return setSaid({ tone: "error", sentence: outcome.error });
 
-      // Silent success: the bite shows up in the list.
-      close();
+      reset();
+      setOpen(false);
+      setSaid({ tone: "fits", sentence: describeTaken(outcome.value) });
+      setUndoable(outcome.value.id);
+    });
+  }
+
+  function putBack(biteId: string) {
+    startTransition(async () => {
+      const outcome = await actions.putBackBite({ biteId });
+
+      setUndoable(null);
+      setSaid(
+        outcome.ok
+          ? { tone: "fits", sentence: putBackSentence }
+          : { tone: "error", sentence: outcome.error },
+      );
     });
   }
 
@@ -170,7 +193,22 @@ export function BiteComposer({
           </span>
           Add a bite
         </button>
-        {said && <Answer tone={said.tone}>{said.sentence}</Answer>}
+        {said && (
+          <div className="flex flex-wrap items-center gap-x-3 pb-2" aria-busy={pending}>
+            <Answer tone={said.tone}>{said.sentence}</Answer>
+            {undoable && (
+              <Button
+                variant="link"
+                className="h-11 px-0"
+                disabled={pending}
+                onClick={() => putBack(undoable)}
+                data-track="undo-take"
+              >
+                Put back
+              </Button>
+            )}
+          </div>
+        )}
       </li>
     );
   }

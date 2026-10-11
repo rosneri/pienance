@@ -1,4 +1,6 @@
 import type {
+  BiteView,
+  PutBackBiteInput,
   StapleView,
   StockStapleInput,
   TakeBiteInput,
@@ -32,6 +34,7 @@ function setup(weighed: Outcome<WeighingView> = { ok: true, value: fits }) {
   const weighs: Asked<WeighBiteInput>[] = [];
   const takes: Asked<TakeBiteInput>[] = [];
   const stocks: Asked<StockStapleInput>[] = [];
+  const putBacks: Asked<PutBackBiteInput>[] = [];
 
   const actions = {
     weighBite: async (input: Asked<WeighBiteInput>) => {
@@ -39,12 +42,25 @@ function setup(weighed: Outcome<WeighingView> = { ok: true, value: fits }) {
 
       return weighed;
     },
-    takeBite: async (input: Asked<TakeBiteInput>): Promise<Outcome<string>> => {
+    takeBite: async (input: Asked<TakeBiteInput>): Promise<Outcome<BiteView>> => {
       takes.push(input);
 
       return input.amount === "0"
         ? { ok: false, error: "Nothing to take" }
-        : { ok: true, value: "bite" };
+        : {
+            ok: true,
+            value: {
+              ...pieView.bites[1]!,
+              id: "tea",
+              note: input.note,
+              portionWords: "about a tenth",
+            },
+          };
+    },
+    putBackBite: async (input: Asked<PutBackBiteInput>): Promise<Outcome<null>> => {
+      putBacks.push(input);
+
+      return { ok: true, value: null };
     },
     stockStaple: async (input: Asked<StockStapleInput>): Promise<Outcome<StapleView>> => {
       stocks.push(input);
@@ -73,6 +89,7 @@ function setup(weighed: Outcome<WeighingView> = { ok: true, value: fits }) {
     weighs,
     takes,
     stocks,
+    putBacks,
     change: (staple: StapleView) => rerender(row(staple)),
     user: userEvent.setup(),
   };
@@ -117,8 +134,8 @@ describe("BiteComposer", () => {
     expect(screen.getByRole("radio", { name: "Savings" })).toBeChecked();
   });
 
-  it("takes the bite silently and closes", async () => {
-    const { takes, user } = setup();
+  it("takes the bite, closes, and offers to put it back", async () => {
+    const { takes, putBacks, user } = setup();
 
     await user.click(screen.getByRole("button", { name: "Add a bite" }));
     await user.type(screen.getByLabelText("What is it?"), "Tea");
@@ -129,6 +146,26 @@ describe("BiteComposer", () => {
       expect(takes).toEqual([{ sliceId: "needs", amount: "12.50", note: "Tea" }]),
     );
     expect(screen.getByRole("button", { name: "Add a bite" })).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Taken. About a tenth of Needs.");
+
+    await user.click(screen.getByRole("button", { name: "Put back" }));
+
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Put back."));
+    expect(putBacks).toEqual([{ biteId: "tea" }]);
+    expect(screen.queryByRole("button", { name: "Put back" })).not.toBeInTheDocument();
+  });
+
+  it("stops offering to put a bite back once the next one is started", async () => {
+    const { user } = setup();
+
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
+    await user.type(price(), "3");
+    await user.click(screen.getByRole("button", { name: "Take the bite" }));
+    await screen.findByRole("button", { name: "Put back" });
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(screen.queryByRole("button", { name: "Put back" })).not.toBeInTheDocument();
   });
 
   it("shows why a bite could not be weighed or taken", async () => {

@@ -52,6 +52,7 @@ export const pieView: PieView = {
       note: "Shoes",
       sliceName: "Wants",
       portion: "3/4",
+      portionWords: "about three quarters",
       eatenAt: "2026-10-03T10:00:00.000Z",
     },
     {
@@ -60,6 +61,7 @@ export const pieView: PieView = {
       note: "",
       sliceName: "Needs",
       portion: "under 1/10",
+      portionWords: "a crumb",
       eatenAt: "2026-10-02T10:00:00.000Z",
     },
   ],

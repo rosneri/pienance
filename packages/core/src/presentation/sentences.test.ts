@@ -6,11 +6,13 @@ import {
   describeDropped,
   describeFocus,
   describeLeftover,
+  describeMoved,
   describePace,
   describePastLeftover,
   describeShelfMonth,
   describeSlice,
   describeStaple,
+  describeTaken,
   describeVerdict,
   describeWeighing,
 } from "./sentences";
@@ -26,6 +28,21 @@ const weighing = {
 } as const;
 
 describe("sentences", () => {
+  it("restates a bite after taking or moving it", () => {
+    const bite = {
+      id: "shoes",
+      sliceId: "needs",
+      note: "Shoes",
+      sliceName: "Needs",
+      portion: "1/10",
+      portionWords: "about a tenth",
+      eatenAt: "2026-10-03T10:00:00.000Z",
+    };
+
+    expect(describeTaken(bite)).toBe("Taken. About a tenth of Needs.");
+    expect(describeMoved(bite)).toBe("Moved. It is about a tenth of Needs.");
+  });
+
   it.each([
     ["about half", "About half of your pie is left."],
     ["all", "Your whole pie is left."],

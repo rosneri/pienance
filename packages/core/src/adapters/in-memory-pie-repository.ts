@@ -23,7 +23,7 @@ export class InMemoryPieRepository implements PieRepository {
   async save(pie: Pie): Promise<void> {
     const stored = this.pies.get(pie.ownerId);
     const same = stored?.id === pie.id;
-    const biteIds = new Set(pie.bites.map((bite) => bite.id));
+    const biteIds = new Set([...pie.bites.map((bite) => bite.id), ...pie.putBackIds()]);
     const stapleIds = new Set(pie.staples.map((staple) => staple.id));
     const keptStaples: readonly Staple[] = same ? stored.staples : [];
 

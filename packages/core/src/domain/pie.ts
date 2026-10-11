@@ -32,12 +32,16 @@ export class PieError extends Error {
   override readonly name = "PieError";
 }
 
+const unknownBite = "That bite is not in this month's pie.";
+
 /**
  * The aggregate root: one person's monthly income (the pie), cut into slices,
  * with the bites eaten from it during one month and the staples that month counts.
  */
 export class Pie {
   private readonly sizes: ReadonlyMap<string, Money>;
+  /** Bites put back since the pie was loaded, so repositories can forget them. */
+  private readonly putBacks: string[] = [];
 
   private constructor(
     readonly id: string,
@@ -129,6 +133,41 @@ export class Pie {
     this.assertInCurrency(bite.amount);
     this.slice(bite.sliceId);
     this.eaten.push(bite);
+  }
+
+  /** One of the served month's bites. */
+  bite(biteId: string): Bite {
+    const bite = this.eaten.find((candidate) => candidate.id === biteId);
+
+    if (!bite) throw new PieError(unknownBite);
+
+    return bite;
+  }
+
+  /** Removes a bite, as if it was never taken. */
+  putBack(biteId: string): void {
+    this.eaten.splice(this.eaten.indexOf(this.bite(biteId)), 1);
+    this.putBacks.push(biteId);
+  }
+
+  /** Moves a bite into another slice; only its slice changes. */
+  move(biteId: string, sliceId: string): Bite {
+    const bite = this.bite(biteId);
+
+    this.slice(sliceId);
+
+    if (bite.sliceId === sliceId) return bite;
+
+    const moved = { ...bite, sliceId };
+
+    this.eaten[this.eaten.indexOf(bite)] = moved;
+
+    return moved;
+  }
+
+  /** The ids of the bites put back since the pie was loaded. */
+  putBackIds(): readonly string[] {
+    return this.putBacks;
   }
 
   /** Adds a staple to the pantry. */
