@@ -80,6 +80,7 @@ function fakeActions(): PieActions & { calls: string[] } {
         ok: true,
         value: {
           sliceName: "Wants",
+          portion: "1/5",
           ofSlice: "about a fifth",
           ofLeftover: "about a quarter",
           ofPie: "a sliver",
@@ -200,7 +201,7 @@ describe("PieTools (WebMCP)", () => {
         { id: "rent", staple: "Rent: about half of Needs" },
         { id: "gym", staple: "Gym: a sliver of Wants, ends after October" },
       ],
-      bites: ["Shoes: about three quarters of Wants", "Something: a crumb of Needs"],
+      bites: ["Shoes: 3/4 of Wants", "Something: under 1/10 of Needs"],
     });
     expect(await tool("stock_staple").execute({ amount: 1000, slice: "Needs", note: "Rent" })).toBe(
       "Added. Rent takes about half of Needs every month.",
@@ -229,6 +230,23 @@ describe("PieTools (WebMCP)", () => {
     expect(await tool("read_shelf").execute({})).toEqual({
       months: ["September: about a tenth left"],
       usually: ["You usually eat about three quarters of Needs."],
+    });
+  });
+
+  it("reads a single view", async () => {
+    render(<PieTools pie={pieView} actions={fakeActions()} />);
+
+    expect(tool("read_pie").inputSchema?.properties?.focus?.enum).toEqual([
+      "Needs",
+      "Wants",
+      "Savings",
+      "Every month",
+      "One time",
+    ]);
+    expect(await tool("read_pie").execute({ focus: "Every month" })).toMatchObject({
+      focus: "Every month, 2 staples take about a third of your pie.",
+      bites: [],
+      staples: [{ id: "rent" }, { id: "gym" }],
     });
   });
 

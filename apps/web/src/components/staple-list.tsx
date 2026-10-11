@@ -6,6 +6,7 @@ import { cn } from "@pienance/ui/lib/utils";
 import { useState, useTransition } from "react";
 import type { PieActions } from "@/server/pie-actions";
 import { Answer } from "./answer";
+import { useFocus } from "./focus";
 
 /** What a row shows under its options: nothing, the choices, or a stop to confirm. */
 type Open = { readonly id: string; readonly confirming: boolean } | null;
@@ -30,8 +31,13 @@ export function StapleList({
   const [open, setOpen] = useState<Open>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { focused } = useFocus();
 
-  if (staples.length === 0) return null;
+  const shown = focused
+    ? staples.filter((staple) => focused.stapleIds.includes(staple.id))
+    : staples;
+
+  if (shown.length === 0) return null;
 
   function drop(staple: StapleView) {
     if (!actions) return;
@@ -48,9 +54,12 @@ export function StapleList({
     <section className="grid content-start gap-4" aria-labelledby="staples-heading">
       <h2 id="staples-heading" className="text-2xl">
         Every month
+        {focused?.kind === "slice" && (
+          <span className="text-muted-foreground"> · {focused.name}</span>
+        )}
       </h2>
       <ul className="grid">
-        {staples.map((staple) => {
+        {shown.map((staple) => {
           const name = staple.note || "Something";
           const stop = staple.stockedThisMonth ? "Remove" : `Stop after ${monthName}`;
           const isOpen = open?.id === staple.id;

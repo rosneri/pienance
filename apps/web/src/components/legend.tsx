@@ -1,6 +1,9 @@
+"use client";
+
 import type { SliceView } from "@pienance/core";
 import { cn } from "@pienance/ui/lib/utils";
 import { crustBackground } from "./crust";
+import { useFocus } from "./focus";
 
 /** "about half left · about two thirds staples · going fast" */
 function describeRow(slice: SliceView): string {
@@ -13,19 +16,31 @@ function describeRow(slice: SliceView): string {
     .join(" · ");
 }
 
+/** One row per slice; each row focuses its slice, like tapping it in the pie. */
 export function Legend({ slices }: { slices: readonly SliceView[] }) {
+  const { focused, toggle } = useFocus();
+
   return (
-    <dl className="grid">
+    <ul className="grid">
       {slices.map((slice, index) => (
-        <div
-          key={slice.id}
-          className="grid grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-3 border-b py-3 first:border-t"
-        >
-          <span className={cn("size-3 rounded-full", crustBackground(index))} aria-hidden />
-          <dt className="font-medium">{slice.name}</dt>
-          <dd className="text-end text-muted-foreground">{describeRow(slice)}</dd>
-        </div>
+        <li key={slice.id} className="border-b first:border-t">
+          <button
+            type="button"
+            aria-pressed={focused?.sliceId === slice.id}
+            disabled={!toggle}
+            onClick={() => toggle?.(`slice:${slice.id}`)}
+            data-track="focus-slice"
+            className={cn(
+              "grid min-h-11 w-full grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-3 py-3 text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default enabled:cursor-pointer",
+              focused?.kind === "slice" && focused.sliceId !== slice.id && "opacity-50",
+            )}
+          >
+            <span className={cn("size-3 rounded-full", crustBackground(index))} aria-hidden />
+            <span className="font-medium">{slice.name}</span>
+            <span className="text-end text-muted-foreground">{describeRow(slice)}</span>
+          </button>
+        </li>
       ))}
-    </dl>
+    </ul>
   );
 }

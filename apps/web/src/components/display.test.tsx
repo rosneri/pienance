@@ -1,4 +1,9 @@
-import type { DropStapleInput, ShelfMonthView, StapleView } from "@pienance/core";
+import {
+  wedgePath,
+  type DropStapleInput,
+  type ShelfMonthView,
+  type StapleView,
+} from "@pienance/core";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
@@ -34,20 +39,34 @@ describe("PieDiagram", () => {
   });
 });
 
-describe("PieDiagram ticks", () => {
-  it("marks where each slice would end on pace, only while the month runs", () => {
+describe("PieDiagram pace", () => {
+  it("dots staples off a slice's end and hatches pace over the rest, only while it runs", () => {
     const { container, rerender } = render(<PieDiagram slices={pieView.slices} label="Pie" />);
 
-    expect(container.querySelectorAll("[data-tick]")).toHaveLength(0);
+    expect(container.querySelectorAll("[data-pace]")).toHaveLength(0);
+    // Staples are a given whether or not the month runs.
+    expect(container.querySelectorAll("[data-staples]")).toHaveLength(1);
 
     rerender(<PieDiagram slices={pieView.slices} label="Pie" gone={0.5} />);
 
-    const ticks = [...container.querySelectorAll("[data-tick]")];
+    const needs = container.querySelector('[data-slice="needs"]')!;
+    const wants = container.querySelector('[data-slice="wants"]')!;
 
-    // Needs spans the first half of the pie: half its span from the start is a quarter turn.
-    expect(ticks).toHaveLength(3);
-    expect(ticks[0]?.getAttribute("d")).toBe("M 100 100 L 200 100");
-    expect(ticks[0]?.getAttribute("class")).toContain("stroke-muted-foreground");
+    // Needs spans half the pie and rent takes half of it: the second quarter turn.
+    expect(needs.querySelector("[data-staples]")?.getAttribute("d")).toBe(
+      wedgePath(0.25, 0.5, 100),
+    );
+    // Half the month is gone: half of what rent leaves, just before the staples.
+    expect(needs.querySelector("[data-pace]")?.getAttribute("d")).toBe(wedgePath(0.125, 0.25, 100));
+    // Wants has no staples: the month's half is the end half of the slice.
+    expect(wants.querySelector("[data-pace]")?.getAttribute("d")).toBe(wedgePath(0.65, 0.8, 100));
+    expect(wants.querySelector("[data-staples]")).toBeNull();
+  });
+
+  it("shows no pace on the first day", () => {
+    const { container } = render(<PieDiagram slices={pieView.slices} label="Pie" gone={0.01} />);
+
+    expect(container.querySelectorAll("[data-pace]")).toHaveLength(0);
   });
 
   it("hides a pie that something around it already names", () => {
@@ -62,7 +81,7 @@ describe("Legend", () => {
     render(<Legend slices={pieView.slices} />);
 
     expect(screen.getByText("Wants").nextSibling).toHaveTextContent("about a quarter left");
-    expect(screen.getAllByRole("term")).toHaveLength(3);
+    expect(screen.getAllByRole("button")).toHaveLength(3);
   });
 
   it("adds staples and the pace word to fast rows only", () => {
@@ -220,7 +239,7 @@ describe("BiteList", () => {
 
     const items = screen.getAllByRole("listitem");
 
-    expect(items[0]).toHaveTextContent("Shoesabout three quarters of Wants");
+    expect(items[0]).toHaveTextContent("Shoes3/4 of Wants");
     expect(within(items[1] ?? document.body).getByText("Something")).toBeInTheDocument();
   });
 
