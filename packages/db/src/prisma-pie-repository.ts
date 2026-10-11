@@ -1,4 +1,4 @@
-import { currencyOf, Money, type Month, Pie, type PieRepository, Proportion } from "@pienance/core";
+import { currencyOf, Money, Month, Pie, type PieRepository, Proportion } from "@pienance/core";
 import type { PrismaClient } from "./generated/client";
 
 export class PrismaPieRepository implements PieRepository {
@@ -11,7 +11,16 @@ export class PrismaPieRepository implements PieRepository {
       include: {
         slices: {
           orderBy: { position: "asc" },
-          include: { bites: { where: { eatenAt: { gte: month.start, lt: month.end } } } },
+          include: {
+            bites: { where: { eatenAt: { gte: month.start, lt: month.end } } },
+            // Active in the month: stocked by its start, not stopped by then.
+            staples: {
+              where: {
+                since: { lte: month.start },
+                OR: [{ until: null }, { until: { gt: month.start } }],
+              },
+            },
+          },
         },
       },
     });
@@ -22,6 +31,7 @@ export class PrismaPieRepository implements PieRepository {
       id: row.id,
       ownerId: row.ownerId,
       income: Money.ofMinor(Number(row.incomeMinor), currencyOf(row.currency)),
+      bakedAt: row.createdAt,
       slices: row.slices.map((slice) => ({
         id: slice.id,
         name: slice.name,
@@ -37,6 +47,17 @@ export class PrismaPieRepository implements PieRepository {
           note: bite.note,
           eatenAt: bite.eatenAt,
         })),
+      staples: row.slices
+        .flatMap((slice) => slice.staples)
+        .toSorted((a, b) => a.since.getTime() - b.since.getTime())
+        .map((staple) => ({
+          id: staple.id,
+          sliceId: staple.sliceId,
+          amount: Money.ofMinor(Number(staple.amountMinor), currencyOf(staple.currency)),
+          note: staple.note,
+          since: Month.of(staple.since),
+          ...(staple.until && { until: Month.of(staple.until) }),
+        })),
     });
   }
 
@@ -46,7 +67,7 @@ export class PrismaPieRepository implements PieRepository {
     await this.db.$transaction([
       this.db.pie.upsert({
         where: { id: pie.id },
-        create: { id: pie.id, ownerId: pie.ownerId, ...income },
+        create: { id: pie.id, ownerId: pie.ownerId, createdAt: pie.bakedAt, ...income },
         update: income,
       }),
       ...pie.slices.map((slice, position) => {
@@ -69,6 +90,24 @@ export class PrismaPieRepository implements PieRepository {
           eatenAt: bite.eatenAt,
         })),
         skipDuplicates: true,
+      }),
+      // A staple only changes when it is dropped, which sets `until`.
+      ...pie.staples.map((staple) => {
+        const until = staple.until?.start ?? null;
+
+        return this.db.staple.upsert({
+          where: { id: staple.id },
+          create: {
+            id: staple.id,
+            sliceId: staple.sliceId,
+            currency: staple.amount.currency.code,
+            amountMinor: BigInt(staple.amount.minor),
+            note: staple.note,
+            since: staple.since.start,
+            until,
+          },
+          update: { until },
+        });
       }),
     ]);
   }

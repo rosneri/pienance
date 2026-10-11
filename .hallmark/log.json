@@ -31,5 +31,16 @@
     "nav": "N9 edge-aligned",
     "footer": "Ft2 inline",
     "brief": "pienance · monthly money as a pie, weigh a bite before buying"
+  },
+  {
+    "date": "2026-10-11",
+    "macrostructure": "Map / Diagram",
+    "theme": "custom",
+    "theme_axes": "light / roman-serif / warm (berry)",
+    "vibe": "cakes and pies, clean, minimalist",
+    "enrichment": "E5 hand-built SVG (the pie, on-pace ticks, shelf of small pies)",
+    "nav": "N9 edge-aligned",
+    "footer": "Ft2 inline",
+    "brief": "pienance · Staples, Pace, Shelf and Appetite on the same system (design system shared, not rotated); audit: 0 critical · 0 major · 0 minor after the legend wrap fix"
   }
 ]

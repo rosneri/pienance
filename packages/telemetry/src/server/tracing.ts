@@ -30,15 +30,15 @@ export function startTracing(settings: TracingSettings): NodeTracerProvider {
 }
 
 /** Runs `run` in a span named `name`, recording a thrown error on it. */
-export function traced<I, O>(
+export function traced<I extends unknown[], O>(
   name: string,
-  run: (input: I) => Promise<O>,
+  run: (...input: I) => Promise<O>,
   tracer: Tracer = trace.getTracer("pienance"),
-): (input: I) => Promise<O> {
-  return (input) =>
+): (...input: I) => Promise<O> {
+  return (...input) =>
     tracer.startActiveSpan(name, async (span) => {
       try {
-        return await run(input);
+        return await run(...input);
       } catch (error) {
         recordError(error, span);
         throw error;

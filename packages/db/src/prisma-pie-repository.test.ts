@@ -28,10 +28,11 @@ beforeEach(async () => {
   });
 });
 
-function bakeFor(ownerId: string, id = `pie-${ownerId}`) {
+function bakeFor(ownerId: string, id = `pie-${ownerId}`, bakedAt = new Date()) {
   return Pie.bake({
     id,
     ownerId,
+    bakedAt,
     income: Money.parse("450000", yen),
     slices: [
       { id: `${id}-needs`, name: "Needs", share: Proportion.of(0.5) },
@@ -102,11 +103,69 @@ describe("PrismaPieRepository (Postgres)", () => {
 
   it("keeps owners apart and serves an owner's latest pie", async () => {
     await pies.save(bakeFor("grace"));
-    await pies.save(bakeFor("ada", "first"));
-    await new Promise((resolve) => setTimeout(resolve, 5));
-    await pies.save(bakeFor("ada", "second"));
+    await pies.save(bakeFor("ada", "first", new Date(Date.UTC(2026, 8, 1))));
+    await pies.save(bakeFor("ada", "second", new Date(Date.UTC(2026, 9, 1))));
 
     expect((await pies.find("ada", october))?.id).toBe("second");
     expect((await pies.find("grace", october))?.id).toBe("pie-grace");
+  });
+
+  it("keeps when a pie was baked", async () => {
+    const bakedAt = new Date(Date.UTC(2026, 6, 14, 9));
+
+    await pies.save(bakeFor("ada", "pie-ada", bakedAt));
+
+    expect((await pies.find("ada", october))?.bakedAt).toEqual(bakedAt);
+  });
+
+  it("serves only the staples active in the asked month, and keeps a drop", async () => {
+    const pie = bakeFor("ada");
+
+    pie.stock({
+      id: "rent",
+      sliceId: "pie-ada-needs",
+      amount: Money.parse("90000", yen),
+      note: "Rent",
+      since: october,
+    });
+    await pies.save(pie);
+
+    const staples = async (month: Month) =>
+      (await pies.find("ada", month))?.staples.map((staple) => [
+        staple.note,
+        staple.amount.minor,
+        staple.since.toString(),
+        staple.until?.toString(),
+      ]);
+
+    const november = october.next();
+
+    expect(await staples(october.previous())).toEqual([]);
+    expect(await staples(november)).toEqual([["Rent", 90_000, "2026-10", undefined]]);
+
+    const later = await pies.find("ada", november);
+
+    later?.drop("rent", november);
+
+    if (later) await pies.save(later);
+
+    expect(await staples(november)).toEqual([["Rent", 90_000, "2026-10", "2026-12"]]);
+    expect(await staples(november.next())).toEqual([]);
+  });
+
+  it("forgets a staple dropped in the month it was stocked", async () => {
+    const pie = bakeFor("ada");
+
+    pie.stock({
+      id: "oops",
+      sliceId: "pie-ada-needs",
+      amount: Money.parse("100", yen),
+      note: "",
+      since: october,
+    });
+    pie.drop("oops", october);
+    await pies.save(pie);
+
+    expect((await pies.find("ada", october))?.staples).toEqual([]);
   });
 });

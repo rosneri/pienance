@@ -21,6 +21,7 @@ export function bakePie(ports: Ports) {
     const pie = Pie.bake({
       id: ports.newId(),
       ownerId: input.ownerId,
+      bakedAt: ports.now(),
       income: Money.parse(input.monthlyIncome, currencyOf(input.currency)),
       slices: defaultSlices.map((slice) => ({
         id: ports.newId(),

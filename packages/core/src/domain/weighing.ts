@@ -19,5 +19,7 @@ export interface Weighing {
   readonly ofLeftover: Proportion;
   /** What would be left of the slice afterwards. */
   readonly leftAfter: Proportion;
+  /** How much of the slice its staples already take. */
+  readonly stapled: Proportion;
   readonly verdict: Verdict;
 }
