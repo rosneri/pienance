@@ -119,6 +119,7 @@ describe("sentences", () => {
     const slice = (name: string, pace: Pace, ahead: number): SliceView => ({
       id: name,
       name,
+      retired: false,
       from: 0,
       to: 1,
       left: 0.5,
@@ -188,6 +189,7 @@ describe("sentences", () => {
     const wants = (pace: Pace): SliceView => ({
       id: "wants",
       name: "Wants",
+      retired: false,
       from: 0,
       to: 1,
       left: 0.5,
@@ -267,6 +269,7 @@ describe("sentences", () => {
         {
           id: "wants",
           name: "Wants",
+          retired: false,
           from: 0,
           to: 1,
           left: 0.5,
