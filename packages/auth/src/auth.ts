@@ -37,7 +37,9 @@ export function createAuth(settings: AuthSettings) {
     session: {
       cookieCache: { enabled: true, maxAge: 5 * 60, strategy: "jwt" },
     },
-    plugins: [jwt(), ...(settings.plugins ?? [])],
+    // Reading a session never signs a JWT: clients ask /token for one. Otherwise every signed-in
+    // page would need the JWKS private key, and a secret change would crash them all.
+    plugins: [jwt({ disableSettingJwtHeader: true }), ...(settings.plugins ?? [])],
   });
 }
 

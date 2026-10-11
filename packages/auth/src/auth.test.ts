@@ -137,6 +137,27 @@ describe("auth (Better Auth on Postgres)", () => {
     expect(await ownerOf(auth, fresh)).toBeNull();
   });
 
+  it("reads sessions even when the stored JWKS was encrypted with another secret", async () => {
+    // Issues a JWT, so the JWKS row exists, encrypted with the current secret.
+    await request("/token", { headers: cookiesOf(await signUp("hedy@example.com")) });
+
+    const rotated = createAuth({
+      database: prismaAdapter(database.prisma, { provider: "postgresql" }),
+      secret: "another-secret-that-is-at-least-32-characters-long",
+      baseURL,
+    });
+
+    const response = await rotated.handler(
+      new Request(`${baseURL}/api/auth/sign-in/email`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "hedy@example.com", password: "correct horse battery" }),
+      }),
+    );
+
+    expect(await ownerOf(rotated, cookiesOf(response))).not.toBeNull();
+  });
+
   describe("roles", () => {
     it("makes every new user a member", async () => {
       const viewer = await viewerOf(auth, cookiesOf(await signUp("mary@example.com")));
