@@ -77,11 +77,9 @@ describe("ImportForm", () => {
   it("takes the bites with the slices the person chose", async () => {
     const { takes, user } = setup();
 
-    await user.upload(screen.getByLabelText("Statement (CSV)"), file);
-    await user.selectOptions(
-      await screen.findByLabelText("Slice for Rent on 2026-10-03"),
-      "Savings",
-    );
+    // Choosing a slice while the statement is still being read would be undone by the read.
+    await uploadStatement(user);
+    await user.selectOptions(screen.getByLabelText("Slice for Rent on 2026-10-03"), "Savings");
     await user.click(screen.getByRole("button", { name: "Take 3 bites" }));
 
     await waitFor(() =>
