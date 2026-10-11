@@ -45,6 +45,7 @@ export const pieView: PieView = {
   bites: [
     {
       id: "shoes",
+      sliceId: "wants",
       note: "Shoes",
       sliceName: "Wants",
       portion: "3/4",
@@ -52,6 +53,7 @@ export const pieView: PieView = {
     },
     {
       id: "nameless",
+      sliceId: "needs",
       note: "",
       sliceName: "Needs",
       portion: "under 1/10",

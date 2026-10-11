@@ -38,6 +38,7 @@ export interface SliceView {
 
 export interface BiteView {
   readonly id: string;
+  readonly sliceId: string;
   readonly note: string;
   readonly sliceName: string;
   /** How much of its slice the bite took, as a simple fraction, e.g. "5/9". */
@@ -102,6 +103,7 @@ export function viewPie(pie: Pie, served: Served): PieView {
     slices: viewSlices(pie, gone),
     bites: pie.bites.toReversed().map((bite) => ({
       id: bite.id,
+      sliceId: bite.sliceId,
       note: bite.note,
       sliceName: pie.slice(bite.sliceId).name,
       portion: asFraction(pie.portionOf(bite)),

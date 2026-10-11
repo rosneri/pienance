@@ -20,6 +20,8 @@ import { PageFrame } from "@/components/page-frame";
 import { PieDiagram } from "@/components/pie-diagram";
 import { PieTools } from "@/components/pie-tools";
 import { Shelf } from "@/components/shelf";
+import { SliceFocusProvider } from "@/components/slice-focus";
+import { SliceStory } from "@/components/slice-story";
 import { StapleList } from "@/components/staple-list";
 import { auth, clock } from "@/pienance";
 import {
@@ -75,7 +77,7 @@ export default async function Home({
 
       <main className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start lg:gap-16">
         {pie ? (
-          <>
+          <SliceFocusProvider>
             <section
               className="grid min-w-0 content-start gap-6"
               aria-labelledby="leftover-heading"
@@ -97,8 +99,10 @@ export default async function Home({
               <PieDiagram
                 slices={pie.slices}
                 label={`What is left of each slice in ${month}${goneWords}`}
+                interactive
                 {...(pie.gone !== undefined && { gone: pie.gone })}
               />
+              <SliceStory pie={pie} />
               <Legend slices={pie.slices} />
               <Shelf months={shelf} />
               {shelf.length > 0 && !past && <Appetite sentences={appetite} />}
@@ -116,7 +120,7 @@ export default async function Home({
             ) : (
               <Kitchen pie={pie} actions={actions} />
             )}
-          </>
+          </SliceFocusProvider>
         ) : (
           <>
             <section className="grid content-start gap-6" aria-labelledby="bake-heading">

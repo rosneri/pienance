@@ -1,4 +1,5 @@
-import type { PieView, StapleView, WeighingView } from "./pie-view";
+import { Proportion, roughly } from "../domain";
+import type { PieView, SliceView, StapleView, WeighingView } from "./pie-view";
 import type { AppetiteView, ShelfMonthView } from "./shelf-view";
 
 /** Below this much of the month gone, there is no pace to speak of: "nothing" or "a crumb". */
@@ -53,6 +54,30 @@ export function describePace(view: PieView): string | null {
   if (others.length === 0) return `${sentence}.`;
 
   return `${sentence}, and ${others.map((slice) => slice.name).join(" and ")} too.`;
+}
+
+/**
+ * One slice, told on its own: what is left, against how much of the month is still to
+ * go, and what its staples take. A month that is over just says what was left.
+ */
+export function describeSlice(slice: SliceView, view: PieView): string {
+  const staples = slice.stapledWords ? ` Staples take ${slice.stapledWords} of it.` : "";
+
+  if (view.gone === undefined) {
+    return `${capitalise(slice.leftWords)} of ${slice.name} was left in ${view.monthName}.${staples}`;
+  }
+
+  const toGo = roughly(Proportion.of(1 - view.gone));
+  const left = `${slice.leftWords} of it is left, with ${toGo} of ${view.monthName} to go`;
+
+  switch (slice.pace ?? "steady") {
+    case "fast":
+      return `${slice.name} is going fast: ${left}.${staples}`;
+    case "slow":
+      return `${slice.name} is going slowly: ${left}.${staples}`;
+    case "steady":
+      return `${slice.name} is on pace: ${left}.${staples}`;
+  }
 }
 
 /** The answer after stocking a staple. */

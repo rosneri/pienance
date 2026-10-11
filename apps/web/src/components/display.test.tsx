@@ -34,20 +34,26 @@ describe("PieDiagram", () => {
   });
 });
 
-describe("PieDiagram ticks", () => {
-  it("marks where each slice would end on pace, only while the month runs", () => {
+describe("PieDiagram pace", () => {
+  it("hatches the share of each slice the month has used, only while it runs", () => {
     const { container, rerender } = render(<PieDiagram slices={pieView.slices} label="Pie" />);
 
-    expect(container.querySelectorAll("[data-tick]")).toHaveLength(0);
+    expect(container.querySelectorAll("[data-pace]")).toHaveLength(0);
 
     rerender(<PieDiagram slices={pieView.slices} label="Pie" gone={0.5} />);
 
-    const ticks = [...container.querySelectorAll("[data-tick]")];
+    const hatched = [...container.querySelectorAll("[data-pace]")];
 
-    // Needs spans the first half of the pie: half its span from the start is a quarter turn.
-    expect(ticks).toHaveLength(3);
-    expect(ticks[0]?.getAttribute("d")).toBe("M 100 100 L 200 100");
-    expect(ticks[0]?.getAttribute("class")).toContain("stroke-muted-foreground");
+    // Needs spans the first half of the pie: the month's half starts a quarter turn in.
+    expect(hatched).toHaveLength(3);
+    expect(hatched[0]?.getAttribute("d")).toBe("M 100 100 L 200 100 A 100 100 0 0 1 100 200 Z");
+    expect(hatched[0]?.getAttribute("fill")).toMatch(/^url\(#/);
+  });
+
+  it("shows no pace on the first day", () => {
+    const { container } = render(<PieDiagram slices={pieView.slices} label="Pie" gone={0.01} />);
+
+    expect(container.querySelectorAll("[data-pace]")).toHaveLength(0);
   });
 
   it("hides a pie that something around it already names", () => {
@@ -62,7 +68,7 @@ describe("Legend", () => {
     render(<Legend slices={pieView.slices} />);
 
     expect(screen.getByText("Wants").nextSibling).toHaveTextContent("about a quarter left");
-    expect(screen.getAllByRole("term")).toHaveLength(3);
+    expect(screen.getAllByRole("button")).toHaveLength(3);
   });
 
   it("adds staples and the pace word to fast rows only", () => {

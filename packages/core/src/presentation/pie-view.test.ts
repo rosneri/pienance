@@ -50,6 +50,7 @@ describe("viewPie", () => {
     expect(viewPie(pie, { month: october }).bites).toEqual([
       {
         id: "coffee",
+        sliceId: "wants",
         note: "Coffee",
         sliceName: "Wants",
         portion: "1/4",

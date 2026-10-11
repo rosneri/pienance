@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { radialPath, wedgePath } from "./pie-geometry";
+import { wedgePath } from "./pie-geometry";
 
 describe("wedgePath", () => {
   it("draws a quarter from twelve to three o'clock", () => {
@@ -16,11 +16,5 @@ describe("wedgePath", () => {
 
   it("draws a full circle for a whole pie", () => {
     expect(wedgePath(0, 1, 100)).toContain("A 100 100 0 1 1 100 200");
-  });
-});
-
-describe("radialPath", () => {
-  it("runs from the centre to the rim", () => {
-    expect(radialPath(0.25, 100)).toBe("M 100 100 L 200 100");
   });
 });

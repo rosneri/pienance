@@ -8,6 +8,7 @@ import {
   describePace,
   describePastLeftover,
   describeShelfMonth,
+  describeSlice,
   describeStaple,
   describeWeighing,
 } from "./sentences";
@@ -117,6 +118,61 @@ describe("sentences", () => {
         ),
       ).toBe(
         "Wants is going fast: about half eaten, about a third of the month gone, and Needs and Savings too.",
+      );
+    });
+  });
+
+  describe("one slice", () => {
+    const wants = (pace: Pace): SliceView => ({
+      id: "wants",
+      name: "Wants",
+      from: 0,
+      to: 1,
+      left: 0.5,
+      leftWords: "about half",
+      pace,
+    });
+
+    const october: PieView = {
+      currency: "EUR",
+      month: "2026-10",
+      monthName: "October",
+      leftoverWords: "about half",
+      slices: [],
+      bites: [],
+      staples: [],
+      gone: 1 / 3,
+      goneWords: "about a third",
+    };
+
+    it.each([
+      ["fast", "Wants is going fast"],
+      ["steady", "Wants is on pace"],
+      ["slow", "Wants is going slowly"],
+    ] as const)("tells a %s slice against the month still to go", (pace, opening) => {
+      expect(describeSlice(wants(pace), october)).toBe(
+        `${opening}: about half of it is left, with about two thirds of October to go.`,
+      );
+    });
+
+    it("adds what staples take", () => {
+      expect(
+        describeSlice({ ...wants("steady"), stapledWords: "about a third" }, october),
+      ).toContain("Staples take about a third of it.");
+    });
+
+    it("tells a month that is over in the past tense", () => {
+      const {
+        gone: _gone,
+        goneWords: _words,
+        ...september
+      } = {
+        ...october,
+        monthName: "September",
+      };
+
+      expect(describeSlice(wants("fast"), september)).toBe(
+        "About half of Wants was left in September.",
       );
     });
   });

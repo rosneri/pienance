@@ -28,10 +28,3 @@ function pointAt(turn: number, radius: number): readonly [number, number] {
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
 }
-
-/** SVG path data for a line from the centre to the rim, at a fraction of a full turn. */
-export function radialPath(turn: number, radius: number): string {
-  const [x, y] = pointAt(turn, radius);
-
-  return `M ${radius} ${radius} L ${x} ${y}`;
-}

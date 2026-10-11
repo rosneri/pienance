@@ -25,7 +25,7 @@ It answers two questions:
 | **Pace**       | How fast a slice is eaten compared with how much of the month is gone.  |
 | **Shelf**      | The past months of a pie, each shown as its own small pie.              |
 | **Appetite**   | How much of a slice is usually eaten by the end of a month.             |
-| **Proportion** | A ratio, said _roughly_ ("about a quarter") or, for bites, as "5/9".       |
+| **Proportion** | A ratio, said _roughly_ ("about a quarter") or, for bites, as "5/9".    |
 
 These words are used as-is in code, UI, agent tools and conversation.
 
