@@ -3,7 +3,7 @@
 import type { SliceView } from "@pienance/core";
 import { cn } from "@pienance/ui/lib/utils";
 import { crustBackground } from "./crust";
-import { useSliceFocus } from "./slice-focus";
+import { useFocus } from "./focus";
 
 /** "about half left · about two thirds staples · going fast" */
 function describeRow(slice: SliceView): string {
@@ -18,7 +18,7 @@ function describeRow(slice: SliceView): string {
 
 /** One row per slice; each row focuses its slice, like tapping it in the pie. */
 export function Legend({ slices }: { slices: readonly SliceView[] }) {
-  const { focused, toggle } = useSliceFocus();
+  const { focused, toggle } = useFocus();
 
   return (
     <ul className="grid">
@@ -26,13 +26,13 @@ export function Legend({ slices }: { slices: readonly SliceView[] }) {
         <li key={slice.id} className="border-b first:border-t">
           <button
             type="button"
-            aria-pressed={focused?.id === slice.id}
+            aria-pressed={focused?.sliceId === slice.id}
             disabled={!toggle}
-            onClick={() => toggle?.({ id: slice.id, name: slice.name })}
+            onClick={() => toggle?.(`slice:${slice.id}`)}
             data-track="focus-slice"
             className={cn(
               "grid min-h-11 w-full grid-cols-[auto_auto_minmax(0,1fr)] items-center gap-3 py-3 text-start outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-default enabled:cursor-pointer",
-              focused && focused.id !== slice.id && "opacity-50",
+              focused?.kind === "slice" && focused.sliceId !== slice.id && "opacity-50",
             )}
           >
             <span className={cn("size-3 rounded-full", crustBackground(index))} aria-hidden />

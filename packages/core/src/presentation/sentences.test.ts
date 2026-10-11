@@ -4,6 +4,7 @@ import type { PieView, SliceView } from "./pie-view";
 import {
   describeAppetite,
   describeDropped,
+  describeFocus,
   describeLeftover,
   describePace,
   describePastLeftover,
@@ -84,6 +85,7 @@ describe("sentences", () => {
       slices,
       bites: [],
       staples: [],
+      focuses: [],
       gone,
       goneWords: gone < 0.04 ? "a crumb" : "about a third",
     });
@@ -141,6 +143,7 @@ describe("sentences", () => {
       slices: [],
       bites: [],
       staples: [],
+      focuses: [],
       gone: 1 / 3,
       goneWords: "about a third",
     };
@@ -173,6 +176,81 @@ describe("sentences", () => {
 
       expect(describeSlice(wants("fast"), september)).toBe(
         "About half of Wants was left in September.",
+      );
+    });
+  });
+
+  describe("a focus", () => {
+    const recurrence = (key: string, biteIds: string[], stapleIds: string[]) => ({
+      key,
+      kind: "recurrence" as const,
+      name: "Every month",
+      eatenWords: "about a third",
+      leftWords: "about two thirds",
+      ofPieWords: "about a third",
+      biteIds,
+      stapleIds,
+    });
+
+    const october: PieView = {
+      currency: "EUR",
+      month: "2026-10",
+      monthName: "October",
+      leftoverWords: "about half",
+      slices: [
+        {
+          id: "wants",
+          name: "Wants",
+          from: 0,
+          to: 1,
+          left: 0.5,
+          leftWords: "about half",
+          pace: "fast",
+        },
+      ],
+      bites: [],
+      staples: [],
+      focuses: [],
+      gone: 1 / 3,
+      goneWords: "about a third",
+    };
+
+    it("tells a slice by its pace", () => {
+      expect(
+        describeFocus(
+          { ...recurrence("slice:wants", [], []), kind: "slice", sliceId: "wants", name: "Wants" },
+          october,
+        ),
+      ).toMatch(/^Wants is going fast/);
+    });
+
+    it("tells what comes back every month", () => {
+      expect(describeFocus(recurrence("recurrence:every-month", [], ["rent"]), october)).toBe(
+        "Every month, one staple takes about a third of your pie.",
+      );
+      expect(describeFocus(recurrence("recurrence:every-month", [], ["a", "b"]), october)).toBe(
+        "Every month, 2 staples take about a third of your pie.",
+      );
+      expect(describeFocus(recurrence("recurrence:every-month", [], []), october)).toBe(
+        "Nothing comes back every month yet.",
+      );
+    });
+
+    it("tells what was eaten once, now or in a month that is over", () => {
+      const {
+        gone: _gone,
+        goneWords: _words,
+        ...september
+      } = { ...october, monthName: "September" };
+
+      expect(describeFocus(recurrence("recurrence:one-time", ["a", "b"], []), october)).toBe(
+        "2 bites taken once this month ate about a third of your pie.",
+      );
+      expect(describeFocus(recurrence("recurrence:one-time", ["a"], []), september)).toBe(
+        "One bite taken once in September ate about a third of your pie.",
+      );
+      expect(describeFocus(recurrence("recurrence:one-time", [], []), september)).toBe(
+        "Nothing was eaten once in September.",
       );
     });
   });

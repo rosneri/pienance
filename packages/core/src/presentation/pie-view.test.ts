@@ -188,3 +188,21 @@ describe("viewAppetite", () => {
     ]);
   });
 });
+
+describe("focuses", () => {
+  it("offer each slice and each recurrence as a single view", () => {
+    expect(
+      viewPie(pie, { month: october }).focuses.map((focus) => [
+        focus.key,
+        focus.kind,
+        focus.eatenWords,
+        focus.biteIds,
+      ]),
+    ).toEqual([
+      ["slice:needs", "slice", "nothing", []],
+      ["slice:wants", "slice", "about a quarter", ["coffee"]],
+      ["recurrence:every-month", "recurrence", "nothing", []],
+      ["recurrence:one-time", "recurrence", "about a tenth", ["coffee"]],
+    ]);
+  });
+});

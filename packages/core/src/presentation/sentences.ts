@@ -1,4 +1,5 @@
 import { Proportion, roughly } from "../domain";
+import type { FocusView } from "./focus-view";
 import type { PieView, SliceView, StapleView, WeighingView } from "./pie-view";
 import type { AppetiteView, ShelfMonthView } from "./shelf-view";
 
@@ -80,6 +81,30 @@ export function describeSlice(slice: SliceView, view: PieView): string {
   }
 }
 
+/** A single view, told in a sentence: a slice tells its pace, a recurrence its share of the pie. */
+export function describeFocus(focus: FocusView, view: PieView): string {
+  const slice = view.slices.find((candidate) => candidate.id === focus.sliceId);
+
+  if (slice) return describeSlice(slice, view);
+
+  const past = view.gone === undefined;
+  const share = focus.ofPieWords;
+
+  if (focus.key === "recurrence:every-month") {
+    if (focus.stapleIds.length === 0) return "Nothing comes back every month yet.";
+
+    return `Every month, ${count(focus.stapleIds.length, "staple")} ${past ? "took" : focus.stapleIds.length === 1 ? "takes" : "take"} ${share} of your pie.`;
+  }
+
+  if (focus.biteIds.length === 0) {
+    return past
+      ? `Nothing was eaten once in ${view.monthName}.`
+      : "Nothing eaten once this month yet.";
+  }
+
+  return `${capitalise(count(focus.biteIds.length, "bite"))} taken once ${past ? `in ${view.monthName} ate` : "this month ate"} ${share} of your pie.`;
+}
+
 /** The answer after stocking a staple. */
 export function describeStaple(view: StapleView): string {
   return `Added. ${view.note || "It"} takes ${view.portionWords} of ${view.sliceName} every month.`;
@@ -133,6 +158,10 @@ function appetiteSentence(view: AppetiteView): string {
 
 function staplesClause(view: WeighingView): string {
   return view.stapled === "nothing" ? "" : ` Staples already take ${view.stapled} of it.`;
+}
+
+function count(n: number, noun: string): string {
+  return n === 1 ? `one ${noun}` : `${n} ${noun}s`;
 }
 
 function capitalise(words: string): string {

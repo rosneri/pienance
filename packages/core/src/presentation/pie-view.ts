@@ -12,6 +12,7 @@ import {
   type Verdict,
   type Weighing,
 } from "../domain";
+import { viewFocuses, type FocusView } from "./focus-view";
 import { monthName } from "./month-words";
 
 /**
@@ -70,6 +71,8 @@ export interface PieView {
   readonly slices: readonly SliceView[];
   readonly bites: readonly BiteView[];
   readonly staples: readonly StapleView[];
+  /** Every single view besides this overview: each slice, every month, one time. */
+  readonly focuses: readonly FocusView[];
   /** How much of the month is gone, between 0 and 1. Only while the month is running. */
   readonly gone?: number;
   readonly goneWords?: string;
@@ -112,6 +115,7 @@ export function viewPie(pie: Pie, served: Served): PieView {
     staples: pie.staples
       .filter((staple) => !isVoid(staple))
       .map((staple) => viewStaple(pie, staple, served.month)),
+    focuses: viewFocuses(pie),
     ...(gone && { gone: gone.ratio, goneWords: roughly(gone) }),
   };
 }

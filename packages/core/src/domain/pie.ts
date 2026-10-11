@@ -18,6 +18,11 @@ export interface Serving {
   readonly stapled: Proportion;
 }
 
+/** Anything eaten from the pie: a bite taken once, or a staple that comes back every month. */
+export type Food =
+  | { readonly kind: "bite"; readonly item: Bite }
+  | { readonly kind: "staple"; readonly item: Staple };
+
 export interface BiteCandidate {
   readonly sliceId: string;
   readonly amount: Money;
@@ -197,7 +202,16 @@ export class Pie {
       .complement();
   }
 
-  private sizeOf(slice: Slice): Money {
+  /** Everything eaten from the pie this month: its bites and the staples it counts. */
+  food(): Food[] {
+    return [
+      ...this.eaten.map((bite): Food => ({ kind: "bite", item: bite })),
+      ...this.counted().map((staple): Food => ({ kind: "staple", item: staple })),
+    ];
+  }
+
+  /** How much money a slice holds. */
+  sizeOf(slice: Slice): Money {
     return this.sizes.get(slice.id) ?? Money.zero(this.currency);
   }
 

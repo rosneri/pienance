@@ -5,24 +5,24 @@ import { pastPieView, pieView } from "@/testing/fixtures";
 import { BiteList } from "./bite-list";
 import { Legend } from "./legend";
 import { PieDiagram } from "./pie-diagram";
-import { SliceFocusProvider } from "./slice-focus";
-import { SliceStory } from "./slice-story";
+import { FocusProvider } from "./focus";
+import { FocusStory } from "./focus-story";
 import { StapleList } from "./staple-list";
 
 function board(pie = pieView) {
   render(
-    <SliceFocusProvider>
+    <FocusProvider focuses={pie.focuses}>
       <PieDiagram
         slices={pie.slices}
         label="Pie"
         interactive
         {...(pie.gone !== undefined && { gone: pie.gone })}
       />
-      <SliceStory pie={pie} />
+      <FocusStory pie={pie} />
       <Legend slices={pie.slices} />
       <StapleList staples={pie.staples} monthName={pie.monthName} />
       <BiteList bites={pie.bites} />
-    </SliceFocusProvider>,
+    </FocusProvider>,
   );
 
   return userEvent.setup();
@@ -30,7 +30,7 @@ function board(pie = pieView) {
 
 const wedge = (sliceId: string) => document.querySelector(`[data-slice="${sliceId}"]`)!;
 
-describe("focusing a slice", () => {
+describe("single views", () => {
   it("explains how to read the pie until a slice is chosen", () => {
     board();
 
@@ -83,8 +83,29 @@ describe("focusing a slice", () => {
 
     await user.click(screen.getByRole("button", { name: /^Savings/ }));
 
-    expect(screen.getByText("Nothing eaten from Savings.")).toBeInTheDocument();
+    expect(screen.getByText("Nothing here for Savings.")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent("All of Savings was left in September.");
+  });
+
+  it("shows what comes back every month, or what was eaten once, across slices", async () => {
+    const user = board();
+
+    await user.click(screen.getByRole("button", { name: "Every month" }));
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Every month, 2 staples take about a third of your pie.",
+    );
+    expect(wedge("needs")).not.toHaveClass("opacity-25");
+    expect(screen.queryByRole("heading", { name: /Eaten this month/ })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "One time" }));
+
+    expect(screen.getByRole("button", { name: "One time" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(screen.queryByRole("heading", { name: /Every month/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("2 bites taken once this month ate");
   });
 
   it("does nothing outside a pie that can be focused", async () => {

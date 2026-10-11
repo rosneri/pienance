@@ -1,7 +1,7 @@
 "use client";
 
 import type { BiteView } from "@pienance/core";
-import { useSliceFocus } from "./slice-focus";
+import { useFocus } from "./focus";
 
 export function BiteList({
   bites,
@@ -12,8 +12,11 @@ export function BiteList({
   heading?: string;
   empty?: string;
 }) {
-  const { focused } = useSliceFocus();
-  const shown = focused ? bites.filter((bite) => bite.sliceId === focused.id) : bites;
+  const { focused } = useFocus();
+  const shown = focused ? bites.filter((bite) => focused.biteIds.includes(bite.id)) : bites;
+
+  // A view across slices without bites (every month) has nothing to list here.
+  if (focused?.kind === "recurrence" && shown.length === 0) return null;
 
   return (
     <section className="grid content-start gap-4" aria-labelledby="bites-heading">
@@ -23,7 +26,7 @@ export function BiteList({
       </h2>
       {shown.length === 0 ? (
         <p className="max-w-[60ch] text-muted-foreground">
-          {focused && bites.length > 0 ? `Nothing eaten from ${focused.name}.` : empty}
+          {focused && bites.length > 0 ? `Nothing here for ${focused.name}.` : empty}
         </p>
       ) : (
         <ul className="grid">

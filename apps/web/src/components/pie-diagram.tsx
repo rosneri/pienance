@@ -4,7 +4,7 @@ import { wedgePath, type SliceView } from "@pienance/core";
 import { cn } from "@pienance/ui/lib/utils";
 import { useId } from "react";
 import { crustFill } from "./crust";
-import { useSliceFocus } from "./slice-focus";
+import { useFocus } from "./focus";
 
 const radius = 100;
 
@@ -34,7 +34,7 @@ export function PieDiagram({
   className?: string;
 }) {
   const hatch = useId();
-  const { focused, toggle } = useSliceFocus();
+  const { focused, toggle } = useFocus();
   const paced = gone !== undefined && gone >= paceFrom;
 
   return (
@@ -59,7 +59,8 @@ export function PieDiagram({
       {slices.map((slice, index) => {
         const span = slice.to - slice.from;
         const leftUntil = slice.from + span * slice.left;
-        const dimmed = focused !== null && focused.id !== slice.id;
+        // Only a slice's own view isolates it; views across slices leave the pie whole.
+        const dimmed = focused?.kind === "slice" && focused.sliceId !== slice.id;
 
         return (
           <g
@@ -71,8 +72,7 @@ export function PieDiagram({
               interactive && "cursor-pointer",
             )}
             style={{ animationDelay: `${index * 90}ms` }}
-            {...(interactive &&
-              toggle && { onClick: () => toggle({ id: slice.id, name: slice.name }) })}
+            {...(interactive && toggle && { onClick: () => toggle(`slice:${slice.id}`) })}
           >
             <path
               className="fill-plate stroke-border [stroke-dasharray:2_4]"

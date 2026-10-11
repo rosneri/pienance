@@ -200,6 +200,23 @@ describe("PieTools (WebMCP)", () => {
     });
   });
 
+  it("reads a single view", async () => {
+    render(<PieTools pie={pieView} actions={fakeActions()} />);
+
+    expect(tool("read_pie").inputSchema?.properties?.focus?.enum).toEqual([
+      "Needs",
+      "Wants",
+      "Savings",
+      "Every month",
+      "One time",
+    ]);
+    expect(await tool("read_pie").execute({ focus: "Every month" })).toMatchObject({
+      focus: "Every month, 2 staples take about a third of your pie.",
+      bites: [],
+      staples: [{ id: "rent" }, { id: "gym" }],
+    });
+  });
+
   it("offers only reading tools on a past month", () => {
     render(<PieTools pie={pastPieView} past actions={fakeActions()} />);
 
