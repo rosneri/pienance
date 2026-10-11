@@ -1,13 +1,20 @@
-import { render, screen, within } from "@testing-library/react";
+import type { DropStapleInput, ShelfMonthView, StapleView } from "@pienance/core";
+import { render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { Answer } from "./answer";
-import { BiteList } from "./bite-list";
+import type { Outcome } from "@/server/outcome";
+import type { Asked } from "@/server/pie-actions";
 import { pieView } from "@/testing/fixtures";
+import { Answer } from "./answer";
+import { Appetite } from "./appetite";
+import { BiteList } from "./bite-list";
 import { Headline } from "./headline";
 import { Legend } from "./legend";
 import { Masthead } from "./masthead";
 import { PageFrame } from "./page-frame";
 import { PieDiagram } from "./pie-diagram";
+import { Shelf } from "./shelf";
+import { StapleList } from "./staple-list";
 
 describe("PieDiagram", () => {
   it("draws every slice, labelled for screen readers", () => {
@@ -27,12 +34,183 @@ describe("PieDiagram", () => {
   });
 });
 
+describe("PieDiagram ticks", () => {
+  it("marks where each slice would end on pace, only while the month runs", () => {
+    const { container, rerender } = render(<PieDiagram slices={pieView.slices} label="Pie" />);
+
+    expect(container.querySelectorAll("[data-tick]")).toHaveLength(0);
+
+    rerender(<PieDiagram slices={pieView.slices} label="Pie" gone={0.5} />);
+
+    const ticks = [...container.querySelectorAll("[data-tick]")];
+
+    // Needs spans the first half of the pie: half its span from the start is a quarter turn.
+    expect(ticks).toHaveLength(3);
+    expect(ticks[0]?.getAttribute("d")).toBe("M 100 100 L 200 100");
+    expect(ticks[0]?.getAttribute("class")).toContain("stroke-muted-foreground");
+  });
+
+  it("hides a pie that something around it already names", () => {
+    const { container } = render(<PieDiagram slices={pieView.slices} />);
+
+    expect(container.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+  });
+});
+
 describe("Legend", () => {
   it("lists each slice with what is left", () => {
     render(<Legend slices={pieView.slices} />);
 
     expect(screen.getByText("Wants").nextSibling).toHaveTextContent("about a quarter left");
     expect(screen.getAllByRole("term")).toHaveLength(3);
+  });
+
+  it("adds staples and the pace word to fast rows only", () => {
+    render(<Legend slices={pieView.slices} />);
+
+    expect(screen.getByText("Needs").nextSibling).toHaveTextContent(
+      /^about a third left · about half staples$/,
+    );
+    expect(screen.getByText("Wants").nextSibling).toHaveTextContent(
+      /^about a quarter left · going fast$/,
+    );
+    expect(screen.getByText("Savings").nextSibling).toHaveTextContent(/^all left$/);
+  });
+});
+
+describe("StapleList", () => {
+  function setup(staples: readonly StapleView[] = pieView.staples) {
+    const drops: Asked<DropStapleInput>[] = [];
+    const changes: StapleView[] = [];
+
+    const actions = {
+      dropStaple: async (input: Asked<DropStapleInput>): Promise<Outcome<StapleView>> => {
+        drops.push(input);
+
+        return { ok: true, value: { ...pieView.staples[0]!, endsAfter: "October" } };
+      },
+    };
+
+    render(
+      <StapleList
+        staples={staples}
+        monthName="October"
+        actions={actions}
+        onChange={(staple) => changes.push(staple)}
+      />,
+    );
+
+    return { drops, changes, user: userEvent.setup() };
+  }
+
+  it("is hidden while the pantry is empty", () => {
+    const { container } = render(<StapleList staples={[]} monthName="October" />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("lists staples with their portion, and stopped ones as ending", () => {
+    setup();
+
+    const [rent, gym] = screen.getAllByRole("listitem");
+
+    expect(rent).toHaveTextContent("Rentabout half of Needs");
+    expect(gym).toHaveTextContent("GymEnds after October");
+    expect(screen.getAllByRole("button", { name: /Options/ })).toHaveLength(1);
+  });
+
+  it("stops a staple after this month, once confirmed", async () => {
+    const { drops, user } = setup();
+
+    await user.click(screen.getByRole("button", { name: "Options for Rent" }));
+    await user.click(screen.getByRole("button", { name: "Stop after October" }));
+
+    expect(drops).toEqual([]);
+    expect(screen.getByText("Stop after October?")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+
+    await waitFor(() => expect(drops).toEqual([{ stapleId: "rent" }]));
+  });
+
+  it("removes a staple stocked this month, and keeps one on second thought", async () => {
+    const fresh = { ...pieView.staples[0]!, stockedThisMonth: true };
+    const { drops, user } = setup([fresh]);
+
+    await user.click(screen.getByRole("button", { name: "Options for Rent" }));
+    await user.click(screen.getByRole("button", { name: "Remove" }));
+    await user.click(screen.getByRole("button", { name: "Keep it" }));
+
+    expect(drops).toEqual([]);
+    expect(screen.queryByRole("button", { name: "Keep it" })).not.toBeInTheDocument();
+  });
+
+  it("hands a staple over to change its amount", async () => {
+    const { changes, user } = setup();
+
+    await user.click(screen.getByRole("button", { name: "Options for Rent" }));
+    await user.click(screen.getByRole("button", { name: "Change amount" }));
+
+    expect(changes.map((staple) => staple.id)).toEqual(["rent"]);
+  });
+
+  it("is read-only without actions", () => {
+    render(<StapleList staples={pieView.staples} monthName="September" />);
+
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+});
+
+describe("Shelf", () => {
+  const month = (key: string, name: string, current: boolean): ShelfMonthView => ({
+    month: key,
+    label: name.slice(0, 3),
+    name,
+    slices: pieView.slices,
+    leftoverWords: "about a tenth",
+    current,
+  });
+
+  it("is hidden without past months", () => {
+    const { container } = render(<Shelf months={[]} />);
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("links this month first, then past months, marking the one on screen", () => {
+    render(
+      <Shelf months={[month("2026-10", "October", false), month("2026-09", "September", true)]} />,
+    );
+
+    const [october, september] = screen.getAllByRole("link");
+
+    expect(october).toHaveAttribute("href", "/");
+    expect(october).not.toHaveAttribute("aria-current");
+    expect(september).toHaveAttribute("href", "/?month=2026-09");
+    expect(september).toHaveAttribute("aria-current", "page");
+    expect(september).toHaveAccessibleName("September: about a tenth left");
+  });
+});
+
+describe("Appetite", () => {
+  it("promises to tell after three months", () => {
+    render(<Appetite sentences={[]} />);
+
+    expect(screen.getByText(/After three months/)).toHaveClass("text-muted-foreground");
+  });
+
+  it("tells overflow streaks in the tight tone", () => {
+    render(
+      <Appetite
+        sentences={[
+          { sentence: "Wants has overflowed three months running.", streak: "overflowing" },
+          { sentence: "You usually eat about half of Needs." },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText(/overflowed/)).toHaveClass("text-tight");
+    expect(screen.getByText(/usually eat/)).toHaveClass("text-foreground");
   });
 });
 
@@ -50,6 +228,13 @@ describe("BiteList", () => {
     render(<BiteList bites={[]} />);
 
     expect(screen.getByText("Not a crumb yet.")).toBeInTheDocument();
+  });
+
+  it("names a past month", () => {
+    render(<BiteList bites={[]} heading="Eaten in September" empty="Not a crumb that month." />);
+
+    expect(screen.getByRole("heading", { name: "Eaten in September" })).toBeInTheDocument();
+    expect(screen.getByText("Not a crumb that month.")).toBeInTheDocument();
   });
 });
 

@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import type { Bite } from "./bite";
 import { currencyOf } from "./currency";
 import { Money } from "./money";
+import { Month } from "./month";
 import { Pie, PieError } from "./pie";
 import { Proportion } from "./proportion";
+import type { Staple } from "./staple";
 
 const eur = (amount: number) => Money.parse(String(amount), currencyOf("EUR"));
 
@@ -11,6 +13,8 @@ const slices = [
   { id: "needs", name: "Needs", share: Proportion.of(0.5) },
   { id: "wants", name: "Wants", share: Proportion.of(0.5) },
 ];
+
+const bakedAt = new Date(Date.UTC(2026, 9, 1));
 
 let biteCount = 0;
 
@@ -22,13 +26,29 @@ const bite = (sliceId: string, amount: number): Bite => ({
   eatenAt: new Date(),
 });
 
-const pieOf = (bites: Bite[] = []) =>
-  Pie.bake({ id: "pie", ownerId: "ada", income: eur(1000), slices, bites });
+const pieOf = (bites: Bite[] = [], staples: Staple[] = []) =>
+  Pie.bake({ id: "pie", ownerId: "ada", income: eur(1000), slices, bakedAt, bites, staples });
+
+const october = Month.of(bakedAt);
+
+const staple = (sliceId: string, amount: number, id = "rent"): Staple => ({
+  id,
+  sliceId,
+  amount: eur(amount),
+  note: "Rent",
+  since: october,
+});
 
 describe("Pie", () => {
   it("refuses slices that do not add up to the whole pie", () => {
     expect(() =>
-      Pie.bake({ id: "pie", ownerId: "ada", income: eur(1000), slices: slices.slice(0, 1) }),
+      Pie.bake({
+        id: "pie",
+        ownerId: "ada",
+        income: eur(1000),
+        slices: slices.slice(0, 1),
+        bakedAt,
+      }),
     ).toThrow(PieError);
   });
 
@@ -102,5 +122,77 @@ describe("Pie", () => {
     const pie = pieOf();
     pie.weigh({ sliceId: "wants", amount: eur(50) });
     expect(pie.bites).toHaveLength(0);
+  });
+
+  describe("staples", () => {
+    it("count as eaten from day one, in servings and leftover", () => {
+      const pie = pieOf([bite("needs", 50)], [staple("needs", 300)]);
+      const [needs] = pie.servings();
+
+      expect(needs?.eaten.ratio).toBe(0.7);
+      expect(needs?.stapled.ratio).toBe(0.6);
+      expect(pie.leftover().ratio).toBe(0.65);
+    });
+
+    it("weigh in, so a slice they fill overflows with any bite", () => {
+      const pie = pieOf([], [staple("needs", 500)]);
+      const weighing = pie.weigh({ sliceId: "needs", amount: eur(1) });
+
+      expect(pie.servings()[0]?.left.ratio).toBe(0);
+      expect(weighing.verdict).toBe("overflows");
+      expect(weighing.stapled.ratio).toBe(1);
+    });
+
+    it("refuses one in another currency, on an unknown slice, or of nothing", () => {
+      const pie = pieOf();
+      const dollars = { ...staple("needs", 1), amount: Money.parse("5", currencyOf("USD")) };
+
+      expect(() => pie.stock(dollars)).toThrow(PieError);
+      expect(() => pie.stock(staple("dessert", 1))).toThrow(PieError);
+      expect(() => pie.stock(staple("needs", 0))).toThrow("A staple needs an amount above zero");
+    });
+
+    it("stops after the month it is dropped in", () => {
+      const pie = pieOf([], [{ ...staple("needs", 300), since: october.previous() }]);
+      const dropped = pie.drop("rent", october);
+
+      expect(dropped.until?.equals(october.next())).toBe(true);
+      expect(pie.servings()[0]?.stapled.ratio).toBe(0.6);
+    });
+
+    it("never counted when dropped in the month it was stocked", () => {
+      const pie = pieOf([], [staple("needs", 300)]);
+      const dropped = pie.drop("rent", october);
+
+      expect(dropped.until?.equals(october)).toBe(true);
+      expect(pie.servings()[0]?.eaten.ratio).toBe(0);
+      expect(pie.leftover().ratio).toBe(1);
+    });
+
+    it("refuses to drop an unknown or stopped staple", () => {
+      const pie = pieOf([], [staple("needs", 300)]);
+
+      expect(() => pie.drop("water", october)).toThrow(PieError);
+      pie.drop("rent", october);
+      expect(() => pie.drop("rent", october)).toThrow("That staple is already stopped");
+    });
+
+    it("changes an amount by stopping the old staple where the new one starts", () => {
+      const old = { ...staple("needs", 300), since: october.previous() };
+      const pie = pieOf([], [old]);
+
+      pie.replace("rent", staple("needs", 350, "new-rent"));
+
+      expect(pie.staples.map((kept) => [kept.id, kept.until?.toString()])).toEqual([
+        ["rent", october.toString()],
+        ["new-rent", undefined],
+      ]);
+    });
+
+    it("tells how much of its slice a staple takes", () => {
+      const rent = staple("needs", 250);
+
+      expect(pieOf([], [rent]).portionOfStaple(rent).ratio).toBe(0.5);
+    });
   });
 });

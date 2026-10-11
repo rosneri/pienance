@@ -256,6 +256,8 @@ counted too.
 | `pie.baked`      | `currency`            |
 | `bite.weighed`   | `verdict`             |
 | `bite.taken`     | —                     |
+| `staple.stocked` | `replaced`            |
+| `staple.dropped` | `removed`             |
 | `statement.read` | `bites` (count)       |
 | `bites.taken`    | `taken`, `duplicates` |
 

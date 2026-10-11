@@ -5,13 +5,10 @@ import { pieActions } from "./pie-actions";
 
 function kitchen(pies: PieRepository = new InMemoryPieRepository()) {
   let id = 0;
+  const clock = { now: new Date(Date.UTC(2026, 9, 10)) };
+  const now = () => clock.now;
 
-  const app = pienance({
-    pies,
-    advisor: noAdvice,
-    newId: () => `id-${++id}`,
-    now: () => new Date(Date.UTC(2026, 9, 10)),
-  });
+  const app = pienance({ pies, advisor: noAdvice, newId: () => `id-${++id}`, now });
 
   const refreshes: string[] = [];
   const tracked: Array<{ event: ProductEvent; ownerId: string }> = [];
@@ -22,9 +19,10 @@ function kitchen(pies: PieRepository = new InMemoryPieRepository()) {
       owner: async () => owner,
       refresh: () => refreshes.push("refresh"),
       track: (event, ownerId) => tracked.push({ event, ownerId }),
+      now,
     });
 
-  return { as, refreshes, tracked };
+  return { as, clock, refreshes, tracked };
 }
 
 describe("pie actions", () => {
@@ -69,6 +67,7 @@ describe("pie actions", () => {
         ofLeftover: "about a quarter",
         ofPie: "a sliver",
         leftAfter: "about three quarters",
+        stapled: "nothing",
         verdict: "fits",
       },
     });
@@ -153,6 +152,150 @@ describe("pie actions", () => {
     await as(null).bakePie({ monthlyIncome: "3000", currency: "EUR" });
 
     expect(tracked).toEqual([]);
+  });
+
+  it("serves this month with its pace", async () => {
+    const { as } = kitchen();
+    const ada = as("ada");
+
+    await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+
+    const pie = await ada.readPie();
+
+    expect([pie?.month, pie?.monthName, pie?.goneWords]).toEqual([
+      "2026-10",
+      "October",
+      "about a third",
+    ]);
+    expect(pie?.slices.map((slice) => slice.pace)).toEqual(["slow", "slow", "slow"]);
+  });
+
+  describe("staples", () => {
+    it("stocks one, answers with its view, and counts it in the pie", async () => {
+      const { as, refreshes, tracked } = kitchen();
+      const ada = as("ada");
+      const baked = await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+      const needs = baked.ok ? (baked.value.slices[0]?.id ?? "") : "";
+      const outcome = await ada.stockStaple({ sliceId: needs, amount: "1000", note: "Rent" });
+
+      expect(outcome.ok && outcome.value).toMatchObject({
+        note: "Rent",
+        sliceName: "Needs",
+        portionWords: "about two thirds",
+        stockedThisMonth: true,
+      });
+      expect((await ada.readPie())?.slices[0]?.stapledWords).toBe("about two thirds");
+      expect(refreshes).toHaveLength(2);
+      expect(tracked.at(-1)?.event).toEqual({
+        name: "staple.stocked",
+        properties: { replaced: false },
+      });
+    });
+
+    it("removes one stocked this month, and stops an older one after this month", async () => {
+      const { as, clock, tracked } = kitchen();
+      const ada = as("ada");
+      const baked = await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+      const needs = baked.ok ? (baked.value.slices[0]?.id ?? "") : "";
+      const stock = () => ada.stockStaple({ sliceId: needs, amount: "100", note: "Water" });
+      const fresh = await stock();
+      const removed = await ada.dropStaple({ stapleId: fresh.ok ? fresh.value.id : "" });
+
+      expect(removed.ok && removed.value.endsAfter).toBeUndefined();
+      expect((await ada.readPie())?.staples).toEqual([]);
+
+      const old = await stock();
+
+      clock.now = new Date(Date.UTC(2026, 10, 3));
+      const stopped = await ada.dropStaple({ stapleId: old.ok ? old.value.id : "" });
+
+      expect(stopped.ok && stopped.value.endsAfter).toBe("November");
+      expect((await ada.readPie())?.staples.map((staple) => staple.endsAfter)).toEqual([
+        "November",
+      ]);
+      expect(tracked.filter(({ event }) => event.name === "staple.dropped")).toEqual([
+        { event: { name: "staple.dropped", properties: { removed: true } }, ownerId: "ada" },
+        { event: { name: "staple.dropped", properties: { removed: false } }, ownerId: "ada" },
+      ]);
+    });
+
+    it("refuses one of nothing, as a value", async () => {
+      const { as } = kitchen();
+      const ada = as("ada");
+      const baked = await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+      const needs = baked.ok ? (baked.value.slices[0]?.id ?? "") : "";
+
+      expect(await ada.stockStaple({ sliceId: needs, amount: "0", note: "" })).toEqual({
+        ok: false,
+        error: "A staple needs an amount above zero",
+      });
+    });
+  });
+
+  describe("shelf", () => {
+    async function monthsLater() {
+      const { as, clock } = kitchen();
+      const ada = as("ada");
+      const baked = await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+      const wants = baked.ok ? (baked.value.slices[1]?.id ?? "") : "";
+
+      await ada.takeBite({ sliceId: wants, amount: "450", note: "Concert" });
+      clock.now = new Date(Date.UTC(2027, 0, 15));
+
+      return ada;
+    }
+
+    it("serves a past month on the shelf, without pace", async () => {
+      const ada = await monthsLater();
+      const october = await ada.readPie("2026-10");
+
+      expect([october?.monthName, october?.gone, october?.bites.length]).toEqual([
+        "October",
+        undefined,
+        1,
+      ]);
+    });
+
+    it.each(["junk", "2026-9", "2026-09", "2027-01", "2027-02"])(
+      "serves this month for %s",
+      async (month) => {
+        const ada = await monthsLater();
+
+        expect((await ada.readPie(month))?.month).toBe("2027-01");
+      },
+    );
+
+    it("lists this month, then the past ones, marking the one on screen", async () => {
+      const ada = await monthsLater();
+      const shelf = await ada.readShelf("2026-11");
+
+      expect(shelf.map(({ month, current }) => [month, current])).toEqual([
+        ["2027-01", false],
+        ["2026-12", false],
+        ["2026-11", true],
+        ["2026-10", false],
+      ]);
+      expect(shelf.at(-1)?.leftoverWords).toBe("about three quarters");
+    });
+
+    it("is empty in the month the pie was baked", async () => {
+      const { as } = kitchen();
+      const ada = as("ada");
+
+      await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+
+      expect(await ada.readShelf()).toEqual([]);
+      expect(await as(null).readShelf()).toEqual([]);
+    });
+
+    it("tells the appetite once three months have passed", async () => {
+      const ada = await monthsLater();
+
+      expect(await ada.readAppetite()).toEqual([
+        { sentence: "Needs usually has more than half left.", streak: "leftover" },
+        { sentence: "Savings usually has more than half left.", streak: "leftover" },
+      ]);
+    });
   });
 
   it("reads a statement, then takes its bites", async () => {

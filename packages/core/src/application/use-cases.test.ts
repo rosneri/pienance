@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { InMemoryPieRepository } from "../adapters/in-memory-pie-repository";
 import { noAdvice } from "../adapters/no-advice";
-import { PieError } from "../domain";
+import { Month, PieError } from "../domain";
 import { pienance } from ".";
 
 function kitchen(now = new Date(Date.UTC(2026, 9, 10))) {
@@ -88,5 +88,147 @@ describe("use cases", () => {
 
     clock.now = new Date(Date.UTC(2026, 10, 1));
     expect((await app.servePie("ada"))?.bites).toHaveLength(0);
+  });
+
+  describe("staples", () => {
+    async function stocked() {
+      const { app, clock } = kitchen();
+      const pie = await app.bakePie({ ownerId: "ada", monthlyIncome: "3000", currency: "EUR" });
+      const needs = pie.slices[0]!.id;
+
+      const rent = await app.stockStaple({
+        ownerId: "ada",
+        sliceId: needs,
+        amount: "750",
+        note: " Rent ",
+      });
+
+      return { app, clock, needs, rent };
+    }
+
+    it("count from the month they are stocked in, and every month after", async () => {
+      const { app, clock, rent } = await stocked();
+
+      expect(rent.note).toBe("Rent");
+      expect((await app.servePie("ada"))?.servings()[0]?.stapled.ratio).toBe(0.5);
+
+      clock.now = new Date(Date.UTC(2026, 10, 2));
+      expect((await app.servePie("ada"))?.staples.map((staple) => staple.id)).toEqual([rent.id]);
+      expect(
+        (await app.servePie("ada", Month.of(new Date(Date.UTC(2026, 8, 1)))))?.staples,
+      ).toHaveLength(0);
+    });
+
+    it("dropped later, still count that month but not the next", async () => {
+      const { app, clock, rent } = await stocked();
+
+      clock.now = new Date(Date.UTC(2026, 10, 2));
+      const dropped = await app.dropStaple({ ownerId: "ada", stapleId: rent.id });
+
+      expect(dropped.until?.toString()).toBe("2026-12");
+      expect((await app.servePie("ada"))?.staples).toHaveLength(1);
+
+      clock.now = new Date(Date.UTC(2026, 11, 2));
+      expect((await app.servePie("ada"))?.staples).toHaveLength(0);
+    });
+
+    it("dropped in the month they were stocked, never counted", async () => {
+      const { app, rent } = await stocked();
+
+      await app.dropStaple({ ownerId: "ada", stapleId: rent.id });
+
+      expect((await app.servePie("ada"))?.staples).toHaveLength(0);
+      expect((await app.servePie("ada"))?.leftover().ratio).toBe(1);
+    });
+
+    it("change amount without touching past months", async () => {
+      const { app, clock, needs, rent } = await stocked();
+
+      clock.now = new Date(Date.UTC(2026, 10, 2));
+      await app.stockStaple({
+        ownerId: "ada",
+        sliceId: needs,
+        amount: "900",
+        note: "Rent",
+        replaces: rent.id,
+      });
+
+      const amounts = async (month: Month) =>
+        (await app.servePie("ada", month))?.staples.map((staple) => staple.amount.toDecimal());
+
+      expect(await amounts(Month.of(new Date(Date.UTC(2026, 9, 1))))).toEqual(["750.00"]);
+      expect(await amounts(Month.of(clock.now))).toEqual(["900.00"]);
+    });
+
+    it("refuses one of nothing", async () => {
+      const { app, needs } = await stocked();
+
+      await expect(
+        app.stockStaple({ ownerId: "ada", sliceId: needs, amount: "0", note: "" }),
+      ).rejects.toThrow(PieError);
+    });
+  });
+
+  describe("shelf", () => {
+    it("lists past months newest first, back to the month the pie was baked in", async () => {
+      const { app, clock } = kitchen(new Date(Date.UTC(2026, 6, 20)));
+      const pie = await app.bakePie({ ownerId: "ada", monthlyIncome: "3000", currency: "EUR" });
+
+      await app.takeBite({ ownerId: "ada", sliceId: pie.slices[1]!.id, amount: "90", note: "" });
+      clock.now = new Date(Date.UTC(2026, 9, 10));
+
+      const shelf = await app.shelvePie({ ownerId: "ada", months: 12 });
+
+      expect(shelf.map(({ month }) => month.toString())).toEqual(["2026-09", "2026-08", "2026-07"]);
+      expect(shelf.map(({ pie: past }) => past.bites.length)).toEqual([0, 0, 1]);
+    });
+
+    it("holds at most the months asked for", async () => {
+      const { app, clock } = kitchen(new Date(Date.UTC(2024, 0, 1)));
+
+      await app.bakePie({ ownerId: "ada", monthlyIncome: "3000", currency: "EUR" });
+      clock.now = new Date(Date.UTC(2026, 9, 10));
+
+      expect(await app.shelvePie({ ownerId: "ada", months: 12 })).toHaveLength(12);
+    });
+
+    it("is empty without a pie or in the month it was baked", async () => {
+      const { app } = kitchen();
+
+      expect(await app.shelvePie({ ownerId: "ada", months: 12 })).toEqual([]);
+      await app.bakePie({ ownerId: "ada", monthlyIncome: "3000", currency: "EUR" });
+      expect(await app.shelvePie({ ownerId: "ada", months: 12 })).toEqual([]);
+    });
+  });
+
+  describe("appetite", () => {
+    it("reads each slice's habit from the three months before this one", async () => {
+      const { app, clock } = kitchen(new Date(Date.UTC(2026, 6, 1)));
+      const pie = await app.bakePie({ ownerId: "ada", monthlyIncome: "1000", currency: "EUR" });
+      const [needs, wants] = pie.slices.map((slice) => slice.id);
+
+      const eatIn = async (month: number, wantsEaten: string) => {
+        clock.now = new Date(Date.UTC(2026, month, 3));
+        await app.takeBite({ ownerId: "ada", sliceId: needs!, amount: "100", note: "" });
+        await app.takeBite({ ownerId: "ada", sliceId: wants!, amount: wantsEaten, note: "" });
+      };
+
+      await eatIn(6, "330");
+      await eatIn(7, "300");
+      await eatIn(8, "400");
+
+      clock.now = new Date(Date.UTC(2026, 8, 20));
+      expect(await app.readAppetite({ ownerId: "ada" })).toEqual([]);
+
+      clock.now = new Date(Date.UTC(2026, 9, 2));
+      const appetite = await app.readAppetite({ ownerId: "ada" });
+
+      expect(appetite.map(({ slice, appetite: usual }) => [slice.name, usual.streak])).toEqual([
+        ["Needs", "leftover"],
+        ["Wants", "overflowing"],
+        ["Savings", "leftover"],
+      ]);
+      expect(appetite[0]?.appetite.usual.ratio).toBe(0.2);
+    });
   });
 });

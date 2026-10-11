@@ -20,6 +20,11 @@ It answers two questions:
 | **Verdict**    | `fits`, `tight` (leaves only crumbs) or `overflows` (more than left).   |
 | **Serving**    | A slice with how much of it is eaten and left this month.               |
 | **Leftover**   | What is left of the whole pie this month.                               |
+| **Staple**     | A bite that comes back every month, e.g. rent from Needs.               |
+| **Pantry**     | All of a pie's staples.                                                 |
+| **Pace**       | How fast a slice is eaten compared with how much of the month is gone.  |
+| **Shelf**      | The past months of a pie, each shown as its own small pie.              |
+| **Appetite**   | How much of a slice is usually eaten by the end of a month.             |
 | **Proportion** | A ratio, always shown _roughly_ ("about a quarter"), never as a number. |
 | **Statement**  | A bank's CSV export, in any layout; its spends become draft bites.      |
 
@@ -192,8 +197,8 @@ Traces, web vitals, product analytics and clickstream go into the same Postgres,
 
 - **Traces**: OpenTelemetry in `instrumentation.ts` (Next.js, Prisma and each use case), tail
   sampled per request and written after the response.
-- **Product events**: `pie.baked`, `bite.weighed`, `bite.taken`, `statement.read`, `bites.taken`,
-  from the server actions.
+- **Product events**: `pie.baked`, `bite.weighed`, `bite.taken`, `staple.stocked`,
+  `staple.dropped`, `statement.read`, `bites.taken`, from the server actions.
 - **Clickstream and web vitals**: `<Telemetry />` batches pageviews, `data-track` clicks and
   vitals into beacons to `POST /api/telemetry`.
 - **Upkeep**: a daily Vercel Cron creates partitions, drops data older than 14 days and

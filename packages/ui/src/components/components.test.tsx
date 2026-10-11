@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { Button } from "./button";
+import { Checkbox } from "./checkbox";
 import { Field, FieldError, FieldLabel, FieldLegend, FieldSet } from "./field";
 import { Input } from "./input";
 import { NativeSelect, NativeSelectOption } from "./native-select";
@@ -131,6 +132,29 @@ describe("RadioGroup", () => {
 
     expect(screen.getByRole("radio", { name: "Wants" })).toBeChecked();
     expect(form instanceof HTMLFormElement && new FormData(form).get("slice")).toBe("wants");
+  });
+});
+
+describe("Checkbox", () => {
+  it("ticks and posts its value with the form", async () => {
+    render(
+      <form aria-label="staple">
+        <FieldLabel htmlFor="every-month">
+          <Checkbox id="every-month" name="everyMonth" />
+          Every month
+        </FieldLabel>
+      </form>,
+    );
+
+    const box = screen.getByRole("checkbox", { name: "Every month" });
+
+    expect(box).not.toBeChecked();
+    await userEvent.setup().click(box);
+    expect(box).toBeChecked();
+
+    const form = screen.getByRole("form", { name: "staple" });
+
+    expect(form instanceof HTMLFormElement && new FormData(form).get("everyMonth")).toBe("on");
   });
 });
 

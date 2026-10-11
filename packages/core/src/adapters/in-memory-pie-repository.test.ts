@@ -12,6 +12,7 @@ function pieFor(ownerId: string, bites: readonly Bite[] = []) {
     ownerId,
     income: Money.parse("1000", eur),
     slices: [{ id: "all", name: "All", share: Proportion.of(1) }],
+    bakedAt: new Date(Date.UTC(2026, 8, 1)),
     bites,
   });
 }
@@ -64,5 +65,39 @@ describe("InMemoryPieRepository", () => {
 
     expect(all?.bites.map((bite) => bite.id)).toEqual(["september"]);
     expect((await pies.find("ada", october))?.bites.map((bite) => bite.id)).toEqual(["october"]);
+  });
+
+  it("serves only the staples active in the asked month, and keeps a drop", async () => {
+    const pies = new InMemoryPieRepository();
+
+    const rent = {
+      id: "rent",
+      sliceId: "all",
+      amount: Money.parse("500", eur),
+      note: "Rent",
+      since: october,
+    };
+
+    await pies.save(pieFor("ada"));
+    const pie = await pies.find("ada", october);
+
+    pie?.stock(rent);
+
+    if (pie) await pies.save(pie);
+
+    const november = october.next();
+
+    expect((await pies.find("ada", october.previous()))?.staples).toHaveLength(0);
+    expect((await pies.find("ada", november))?.staples).toHaveLength(1);
+
+    const later = await pies.find("ada", november);
+
+    later?.drop("rent", november);
+
+    if (later) await pies.save(later);
+
+    expect((await pies.find("ada", october))?.staples).toHaveLength(1);
+    expect((await pies.find("ada", november))?.staples).toHaveLength(1);
+    expect((await pies.find("ada", november.next()))?.staples).toHaveLength(0);
   });
 });

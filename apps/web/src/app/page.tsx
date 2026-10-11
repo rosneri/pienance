@@ -1,22 +1,36 @@
 import { ownerOf } from "@pienance/auth";
-import { describeLeftover } from "@pienance/core";
+import {
+  describeLeftover,
+  describePace,
+  describePastLeftover,
+  Month,
+  monthName,
+} from "@pienance/core";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
+import { Appetite } from "@/components/appetite";
 import { BakeForm } from "@/components/bake-form";
 import { BiteList } from "@/components/bite-list";
 import { Headline } from "@/components/headline";
+import { Kitchen } from "@/components/kitchen";
 import { Legend } from "@/components/legend";
 import { Masthead } from "@/components/masthead";
 import { PageFrame } from "@/components/page-frame";
 import { PieDiagram } from "@/components/pie-diagram";
 import { PieTools } from "@/components/pie-tools";
-import { WeighForm } from "@/components/weigh-form";
+import { Shelf } from "@/components/shelf";
+import { StapleList } from "@/components/staple-list";
 import { auth, clock } from "@/pienance";
 import {
   bakePie,
+  dropStaple,
+  readAppetite,
   readPie,
+  readShelf,
   readStatement,
   signOut,
+  stockStaple,
   takeBite,
   takeBites,
   weighBite,
@@ -24,15 +38,40 @@ import {
 
 export const dynamic = "force-dynamic";
 
-const monthName = new Intl.DateTimeFormat("en", { month: "long", timeZone: "UTC" });
+const actions = {
+  readPie,
+  readShelf,
+  readAppetite,
+  bakePie,
+  weighBite,
+  takeBite,
+  stockStaple,
+  dropStaple,
+  readStatement,
+  takeBites,
+};
 
-const actions = { readPie, bakePie, weighBite, takeBite, readStatement, takeBites };
-
-export default async function Home() {
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ month?: string | string[] }>;
+}) {
   if (!(await ownerOf(auth(), await headers()))) redirect("/sign-in");
 
-  const pie = await readPie();
-  const month = monthName.format(clock());
+  const { month: asked } = await searchParams;
+  const pie = await readPie(Array.isArray(asked) ? undefined : asked);
+  const thisMonth = monthName(Month.of(clock()));
+  // readPie falls back to this month, so any other month served is a past one.
+  const past = pie !== null && pie.gone === undefined;
+
+  const [shelf, appetite] = await Promise.all([
+    pie ? readShelf(pie.month) : [],
+    pie && !past ? readAppetite() : [],
+  ]);
+
+  const pace = pie && describePace(pie);
+  const month = pie?.monthName ?? thisMonth;
+  const goneWords = pie?.goneWords ? `, ${pie.goneWords} of the month gone` : "";
 
   return (
     <PageFrame>
@@ -41,22 +80,46 @@ export default async function Home() {
       <main className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start lg:gap-16">
         {pie ? (
           <>
-            <section className="grid content-start gap-6" aria-labelledby="leftover-heading">
-              <Headline id="leftover-heading">{describeLeftover(pie.leftoverWords)}</Headline>
-              <PieDiagram slices={pie.slices} label={`What is left of each slice in ${month}`} />
+            <section
+              className="grid min-w-0 content-start gap-6"
+              aria-labelledby="leftover-heading"
+            >
+              {past && (
+                <p className="text-muted-foreground">
+                  You are looking at {pie.monthName}.{" "}
+                  <Link href="/" className="text-foreground underline underline-offset-4">
+                    Back to {thisMonth}.
+                  </Link>
+                </p>
+              )}
+              <Headline id="leftover-heading">
+                {past
+                  ? describePastLeftover(pie.leftoverWords, pie.monthName)
+                  : describeLeftover(pie.leftoverWords)}
+              </Headline>
+              {pace && <p className="-mt-3 max-w-[60ch] text-muted-foreground">{pace}</p>}
+              <PieDiagram
+                slices={pie.slices}
+                label={`What is left of each slice in ${month}${goneWords}`}
+                {...(pie.gone !== undefined && { gone: pie.gone })}
+              />
               <Legend slices={pie.slices} />
+              <Shelf months={shelf} />
+              {shelf.length > 0 && !past && <Appetite sentences={appetite} />}
             </section>
 
-            <div className="grid content-start gap-10 lg:gap-16">
-              {/* Keyed by bite count so the form starts fresh after a bite is taken. */}
-              <WeighForm
-                key={pie.bites.length}
-                slices={pie.slices}
-                currency={pie.currency}
-                actions={actions}
-              />
-              <BiteList bites={pie.bites} />
-            </div>
+            {past ? (
+              <div className="grid content-start gap-10 lg:gap-16">
+                <StapleList staples={pie.staples} monthName={pie.monthName} />
+                <BiteList
+                  bites={pie.bites}
+                  heading={`Eaten in ${pie.monthName}`}
+                  empty="Not a crumb that month."
+                />
+              </div>
+            ) : (
+              <Kitchen pie={pie} actions={actions} />
+            )}
           </>
         ) : (
           <>
@@ -72,7 +135,7 @@ export default async function Home() {
         )}
       </main>
 
-      <PieTools pie={pie} actions={actions} />
+      <PieTools pie={pie} past={past} actions={actions} />
     </PageFrame>
   );
 }

@@ -92,6 +92,7 @@ describe("signed-in pies (auth + pie actions + Postgres users)", () => {
         owner: () => ownerOf(auth, session),
         refresh: () => undefined,
         track: () => undefined,
+        now: () => new Date(),
       });
 
     const alan = await browserSignUp("alan@example.com");

@@ -1,4 +1,4 @@
-import { type Month, Pie, type PieRepository } from "../domain";
+import { isActiveIn, type Month, Pie, type PieRepository, type Staple } from "../domain";
 
 /** For tests and running the app without a database. Keeps one pie per owner. */
 export class InMemoryPieRepository implements PieRepository {
@@ -14,14 +14,18 @@ export class InMemoryPieRepository implements PieRepository {
       ownerId,
       income: pie.income,
       slices: pie.slices,
+      bakedAt: pie.bakedAt,
       bites: pie.bites.filter((bite) => month.contains(bite.eatenAt)),
+      staples: pie.staples.filter((staple) => isActiveIn(staple, month)),
     });
   }
 
   async save(pie: Pie): Promise<void> {
     const stored = this.pies.get(pie.ownerId);
-    const known = stored?.id === pie.id ? stored.bites : [];
-    const ids = new Set(pie.bites.map((bite) => bite.id));
+    const same = stored?.id === pie.id;
+    const biteIds = new Set(pie.bites.map((bite) => bite.id));
+    const stapleIds = new Set(pie.staples.map((staple) => staple.id));
+    const keptStaples: readonly Staple[] = same ? stored.staples : [];
 
     this.pies.set(
       pie.ownerId,
@@ -30,7 +34,12 @@ export class InMemoryPieRepository implements PieRepository {
         ownerId: pie.ownerId,
         income: pie.income,
         slices: pie.slices,
-        bites: [...known.filter((bite) => !ids.has(bite.id)), ...pie.bites],
+        bakedAt: pie.bakedAt,
+        bites: [
+          ...(same ? stored.bites : []).filter((bite) => !biteIds.has(bite.id)),
+          ...pie.bites,
+        ],
+        staples: [...keptStaples.filter((staple) => !stapleIds.has(staple.id)), ...pie.staples],
       }),
     );
   }
