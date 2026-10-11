@@ -32,7 +32,11 @@ export default async function Import() {
         >
           Back to the pie
         </Link>
-        <ImportForm slices={pie.slices} currency={pie.currency} actions={actions} />
+        <ImportForm
+          slices={pie.slices.filter((slice) => !slice.retired)}
+          currency={pie.currency}
+          actions={actions}
+        />
       </main>
     </PageFrame>
   );

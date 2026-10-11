@@ -1,4 +1,4 @@
-import { Proportion, roughly } from "../domain";
+import { Proportion, roughly, type Serving, type Verdict } from "../domain";
 import type { FocusView } from "./focus-view";
 import type { BiteView, PieView, SliceView, StapleView, WeighingView } from "./pie-view";
 import type { AppetiteView, ShelfMonthView } from "./shelf-view";
@@ -134,6 +134,21 @@ export function describeMoved(view: BiteView): string {
 
 /** The answer after putting a bite back. */
 export const putBackSentence = "Put back.";
+
+/** What new slice sizes would do to this month's bites, before they are saved. */
+export interface ReslicePreview {
+  readonly verdict: Extract<Verdict, "fits" | "overflows">;
+  readonly sentence: string;
+}
+
+/** "Every slice still fits.", or names the first slice the new sizes would leave all eaten. */
+export function describeReslice(servings: readonly Serving[]): ReslicePreview {
+  const eaten = servings.find((serving) => !serving.retired && serving.left.ratio === 0);
+
+  return eaten
+    ? { verdict: "overflows", sentence: `${eaten.slice.name} would be all eaten.` }
+    : { verdict: "fits", sentence: "Every slice still fits." };
+}
 
 /** The answer after stocking a staple. */
 export function describeStaple(view: StapleView): string {

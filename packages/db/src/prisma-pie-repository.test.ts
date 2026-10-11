@@ -122,6 +122,40 @@ describe("PrismaPieRepository (Postgres)", () => {
     ).toEqual(["september"]);
   });
 
+  it("re-slices in place, keeping retired slices with their bites", async () => {
+    const pie = bakeFor("ada");
+
+    pie.take({
+      id: "ramen",
+      sliceId: "pie-ada-wants",
+      amount: Money.parse("1200", yen),
+      note: "Ramen",
+      eatenAt: new Date(Date.UTC(2026, 9, 3)),
+    });
+    await pies.save(pie);
+    await pies.save(
+      pie.reslice({
+        income: Money.parse("500000", yen),
+        slices: [
+          { id: "pie-ada-needs", name: "Rent", share: Proportion.whole },
+          { id: "pie-ada-wants", name: "Wants", share: Proportion.none, retired: true },
+        ],
+      }),
+    );
+
+    const found = await pies.find("ada", october);
+
+    expect(found?.id).toBe("pie-ada");
+    expect(found?.income.minor).toBe(500_000);
+    expect(
+      found?.slices.map((slice) => [slice.name, slice.share.ratio, Boolean(slice.retired)]),
+    ).toEqual([
+      ["Rent", 1, false],
+      ["Wants", 0, true],
+    ]);
+    expect(found?.bites.map((bite) => bite.id)).toEqual(["ramen"]);
+  });
+
   it("serves only the bites of the asked month", async () => {
     const pie = bakeFor("ada");
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Pace } from "../domain";
+import { Proportion, type Pace } from "../domain";
 import type { PieView, SliceView } from "./pie-view";
 import {
   describeAppetite,
@@ -9,6 +9,7 @@ import {
   describeMoved,
   describePace,
   describePastLeftover,
+  describeReslice,
   describeShelfMonth,
   describeSlice,
   describeStaple,
@@ -28,6 +29,25 @@ const weighing = {
 } as const;
 
 describe("sentences", () => {
+  it("previews a re-slice by the first slice it would eat up", () => {
+    const serving = (name: string, left: number, retired = false) => ({
+      slice: { id: name, name, share: Proportion.none },
+      retired,
+      eaten: Proportion.of(1 - left),
+      left: Proportion.of(left),
+      stapled: Proportion.none,
+    });
+
+    expect(describeReslice([serving("Needs", 0.5), serving("Old", 0, true)])).toEqual({
+      verdict: "fits",
+      sentence: "Every slice still fits.",
+    });
+    expect(describeReslice([serving("Needs", 0.5), serving("Wants", 0)])).toEqual({
+      verdict: "overflows",
+      sentence: "Wants would be all eaten.",
+    });
+  });
+
   it("restates a bite after taking or moving it", () => {
     const bite = {
       id: "shoes",

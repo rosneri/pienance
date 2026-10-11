@@ -87,6 +87,8 @@ export const pienance: Pienance = {
   takeBite: traced("pienance.takeBite", app.takeBite),
   putBackBite: traced("pienance.putBackBite", app.putBackBite),
   moveBite: traced("pienance.moveBite", app.moveBite),
+  reslicePie: traced("pienance.reslicePie", app.reslicePie),
+  previewReslice: traced("pienance.previewReslice", app.previewReslice),
   stockStaple: traced("pienance.stockStaple", app.stockStaple),
   dropStaple: traced("pienance.dropStaple", app.dropStaple),
   shelvePie: traced("pienance.shelvePie", app.shelvePie),

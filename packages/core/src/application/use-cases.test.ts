@@ -138,6 +138,96 @@ describe("use cases", () => {
     });
   });
 
+  describe("re-slicing", () => {
+    async function baked() {
+      const { app } = kitchen();
+      const pie = await app.bakePie({ ownerId: "ada", monthlyIncome: "3000", currency: "EUR" });
+      const [needs, wants, savings] = pie.slices.map((slice) => slice.id);
+
+      return { app, needs: needs!, wants: wants!, savings: savings! };
+    }
+
+    it("changes income and shares in place, keeping the bites", async () => {
+      const { app, needs, wants, savings } = await baked();
+
+      await app.takeBite({ ownerId: "ada", sliceId: wants, amount: "300", note: "Shoes" });
+      await app.reslicePie({
+        ownerId: "ada",
+        monthlyIncome: "4000",
+        slices: [
+          { id: needs, name: "Needs", percent: 50 },
+          { id: wants, name: " Fun ", percent: 25 },
+          { id: savings, name: "Savings", percent: 25 },
+        ],
+      });
+
+      const pie = await app.servePie("ada");
+
+      expect(pie?.income.toDecimal()).toBe("4000.00");
+      expect(pie?.slices.map((slice) => [slice.name, slice.share.ratio])).toEqual([
+        ["Needs", 0.5],
+        ["Fun", 0.25],
+        ["Savings", 0.25],
+      ]);
+      expect(pie?.bites.map((bite) => bite.note)).toEqual(["Shoes"]);
+    });
+
+    it("adds new slices and retires the ones left out", async () => {
+      const { app, needs, wants } = await baked();
+
+      await app.takeBite({ ownerId: "ada", sliceId: wants, amount: "30", note: "Tea" });
+      await app.reslicePie({
+        ownerId: "ada",
+        slices: [
+          { id: needs, name: "Needs", percent: 60 },
+          { name: "Travel", percent: 40 },
+        ],
+      });
+
+      const pie = await app.servePie("ada");
+
+      expect(pie?.slices.map((slice) => [slice.name, Boolean(slice.retired)])).toEqual([
+        ["Needs", false],
+        ["Travel", false],
+        ["Wants", true],
+        ["Savings", true],
+      ]);
+      expect(pie?.servings().map((serving) => serving.slice.name)).toEqual([
+        "Needs",
+        "Travel",
+        "Wants",
+      ]);
+    });
+
+    it("refuses shares off the 5% steps and unknown slices", async () => {
+      const { app, needs } = await baked();
+
+      await expect(
+        app.reslicePie({ ownerId: "ada", slices: [{ id: needs, name: "Needs", percent: 99 }] }),
+      ).rejects.toThrow("Shares go in steps of 5%.");
+      await expect(
+        app.reslicePie({ ownerId: "ada", slices: [{ id: "nope", name: "Needs", percent: 100 }] }),
+      ).rejects.toThrow(PieError);
+    });
+
+    it("previews without saving", async () => {
+      const { app, needs, wants } = await baked();
+
+      await app.takeBite({ ownerId: "ada", sliceId: wants, amount: "300", note: "Shoes" });
+
+      const servings = await app.previewReslice({
+        ownerId: "ada",
+        slices: [
+          { id: needs, name: "Needs", percent: 90 },
+          { id: wants, name: "Wants", percent: 10 },
+        ],
+      });
+
+      expect(servings.map((serving) => serving.left.ratio)).toEqual([1, 0]);
+      expect((await app.servePie("ada"))?.slices).toHaveLength(3);
+    });
+  });
+
   describe("staples", () => {
     async function stocked() {
       const { app, clock } = kitchen();

@@ -110,6 +110,17 @@ function fakeActions(): PieActions & { calls: string[] } {
         value: { ...pieView.bites[0]!, sliceName: "Needs", portionWords: "about a tenth" },
       };
     },
+    readReslice: async () => null,
+    reslicePie: async (input) => {
+      calls.push(`reslice ${JSON.stringify(input)}`);
+
+      return { ok: true, value: pieView };
+    },
+    previewReslice: async (input) => {
+      calls.push(`preview ${input.slices.length}`);
+
+      return { ok: true, value: { verdict: "overflows", sentence: "Wants would be all eaten." } };
+    },
     readStatement: async (upload) => {
       calls.push(`read ${upload.csv}`);
 
@@ -183,10 +194,12 @@ describe("PieTools (WebMCP)", () => {
     expect([...tools.keys()].toSorted()).toEqual([
       "drop_staple",
       "move_bite",
+      "preview_reslice",
       "put_back_bite",
       "read_pie",
       "read_shelf",
       "read_statement",
+      "reslice_pie",
       "stock_staple",
       "take_bite",
       "take_bites",
@@ -245,6 +258,44 @@ describe("PieTools (WebMCP)", () => {
       "stock needs 1000 Rent",
       "drop rent",
     ]);
+  });
+
+  it("re-slices by name: a known name keeps its slice, a new one is added", async () => {
+    const actions = fakeActions();
+
+    const input = {
+      monthlyIncome: 4000,
+      slices: [
+        { name: "Needs", percent: 60 },
+        { name: "Travel", percent: 40 },
+      ],
+    };
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(tool("preview_reslice").annotations?.readOnlyHint).toBe(true);
+    expect(await tool("preview_reslice").execute(input)).toBe("Wants would be all eaten.");
+    expect(await tool("reslice_pie").execute(input)).toBe("About half of your pie is left.");
+    expect(actions.calls).toEqual([
+      "preview 2",
+      `reslice ${JSON.stringify({
+        monthlyIncome: "4000",
+        slices: [
+          { id: "needs", name: "Needs", percent: 60 },
+          { name: "Travel", percent: 40 },
+        ],
+      })}`,
+    ]);
+  });
+
+  it("offers only live slices to eat from", () => {
+    const retired = pieView.slices.map((slice) =>
+      slice.id === "savings" ? { ...slice, retired: true } : slice,
+    );
+
+    render(<PieTools pie={{ ...pieView, slices: retired }} actions={fakeActions()} />);
+
+    expect(tool("take_bite").inputSchema?.properties?.slice?.enum).toEqual(["Needs", "Wants"]);
   });
 
   it("reads a past month and the shelf", async () => {

@@ -1,10 +1,12 @@
 import {
   describeAppetite,
+  describeReslice,
   Month,
   PieError,
   viewAppetite,
   viewBite,
   viewPie,
+  viewReslice,
   viewShelf,
   viewStaple,
   viewWeighing,
@@ -16,6 +18,9 @@ import {
   type Pienance,
   type PieView,
   type PutBackBiteInput,
+  type ReslicePreview,
+  type ResliceInput,
+  type ResliceView,
   type ShelfMonthView,
   type StapleView,
   type StockStapleInput,
@@ -170,6 +175,42 @@ export function pieActions(deps: PieActionsDeps) {
 
         return viewPie(pie, { month: Month.of(now), gone: Month.of(now).gone(now) });
       });
+    },
+
+    /** What the re-slice form starts from, or null without a pie. */
+    async readReslice(): Promise<ResliceView | null> {
+      const ownerId = await deps.owner();
+      const pie = ownerId ? await deps.app.servePie(ownerId) : null;
+
+      return pie ? viewReslice(pie) : null;
+    },
+
+    reslicePie(input: Asked<ResliceInput>): Promise<Outcome<PieView>> {
+      return attempt(async (ownerId) => {
+        const pie = await deps.app.reslicePie({ ...input, ownerId });
+        const now = deps.now();
+
+        deps.track(
+          {
+            name: "pie.resliced",
+            properties: {
+              slices: pie.liveSlices.length,
+              retired: pie.slices.length - pie.liveSlices.length,
+            },
+          },
+          ownerId,
+        );
+        deps.refresh();
+
+        return viewPie(pie, { month: Month.of(now), gone: Month.of(now).gone(now) });
+      });
+    },
+
+    /** One sentence on how this month's bites would sit in the re-sliced pie. */
+    previewReslice(input: Asked<ResliceInput>): Promise<Outcome<ReslicePreview>> {
+      return attempt(async (ownerId) =>
+        describeReslice(await deps.app.previewReslice({ ...input, ownerId })),
+      );
     },
 
     weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<WeighingView>> {

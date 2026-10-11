@@ -24,6 +24,8 @@ import { monthName } from "./month-words";
 export interface SliceView {
   readonly id: string;
   readonly name: string;
+  /** Takes no share and draws no wedge; listed only while it has bites this month. */
+  readonly retired: boolean;
   /** Where the slice starts and ends around the pie, as fractions of a full turn. */
   readonly from: number;
   readonly to: number;
@@ -132,17 +134,19 @@ export function viewSlices(pie: Pie, gone?: Proportion): SliceView[] {
     const view: SliceView = {
       id: serving.slice.id,
       name: serving.slice.name,
+      retired: serving.retired,
       from,
       to,
       left: Math.min(serving.left.ratio, 1),
       leftWords: roughly(serving.left),
       stapled: Math.min(serving.stapled.ratio, 1),
       ...(serving.stapled.ratio > 0 && { stapledWords: roughly(serving.stapled) }),
-      ...(gone && {
-        pace: paceOf(serving, gone),
-        eatenWords: roughly(freeEatenOf(serving)),
-        ahead: aheadOf(serving, gone),
-      }),
+      ...(gone &&
+        !serving.retired && {
+          pace: paceOf(serving, gone),
+          eatenWords: roughly(freeEatenOf(serving)),
+          ahead: aheadOf(serving, gone),
+        }),
     };
 
     from = to;
@@ -153,12 +157,14 @@ export function viewSlices(pie: Pie, gone?: Proportion): SliceView[] {
 
 export function viewBite(pie: Pie, bite: Bite): BiteView {
   const portion = pie.portionOf(bite);
+  const slice = pie.slice(bite.sliceId);
 
   return {
     id: bite.id,
     sliceId: bite.sliceId,
     note: bite.note,
-    sliceName: pie.slice(bite.sliceId).name,
+    // A retired slice has no size: its bites are told against the whole pie.
+    sliceName: slice.retired ? "the pie" : slice.name,
     portion: asFraction(portion),
     portionWords: roughly(portion),
     eatenAt: bite.eatenAt.toISOString(),
@@ -166,11 +172,13 @@ export function viewBite(pie: Pie, bite: Bite): BiteView {
 }
 
 export function viewStaple(pie: Pie, staple: Staple, month: Month): StapleView {
+  const slice = pie.slice(staple.sliceId);
+
   return {
     id: staple.id,
     sliceId: staple.sliceId,
     note: staple.note,
-    sliceName: pie.slice(staple.sliceId).name,
+    sliceName: slice.retired ? "the pie" : slice.name,
     portionWords: roughly(pie.portionOfStaple(staple)),
     amount: staple.amount.toDecimal(),
     stockedThisMonth: staple.since.equals(month),

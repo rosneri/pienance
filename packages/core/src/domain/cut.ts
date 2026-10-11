@@ -83,7 +83,7 @@ export class RecurrenceCut extends Cut {
 export function cutsOf(pie: Pie): Cut[] {
   return [
     new WholeCut(),
-    ...pie.slices.map((slice) => new SliceCut(slice)),
+    ...pie.liveSlices.map((slice) => new SliceCut(slice)),
     new RecurrenceCut("every-month"),
     new RecurrenceCut("one-time"),
   ];

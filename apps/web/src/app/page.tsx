@@ -28,11 +28,14 @@ import {
   bakePie,
   dropStaple,
   moveBite,
+  previewReslice,
   putBackBite,
   readAppetite,
   readPie,
+  readReslice,
   readShelf,
   readStatement,
+  reslicePie,
   signOut,
   stockStaple,
   takeBite,
@@ -44,6 +47,9 @@ export const dynamic = "force-dynamic";
 
 const actions = {
   readPie,
+  readReslice,
+  reslicePie,
+  previewReslice,
   readShelf,
   readAppetite,
   bakePie,
@@ -81,7 +87,7 @@ export default async function Home({
 
   return (
     <PageFrame>
-      <Masthead month={month} signOut={signOut} />
+      <Masthead month={month} signOut={signOut} reslice={pie !== null && !past} />
 
       <main className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start lg:gap-16">
         {pie ? (

@@ -33,6 +33,8 @@ model Slice {
   /// Ratio of the pie, 0..1
   share    Float
   position Int
+  /// Removed from the pie: keeps its past bites, takes no share
+  retired  Boolean  @default(false)
   bites    Bite[]
   staples  Staple[]
 

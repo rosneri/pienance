@@ -14,6 +14,8 @@ export * from "./presentation/pie-geometry";
 
 export * from "./presentation/pie-view";
 
+export * from "./presentation/reslice-view";
+
 export * from "./presentation/sentences";
 
 export * from "./presentation/shelf-view";

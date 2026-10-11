@@ -9,6 +9,9 @@ import type {
   MoveBiteInput,
   PieView,
   PutBackBiteInput,
+  ResliceInput,
+  ReslicePreview,
+  ResliceView,
   ShelfMonthView,
   StapleView,
   StockStapleInput,
@@ -57,6 +60,27 @@ export async function readAppetite(): Promise<AppetiteSentence[]> {
 
 export async function bakePie(input: Asked<BakePieInput>): Promise<Outcome<PieView>> {
   return pies.bakePie(input);
+}
+
+export async function readReslice(): Promise<ResliceView | null> {
+  return pies.readReslice();
+}
+
+export async function reslicePie(input: Asked<ResliceInput>): Promise<Outcome<PieView>> {
+  return pies.reslicePie(input);
+}
+
+/** The re-slice page's save: back to the pie once it is re-sliced, where the new cut shows. */
+export async function saveReslice(input: Asked<ResliceInput>): Promise<Outcome<PieView>> {
+  const outcome = await pies.reslicePie(input);
+
+  if (outcome.ok) redirect("/");
+
+  return outcome;
+}
+
+export async function previewReslice(input: Asked<ResliceInput>): Promise<Outcome<ReslicePreview>> {
+  return pies.previewReslice(input);
 }
 
 export async function weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<WeighingView>> {
