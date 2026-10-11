@@ -28,7 +28,7 @@ export class WholeCut extends Cut {
   }
 
   wholeOf(pie: Pie): Money {
-    return pie.income;
+    return pie.whole;
   }
 }
 
@@ -75,7 +75,7 @@ export class RecurrenceCut extends Cut {
   }
 
   wholeOf(pie: Pie): Money {
-    return pie.income;
+    return pie.whole;
   }
 }
 

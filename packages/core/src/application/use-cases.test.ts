@@ -298,6 +298,77 @@ describe("use cases", () => {
     });
   });
 
+  describe("carrying over", () => {
+    async function aMonthLater() {
+      const kit = kitchen(new Date(Date.UTC(2026, 8, 10)));
+      const pie = await kit.app.bakePie({ ownerId: "ada", monthlyIncome: "1000", currency: "EUR" });
+      const [needs, wants, savings] = pie.slices.map((slice) => slice.id);
+
+      await kit.app.takeBite({ ownerId: "ada", sliceId: wants!, amount: "800", note: "Trip" });
+      kit.clock.now = new Date(Date.UTC(2026, 9, 10));
+
+      return { ...kit, needs: needs!, savings: savings! };
+    }
+
+    it("offers nothing in the month the pie was baked", async () => {
+      const { app } = kitchen();
+
+      await app.bakePie({ ownerId: "ada", monthlyIncome: "1000", currency: "EUR" });
+
+      expect(await app.readCarryOffer({ ownerId: "ada" })).toBeNull();
+    });
+
+    it("offers last month's leftover, carries it into a slice, and undoes it", async () => {
+      const { app, savings } = await aMonthLater();
+
+      const offer = await app.readCarryOffer({ ownerId: "ada" });
+
+      expect(offer?.month.toString()).toBe("2026-09");
+      expect(offer?.leftover.ratio).toBeCloseTo(0.2);
+
+      await app.carryOver({ ownerId: "ada", sliceId: savings });
+
+      const carried = await app.servePie("ada");
+
+      expect(carried?.carry?.amount.toDecimal()).toBe("200.00");
+      expect(carried?.whole.toDecimal()).toBe("1200.00");
+      expect(await app.readCarryOffer({ ownerId: "ada" })).toBeNull();
+      await expect(app.carryOver({ ownerId: "ada", sliceId: savings })).rejects.toThrow(
+        "Already carried this month.",
+      );
+
+      await app.dropCarry({ ownerId: "ada" });
+
+      expect((await app.servePie("ada"))?.carry).toBeUndefined();
+      expect(await app.readCarryOffer({ ownerId: "ada" })).not.toBeNull();
+    });
+
+    it("carries a leftover that includes last month's own carry", async () => {
+      const { app, clock, savings } = await aMonthLater();
+
+      await app.carryOver({ ownerId: "ada", sliceId: savings });
+      clock.now = new Date(Date.UTC(2026, 10, 10));
+
+      expect((await app.readCarryOffer({ ownerId: "ada" }))?.leftover.ratio).toBe(1);
+
+      await app.carryOver({ ownerId: "ada", sliceId: savings });
+
+      expect((await app.servePie("ada"))?.carry?.amount.toDecimal()).toBe("1200.00");
+    });
+
+    it("offers nothing after an overspent month", async () => {
+      const { app, clock, needs } = await aMonthLater();
+
+      await app.takeBite({ ownerId: "ada", sliceId: needs, amount: "5000", note: "" });
+      clock.now = new Date(Date.UTC(2026, 10, 10));
+
+      expect(await app.readCarryOffer({ ownerId: "ada" })).toBeNull();
+      await expect(app.carryOver({ ownerId: "ada", sliceId: needs })).rejects.toThrow(
+        "Last month left nothing to carry.",
+      );
+    });
+  });
+
   describe("staples", () => {
     async function stocked() {
       const { app, clock } = kitchen();

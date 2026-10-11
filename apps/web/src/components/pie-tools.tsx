@@ -1,6 +1,9 @@
 "use client";
 
 import {
+  describeCarried,
+  describeCarry,
+  describeCarryOffer,
   describeDropped,
   describeFocus,
   describeLeftover,
@@ -10,6 +13,7 @@ import {
   describeShelfMonth,
   describeStaple,
   describeWeighing,
+  droppedCarrySentence,
   putBackSentence,
   spreadMonths,
   type PieView,
@@ -114,6 +118,10 @@ export function PieTools({
 
           const focus = served.focuses.find((candidate) => candidate.name === input.focus);
           const pace = describePace(served);
+          // Only this month can still carry last month's leftover.
+
+          const offer =
+            served.gone !== undefined && !served.carry ? await actions.readCarryOffer() : null;
 
           const inView = <T extends { id: string }>(
             items: readonly T[],
@@ -128,6 +136,8 @@ export function PieTools({
             ...(focus ? { focus: describeFocus(focus, served) } : pace && { pace }),
             month: served.monthName,
             currency: served.currency,
+            ...(served.carry && { carry: describeCarry(served.carry) }),
+            ...(offer && { carryOffer: describeCarryOffer(offer) }),
             slices: served.slices.map(describeSlice),
             staples: inView(served.staples, focus?.stapleIds).map((staple) => ({
               id: staple.id,
@@ -374,6 +384,40 @@ export function PieTools({
           const outcome = await actions.reslicePie(resliceInput(input));
 
           return outcome.ok ? describeLeftover(outcome.value.leftoverWords) : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "carry_over",
+        title: "Carry last month's leftover",
+        description:
+          "Adds what last month left of the whole pie to one slice of this month's pie, making it bigger. Once a month; read_pie tells when there is a leftover on offer.",
+        inputSchema: {
+          type: "object",
+          properties: { slice: biteProperties.slice },
+          required: ["slice"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.carryOver({ sliceId: sliceIdOf(input.slice) });
+
+          return outcome.ok ? describeCarried(input.slice) : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "drop_carry",
+        title: "Undo the carry",
+        description: "Undoes this month's carry of last month's leftover.",
+        async execute() {
+          const outcome = await actions.dropCarry();
+
+          return outcome.ok ? droppedCarrySentence : outcome.error;
         },
       },
       options,

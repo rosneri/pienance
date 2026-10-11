@@ -118,6 +118,21 @@ function fakeActions(): PieActions & { calls: string[] } {
       };
     },
     readReslice: async () => null,
+    readCarryOffer: async () => ({
+      month: "2026-09",
+      monthName: "September",
+      leftoverWords: "about a fifth",
+    }),
+    carryOver: async (input) => {
+      calls.push(`carry ${input.sliceId}`);
+
+      return { ok: true, value: pieView };
+    },
+    dropCarry: async () => {
+      calls.push("drop carry");
+
+      return { ok: false, error: "Nothing was carried this month." };
+    },
     reslicePie: async (input) => {
       calls.push(`reslice ${JSON.stringify(input)}`);
 
@@ -199,6 +214,8 @@ describe("PieTools (WebMCP)", () => {
     render(<PieTools pie={pie} actions={actions} />);
 
     expect([...tools.keys()].toSorted()).toEqual([
+      "carry_over",
+      "drop_carry",
       "drop_staple",
       "move_bite",
       "preview_reslice",
@@ -230,6 +247,7 @@ describe("PieTools (WebMCP)", () => {
       pace: "Wants is going fast: about three quarters eaten, about a third of the month gone.",
       month: "October",
       currency: "EUR",
+      carryOffer: "September left about a fifth of your pie.",
       slices: [
         "Needs: about a third left",
         "Wants: about a quarter left, going fast",
@@ -280,6 +298,18 @@ describe("PieTools (WebMCP)", () => {
     await tool("weigh_bite").execute({ amount: 600, slice: "Wants", months: 6 });
     expect(await tool("put_back_spread").execute({ spreadId: "laptop" })).toBe("Put back.");
     expect(actions.calls).toEqual(["weigh wants 600 over 6", "put back spread laptop"]);
+  });
+
+  it("carries last month's leftover and undoes it", async () => {
+    const actions = fakeActions();
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(await tool("carry_over").execute({ slice: "Savings" })).toBe(
+      "Carried into Savings. It is bigger this month.",
+    );
+    expect(await tool("drop_carry").execute({})).toBe("Nothing was carried this month.");
+    expect(actions.calls).toEqual(["carry savings", "drop carry"]);
   });
 
   it("re-slices by name: a known name keeps its slice, a new one is added", async () => {

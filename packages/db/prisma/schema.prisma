@@ -21,6 +21,7 @@ model Pie {
   /// When the pie was baked: the first month on its shelf
   createdAt   DateTime @default(now())
   slices      Slice[]
+  carries     Carry[]
 
   @@index([ownerId, createdAt])
 }
@@ -37,6 +38,7 @@ model Slice {
   retired  Boolean  @default(false)
   bites    Bite[]
   staples  Staple[]
+  carries  Carry[]
 
   @@index([pieId])
 }
@@ -160,4 +162,20 @@ model Jwks {
   crv        String?
 
   @@map("jwks")
+}
+
+/// Last month's leftover, added to one slice of a month's pie.
+model Carry {
+  id          String   @id
+  pieId       String
+  pie         Pie      @relation(fields: [pieId], references: [id], onDelete: Cascade)
+  sliceId     String
+  slice       Slice    @relation(fields: [sliceId], references: [id], onDelete: Cascade)
+  /// First day of the month the carry is added to
+  month       DateTime
+  currency    String
+  amountMinor BigInt
+
+  @@unique([pieId, month])
+  @@index([sliceId])
 }

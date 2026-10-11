@@ -1,4 +1,5 @@
 import { bakePie } from "./bake-pie";
+import { carryOver, dropCarry, readCarryOffer } from "./carry-over";
 import { dropStaple } from "./drop-staple";
 import { moveBite } from "./move-bite";
 import type { Ports } from "./ports";
@@ -16,6 +17,8 @@ import { takeSpread } from "./take-spread";
 import { weighBite } from "./weigh-bite";
 
 export type { BakePieInput } from "./bake-pie";
+
+export type { CarryOffer, CarryOfferInput, CarryOverInput } from "./carry-over";
 
 export type { DropStapleInput } from "./drop-staple";
 
@@ -51,12 +54,15 @@ export { shareStep } from "./reslice-pie";
 
 export {
   bakePie,
+  carryOver,
+  dropCarry,
   dropStaple,
   moveBite,
   previewReslice,
   putBackBite,
   putBackSpread,
   readAppetite,
+  readCarryOffer,
   readStatement,
   reslicePie,
   servePie,
@@ -81,6 +87,9 @@ export function pienance(ports: Ports) {
     moveBite: moveBite(ports),
     reslicePie: reslicePie(ports),
     previewReslice: previewReslice(ports),
+    readCarryOffer: readCarryOffer(ports),
+    carryOver: carryOver(ports),
+    dropCarry: dropCarry(ports),
     stockStaple: stockStaple(ports),
     dropStaple: dropStaple(ports),
     shelvePie: shelvePie(ports),

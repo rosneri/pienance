@@ -1,6 +1,13 @@
 import { Proportion, roughly, type Serving, type Verdict } from "../domain";
 import type { FocusView } from "./focus-view";
-import type { BiteView, PieView, SliceView, StapleView, WeighingView } from "./pie-view";
+import type {
+  BiteView,
+  CarryOfferView,
+  PieView,
+  SliceView,
+  StapleView,
+  WeighingView,
+} from "./pie-view";
 import type { AppetiteView, ShelfMonthView } from "./shelf-view";
 
 /** Below this much of the month gone, there is no pace to speak of: "nothing" or "a crumb". */
@@ -173,6 +180,24 @@ export function describeReslice(servings: readonly Serving[]): ReslicePreview {
     ? { verdict: "overflows", sentence: `${eaten.slice.name} would be all eaten.` }
     : { verdict: "fits", sentence: "Every slice still fits." };
 }
+
+/** The offer to carry last month's leftover. */
+export function describeCarryOffer(view: CarryOfferView): string {
+  return `${view.monthName} left ${view.leftoverWords} of your pie.`;
+}
+
+/** The answer after carrying last month's leftover. */
+export function describeCarried(sliceName: string): string {
+  return `Carried into ${sliceName}. It is bigger this month.`;
+}
+
+/** Where last month's leftover went: "Savings holds September's leftover." */
+export function describeCarry(carry: NonNullable<PieView["carry"]>): string {
+  return `${carry.sliceName} holds ${carry.from}'s leftover.`;
+}
+
+/** The answer after undoing a carry. */
+export const droppedCarrySentence = "Undone. The leftover is back on offer.";
 
 /** The answer after stocking a staple. */
 export function describeStaple(view: StapleView): string {

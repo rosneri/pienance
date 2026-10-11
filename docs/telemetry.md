@@ -261,6 +261,8 @@ counted too.
 | `bite.moved`      | —                            |
 | `spread.taken`    | `months`                     |
 | `spread.put-back` | —                            |
+| `carry.carried`   | —                            |
+| `carry.dropped`   | —                            |
 | `staple.stocked`  | `replaced`                   |
 | `staple.dropped`  | `removed`                    |
 | `statement.read`  | `bites` (count), `trimmed`   |

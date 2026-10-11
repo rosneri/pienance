@@ -84,6 +84,8 @@ export interface PieView {
   readonly staples: readonly StapleView[];
   /** Every single view besides this overview: each slice, every month, one time. */
   readonly focuses: readonly FocusView[];
+  /** Last month's leftover, carried into one slice: which, and from which month. */
+  readonly carry?: { readonly sliceId: string; readonly sliceName: string; readonly from: string };
   /** How much of the month is gone, between 0 and 1. Only while the month is running. */
   readonly gone?: number;
   readonly goneWords?: string;
@@ -126,6 +128,13 @@ export function viewPie(pie: Pie, served: Served): PieView {
       .filter((staple) => !isVoid(staple))
       .map((staple) => viewStaple(pie, staple, served.month)),
     focuses: viewFocuses(pie),
+    ...(pie.carry && {
+      carry: {
+        sliceId: pie.carry.sliceId,
+        sliceName: pie.slice(pie.carry.sliceId).name,
+        from: monthName(served.month.previous()),
+      },
+    }),
     ...(gone && { gone: gone.ratio, goneWords: roughly(gone) }),
   };
 }
@@ -135,7 +144,8 @@ export function viewSlices(pie: Pie, gone?: Proportion): SliceView[] {
   let from = 0;
 
   return pie.servings().map((serving) => {
-    const to = from + serving.slice.share.ratio;
+    // Angles follow sizes, so a slice holding a carry draws wider than its share.
+    const to = from + serving.ofPie.ratio;
 
     const view: SliceView = {
       id: serving.slice.id,
@@ -213,5 +223,22 @@ export function viewWeighing(weighing: Weighing): WeighingView {
       spread: { months: weighing.spread.months, wholeVerdict: weighing.spread.whole.verdict },
     }),
     ...(weighing.fitsOver !== undefined && { fitsOver: weighing.fitsOver }),
+  };
+}
+
+/** Last month's leftover, as the offer to carry it tells it. */
+export interface CarryOfferView {
+  /** e.g. "2026-09" */
+  readonly month: string;
+  readonly monthName: string;
+  readonly leftoverWords: string;
+}
+
+/** Last month, and how much of its whole pie it left. */
+export function viewCarryOffer(offer: { month: Month; leftover: Proportion }): CarryOfferView {
+  return {
+    month: offer.month.toString(),
+    monthName: monthName(offer.month),
+    leftoverWords: roughly(offer.leftover),
   };
 }

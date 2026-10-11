@@ -9,6 +9,7 @@ export class PrismaPieRepository implements PieRepository {
       where: { ownerId },
       orderBy: { createdAt: "desc" },
       include: {
+        carries: { where: { month: month.start } },
         slices: {
           orderBy: { position: "asc" },
           include: {
@@ -26,6 +27,8 @@ export class PrismaPieRepository implements PieRepository {
     });
 
     if (!row) return null;
+
+    const [carry] = row.carries;
 
     return Pie.bake({
       id: row.id,
@@ -65,6 +68,12 @@ export class PrismaPieRepository implements PieRepository {
           since: Month.of(staple.since),
           ...(staple.until && { until: Month.of(staple.until) }),
         })),
+      ...(carry && {
+        carry: {
+          sliceId: carry.sliceId,
+          amount: Money.ofMinor(Number(carry.amountMinor), currencyOf(carry.currency)),
+        },
+      }),
     });
   }
 
@@ -128,6 +137,26 @@ export class PrismaPieRepository implements PieRepository {
           update: { sliceId: bite.sliceId },
         }),
       ),
+      // One carry a month: it is written once, and only removed when undone.
+      ...(pie.carry
+        ? [
+            this.db.carry.upsert({
+              where: { pieId_month: { pieId: pie.id, month: pie.month.start } },
+              create: {
+                id: `${pie.id}:${pie.month.toString()}`,
+                pieId: pie.id,
+                sliceId: pie.carry.sliceId,
+                month: pie.month.start,
+                currency: pie.carry.amount.currency.code,
+                amountMinor: BigInt(pie.carry.amount.minor),
+              },
+              update: {},
+            }),
+          ]
+        : []),
+      ...(pie.carryDropped() && !pie.carry
+        ? [this.db.carry.deleteMany({ where: { pieId: pie.id, month: pie.month.start } })]
+        : []),
       // A staple only changes when it is dropped, which sets `until`.
       ...pie.staples.map((staple) => {
         const until = staple.until?.start ?? null;
