@@ -331,10 +331,34 @@ describe("pie actions", () => {
     expect((await ada.readPie())?.bites).toHaveLength(2);
     expect(refreshes).toHaveLength(3);
     expect(tracked.slice(1).map(({ event }) => event)).toEqual([
-      { name: "statement.read", properties: { bites: 2 } },
+      { name: "statement.read", properties: { bites: 2, trimmed: false } },
       { name: "bites.taken", properties: { taken: 2, duplicates: 0 } },
       { name: "bites.taken", properties: { taken: 0, duplicates: 2 } },
     ]);
+  });
+
+  it("reads only the first lines of a statement over the limits", async () => {
+    const { as, tracked } = kitchen();
+    const ada = as("ada");
+
+    const csv = [
+      "Date,Description,Amount",
+      ...Array.from(
+        { length: 2_400 },
+        (_, index) => `0${1 + (index % 9)}/10/2026,Coffee ${index},-3.00`,
+      ),
+    ].join("\n");
+
+    await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+
+    const read = await ada.readStatement({ csv });
+
+    expect(read.ok && read.value.trimmed).toEqual({ kept: 2_000, total: 2_401 });
+    expect(read.ok && read.value.bites).toHaveLength(1_999);
+    expect(tracked.at(-1)?.event).toEqual({
+      name: "statement.read",
+      properties: { bites: 1_999, trimmed: true },
+    });
   });
 
   it("returns statement problems as values", async () => {
@@ -349,7 +373,7 @@ describe("pie actions", () => {
     });
     expect(await ada.readStatement({ csv: "x".repeat(2_000_001) })).toEqual({
       ok: false,
-      error: "That file is too big: export a few months at a time",
+      error: "That file is too big to read",
     });
     expect(await as(null).readStatement({ csv: "" })).toEqual({
       ok: false,

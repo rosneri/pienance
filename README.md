@@ -125,8 +125,9 @@ does the `Advisor` port ask a decision model through the AI SDK's `experimental_
 replaced with Cloudflare's Clef once the gateway serves it (`apps/web/src/import/decision-advisor.ts`).
 Only the first rows and the distinct notes are sent. Without gateway access (no
 `AI_GATEWAY_API_KEY` locally), the rules work alone. Re-importing a statement skips the bites
-already taken. A statement over the limits (2,000 lines or 2M characters) can be read by its
-first lines.
+already taken. A statement over the limits (2,000 lines or 2M characters) is cut
+on the server to its first lines that fit, and the page says how many it read. Files over 3.5 MB
+are refused before upload.
 
 ## Getting started
 

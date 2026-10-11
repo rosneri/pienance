@@ -213,10 +213,11 @@ export function PieTools({
 
           if (!outcome.ok) return outcome.error;
 
-          const { bites, incoming, unreadable } = outcome.value;
+          const { bites, incoming, unreadable, trimmed } = outcome.value;
+          const lines = trimmed ? `Read the first ${trimmed.kept} of ${trimmed.total} lines. ` : "";
 
           return {
-            found: `${bites.length} expenses; skipped ${incoming} incoming and ${unreadable} unreadable rows.`,
+            found: `${lines}${bites.length} expenses; skipped ${incoming} incoming and ${unreadable} unreadable rows.`,
             bites: bites.map((bite) => ({
               day: bite.eatenOn,
               amount: Number(bite.amount),

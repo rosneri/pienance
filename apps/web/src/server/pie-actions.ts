@@ -25,13 +25,18 @@ import {
 } from "@pienance/core";
 import type { ProductEvent } from "@pienance/telemetry/contract";
 import { rowsOf } from "@/import/csv";
-import { largestStatement } from "@/import/lines";
+import { withinLimits, type Trimmed } from "@/import/lines";
 import { failed, succeeded, type Outcome } from "./outcome";
 
 /** A bank statement as uploaded, and how to read it when the person corrected the guess. */
 export interface StatementUpload {
   readonly csv: string;
   readonly layout?: StatementLayout | undefined;
+}
+
+/** A statement read into draft bites, and whether only its first lines were. */
+export interface StatementReading extends StatementPreview {
+  readonly trimmed: Trimmed | null;
 }
 
 /** What a signed-in person sends; who they are comes from their session. */
@@ -176,24 +181,28 @@ export function pieActions(deps: PieActionsDeps) {
       });
     },
 
-    readStatement(upload: StatementUpload): Promise<Outcome<StatementPreview>> {
+    readStatement(upload: StatementUpload): Promise<Outcome<StatementReading>> {
       return attempt(async (ownerId) => {
-        if (upload.csv.length > largestStatement) {
-          throw new RangeError("That file is too big: export a few months at a time");
-        }
+        // A statement over the limits is cut to its first lines rather than refused.
+        const statement = withinLimits(upload.csv);
+
+        if (!statement) throw new RangeError("That file is too big to read");
 
         const preview = await deps.app.readStatement({
           ownerId,
-          rows: rowsOf(upload.csv),
+          rows: rowsOf(statement.text),
           layout: upload.layout,
         });
 
         deps.track(
-          { name: "statement.read", properties: { bites: preview.bites.length } },
+          {
+            name: "statement.read",
+            properties: { bites: preview.bites.length, trimmed: statement.trimmed !== null },
+          },
           ownerId,
         );
 
-        return preview;
+        return { ...preview, trimmed: statement.trimmed };
       });
     },
 

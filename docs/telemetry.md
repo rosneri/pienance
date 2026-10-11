@@ -251,15 +251,15 @@ the event to its trace) and writes it in `after()`, once the response is sent. S
 are authoritative and immune to ad blockers. WebMCP tools call the same actions, so agent use is
 counted too.
 
-| Event            | Properties            |
-| ---------------- | --------------------- |
-| `pie.baked`      | `currency`            |
-| `bite.weighed`   | `verdict`             |
-| `bite.taken`     | —                     |
-| `staple.stocked` | `replaced`            |
-| `staple.dropped` | `removed`             |
-| `statement.read` | `bites` (count)       |
-| `bites.taken`    | `taken`, `duplicates` |
+| Event            | Properties                 |
+| ---------------- | -------------------------- |
+| `pie.baked`      | `currency`                 |
+| `bite.weighed`   | `verdict`                  |
+| `bite.taken`     | —                          |
+| `staple.stocked` | `replaced`                 |
+| `staple.dropped` | `removed`                  |
+| `statement.read` | `bites` (count), `trimmed` |
+| `bites.taken`    | `taken`, `duplicates`      |
 
 ### 5.4 Browser: clickstream and web vitals
 

@@ -111,6 +111,7 @@ function fakeActions(): PieActions & { calls: string[] } {
           bites: [{ eatenOn: "2026-10-02", amount: "4.20", note: "Bakery", sliceId: "needs" }],
           incoming: 1,
           unreadable: 0,
+          trimmed: { kept: 2_000, total: 2_400 },
         },
       };
     },
@@ -244,7 +245,8 @@ describe("PieTools (WebMCP)", () => {
 
     expect(tool("read_statement").annotations?.readOnlyHint).toBe(true);
     expect(await tool("read_statement").execute({ csv: "Date,Description,Amount" })).toEqual({
-      found: "1 expenses; skipped 1 incoming and 0 unreadable rows.",
+      found:
+        "Read the first 2000 of 2400 lines. 1 expenses; skipped 1 incoming and 0 unreadable rows.",
       bites: [{ day: "2026-10-02", amount: 4.2, note: "Bakery", slice: "Needs" }],
     });
     expect(

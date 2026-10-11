@@ -5,7 +5,10 @@ export type ProductEvent =
   | { readonly name: "bite.taken"; readonly properties: Readonly<Record<string, never>> }
   | { readonly name: "staple.stocked"; readonly properties: { readonly replaced: boolean } }
   | { readonly name: "staple.dropped"; readonly properties: { readonly removed: boolean } }
-  | { readonly name: "statement.read"; readonly properties: { readonly bites: number } }
+  | {
+      readonly name: "statement.read";
+      readonly properties: { readonly bites: number; readonly trimmed: boolean };
+    }
   | {
       readonly name: "bites.taken";
       readonly properties: { readonly taken: number; readonly duplicates: number };

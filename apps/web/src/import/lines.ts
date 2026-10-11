@@ -1,6 +1,9 @@
 import { mostBites } from "@pienance/core";
 
-/** The largest statement accepted, in characters: years of a busy account. */
+/** The largest file the browser uploads, in bytes: under the server action's body limit (next.config.ts). */
+export const largestUpload = 3_500_000;
+
+/** The most characters read from one statement; longer ones are cut to their first lines. */
 export const largestStatement = 2_000_000;
 
 /** Lines read from one statement: a header and preamble, plus at most one bite per line. */
@@ -43,4 +46,21 @@ export function linesThatFit(text: string): number | null {
 /** The first `count` lines of a statement. */
 export function firstLines(text: string, count: number): string {
   return linesOf(text).slice(0, count).join("\n");
+}
+
+/** What was kept of a statement cut to its first lines. */
+export interface Trimmed {
+  readonly kept: number;
+  readonly total: number;
+}
+
+/** A statement within the limits: whole, or its first lines that fit. Null when not even one line fits. */
+export function withinLimits(text: string): { text: string; trimmed: Trimmed | null } | null {
+  const fit = linesThatFit(text);
+
+  if (fit === null) return { text, trimmed: null };
+
+  if (fit === 0) return null;
+
+  return { text: firstLines(text, fit), trimmed: { kept: fit, total: lineCount(text) } };
 }

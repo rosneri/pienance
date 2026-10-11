@@ -1,13 +1,13 @@
-import type { StatementPreview, TakeBitesInput, TakenBites } from "@pienance/core";
+import type { TakeBitesInput, TakenBites } from "@pienance/core";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Outcome } from "@/server/outcome";
-import type { Asked, StatementUpload } from "@/server/pie-actions";
+import type { Asked, StatementReading, StatementUpload } from "@/server/pie-actions";
 import { pieView } from "@/testing/fixtures";
 import { ImportForm } from "./import-form";
 
-const preview: StatementPreview = {
+const preview: StatementReading = {
   layout: {
     skipRows: 1,
     columns: ["date", "description", "amount"],
@@ -23,6 +23,7 @@ const preview: StatementPreview = {
   ],
   incoming: 1,
   unreadable: 0,
+  trimmed: null,
 };
 
 const file = new File(["Date,Description,Amount\n02/10/2026,Coffee,-3.00"], "statement.csv", {
@@ -35,7 +36,7 @@ async function uploadStatement(user: ReturnType<typeof userEvent.setup>) {
   await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/Found|look like/));
 }
 
-function setup(read: Outcome<StatementPreview> = { ok: true, value: preview }) {
+function setup(read: Outcome<StatementReading> = { ok: true, value: preview }) {
   const uploads: StatementUpload[] = [];
   const takes: Asked<TakeBitesInput>[] = [];
 
@@ -102,29 +103,29 @@ describe("ImportForm", () => {
     expect(uploads[1]?.layout?.columns).toEqual(["date", "ignore", "amount"]);
   });
 
-  it("offers to read only the first lines of a statement over the limits", async () => {
-    const { uploads, user } = setup();
+  it("says when only the first lines of a statement were read", async () => {
+    const { user } = setup({
+      ok: true,
+      value: { ...preview, trimmed: { kept: 2_000, total: 5_321 } },
+    });
 
-    const lines = [
-      "Date,Description,Amount",
-      ...Array.from({ length: 2_500 }, () => "02/10/2026,Coffee,-3.00"),
-    ];
+    await uploadStatement(user);
 
-    await user.upload(
-      screen.getByLabelText("Statement (CSV)"),
-      new File([lines.join("\n")], "years.csv", { type: "text/csv" }),
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Read the first 2,000 of its 5,321 lines. Found 3 bites",
     );
+  });
+
+  it("refuses a file too big to upload, without sending it", async () => {
+    const { uploads, user } = setup();
+    const huge = new File(["x".repeat(3_500_001)], "huge.csv", { type: "text/csv" });
+
+    await user.upload(screen.getByLabelText("Statement (CSV)"), huge);
 
     expect(await screen.findByRole("status")).toHaveTextContent(
-      "This statement has 2,501 lines, more than pienance reads at once.",
+      "This file is over 3.5 MB: export fewer months.",
     );
     expect(uploads).toEqual([]);
-
-    await user.click(screen.getByRole("button", { name: "Read the first 2,000 lines" }));
-
-    await waitFor(() => expect(uploads).toHaveLength(1));
-    expect(uploads[0]?.csv).toBe(lines.slice(0, 2_000).join("\n"));
-    expect(screen.queryByRole("button", { name: /Read the first/ })).not.toBeInTheDocument();
   });
 
   it("says why a file could not be read", async () => {

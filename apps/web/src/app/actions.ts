@@ -7,7 +7,6 @@ import type {
   DropStapleInput,
   PieView,
   ShelfMonthView,
-  StatementPreview,
   StapleView,
   StockStapleInput,
   TakeBiteInput,
@@ -22,7 +21,12 @@ import { redirect } from "next/navigation";
 import { auth, clock, pienance, track } from "@/pienance";
 import { accountActions, type Credentials, type SignUpDetails } from "@/server/account-actions";
 import type { Outcome } from "@/server/outcome";
-import { pieActions, type Asked, type StatementUpload } from "@/server/pie-actions";
+import {
+  pieActions,
+  type Asked,
+  type StatementReading,
+  type StatementUpload,
+} from "@/server/pie-actions";
 
 // Thin Next.js wrappers: the logic lives in src/server, where it is tested.
 
@@ -68,7 +72,7 @@ export async function dropStaple(input: Asked<DropStapleInput>): Promise<Outcome
   return pies.dropStaple(input);
 }
 
-export async function readStatement(upload: StatementUpload): Promise<Outcome<StatementPreview>> {
+export async function readStatement(upload: StatementUpload): Promise<Outcome<StatementReading>> {
   return pies.readStatement(upload);
 }
 

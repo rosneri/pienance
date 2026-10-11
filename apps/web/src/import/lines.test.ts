@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { firstLines, largestStatement, lineCount, linesThatFit, mostLines } from "./lines";
+import {
+  firstLines,
+  largestStatement,
+  lineCount,
+  linesThatFit,
+  mostLines,
+  withinLimits,
+} from "./lines";
 
 const statement = (lines: number, width = 20) =>
   Array.from({ length: lines }, (_, index) => `${index}`.padEnd(width, "x")).join("\r\n");
@@ -32,5 +39,14 @@ describe("statement lines", () => {
 
   it("keeps the first lines, without a final line break", () => {
     expect(firstLines("a\r\nb\nc\n", 2)).toBe("a\nb");
+  });
+
+  it("cuts a statement over the limits to its first lines, saying how many it kept", () => {
+    expect(withinLimits("a\nb")).toEqual({ text: "a\nb", trimmed: null });
+    expect(withinLimits(statement(mostLines + 1))).toEqual({
+      text: firstLines(statement(mostLines + 1), mostLines),
+      trimmed: { kept: mostLines, total: mostLines + 1 },
+    });
+    expect(withinLimits("x".repeat(largestStatement + 1))).toBeNull();
   });
 });
