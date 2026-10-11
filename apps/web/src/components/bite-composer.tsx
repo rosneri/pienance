@@ -13,6 +13,7 @@ import { Button } from "@pienance/ui/components/button";
 import { Checkbox } from "@pienance/ui/components/checkbox";
 import { FieldLabel, FieldLegend, FieldSet } from "@pienance/ui/components/field";
 import { Input } from "@pienance/ui/components/input";
+import { NativeSelect, NativeSelectOption } from "@pienance/ui/components/native-select";
 import { RadioGroup, RadioGroupItem } from "@pienance/ui/components/radio-group";
 import { useEffect, useRef, useState, useTransition, type FormEvent } from "react";
 import type { PieActions } from "@/server/pie-actions";
@@ -22,11 +23,20 @@ import { useFocus } from "./focus";
 
 export type ComposerActions = Pick<
   PieActions,
-  "weighBite" | "takeBite" | "putBackBite" | "stockStaple"
+  "weighBite" | "takeBite" | "putBackBite" | "putBackSpread" | "stockStaple"
 >;
 
 /** How long typing must pause before the bite is weighed. */
 export const weighDelay = 300;
+
+/** What "Pay over" offers besides this month. */
+const spreadChoices = [2, 3, 6, 12, 24] as const;
+
+/** The last bite taken, which can be put back: alone, or with the rest of its spread. */
+interface Undoable {
+  readonly biteId: string;
+  readonly spreadId?: string;
+}
 
 interface Said {
   readonly tone: Tone;
@@ -56,11 +66,13 @@ export function BiteComposer({
   const [amount, setAmount] = useState("");
   const [sliceId, setSliceId] = useState(slices[0]?.id ?? "");
   const [everyMonth, setEveryMonth] = useState(false);
+  /** Spread over this many months; this month alone when undefined. */
+  const [months, setMonths] = useState<number | undefined>(undefined);
   const [replaces, setReplaces] = useState<StapleView | null>(null);
   const [weighing, setWeighing] = useState<WeighingView | null>(null);
   const [said, setSaid] = useState<Said | null>(null);
   /** The last bite taken: it can be put back until the next one is weighed. */
-  const [undoable, setUndoable] = useState<string | null>(null);
+  const [undoable, setUndoable] = useState<Undoable | null>(null);
   const [taken, setTaken] = useState(changing);
   const [pending, startTransition] = useTransition();
   const amountInput = useRef<HTMLInputElement>(null);
@@ -94,7 +106,7 @@ export function BiteComposer({
     let current = true;
 
     const timer = setTimeout(async () => {
-      const outcome = await actions.weighBite({ sliceId, amount });
+      const outcome = await actions.weighBite({ sliceId, amount, months });
 
       if (!current) return;
 
@@ -106,7 +118,7 @@ export function BiteComposer({
       current = false;
       clearTimeout(timer);
     };
-  }, [open, amount, sliceId, actions]);
+  }, [open, amount, sliceId, months, actions]);
 
   function start() {
     setOpen(true);
@@ -120,6 +132,7 @@ export function BiteComposer({
   function reset() {
     setNote("");
     setAmount("");
+    setMonths(undefined);
     setEveryMonth(false);
     setReplaces(null);
     setWeighing(null);
@@ -152,20 +165,24 @@ export function BiteComposer({
         return;
       }
 
-      const outcome = await actions.takeBite(bite);
+      const outcome = await actions.takeBite({ ...bite, months });
 
       if (!outcome.ok) return setSaid({ tone: "error", sentence: outcome.error });
+
+      const { id, spread } = outcome.value;
 
       reset();
       setOpen(false);
       setSaid({ tone: "fits", sentence: describeTaken(outcome.value) });
-      setUndoable(outcome.value.id);
+      setUndoable({ biteId: id, ...(spread && { spreadId: spread.id }) });
     });
   }
 
-  function putBack(biteId: string) {
+  function putBack({ biteId, spreadId }: Undoable) {
     startTransition(async () => {
-      const outcome = await actions.putBackBite({ biteId });
+      const outcome = spreadId
+        ? await actions.putBackSpread({ spreadId })
+        : await actions.putBackBite({ biteId });
 
       setUndoable(null);
       setSaid(
@@ -255,6 +272,30 @@ export function BiteComposer({
           />
         </div>
 
+        {!everyMonth && (
+          <div className="flex flex-wrap items-center gap-3">
+            <FieldLabel htmlFor="months" className="w-auto">
+              Pay over
+            </FieldLabel>
+            <NativeSelect
+              id="months"
+              className="h-11"
+              value={months ?? ""}
+              onChange={(event) => {
+                setMonths(event.target.value === "" ? undefined : Number(event.target.value));
+                setSaid(null);
+              }}
+            >
+              <NativeSelectOption value="">This month</NativeSelectOption>
+              {spreadChoices.map((choice) => (
+                <NativeSelectOption key={choice} value={choice}>
+                  {choice} months
+                </NativeSelectOption>
+              ))}
+            </NativeSelect>
+          </div>
+        )}
+
         <FieldSet className="gap-2">
           <FieldLegend variant="label" className="sr-only">
             From which slice?
@@ -284,12 +325,25 @@ export function BiteComposer({
               <>
                 <span className="font-medium tabular-nums">
                   {weighing.portion} of {weighing.sliceName}
+                  {weighing.spread && " each month"}
                 </span>
                 {" · "}
                 {describeVerdict(weighing)}
               </>
             ))}
         </Answer>
+
+        {!said && !everyMonth && months === undefined && weighing?.fitsOver !== undefined && (
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11 w-fit"
+            onClick={() => setMonths(weighing.fitsOver)}
+            data-track="spread-to-fit"
+          >
+            Spread it to fit
+          </Button>
+        )}
 
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <FieldLabel htmlFor="every-month" className="h-11 w-fit cursor-pointer gap-3">
@@ -298,6 +352,7 @@ export function BiteComposer({
               checked={everyMonth}
               onCheckedChange={(checked) => {
                 setEveryMonth(checked === true);
+                setMonths(undefined);
 
                 if (checked !== true) setReplaces(null);
               }}
@@ -314,7 +369,7 @@ export function BiteComposer({
 
         <div className="flex flex-wrap items-center gap-2">
           <Button size="lg" disabled={pending} data-track={everyMonth ? "stock" : "take"}>
-            {everyMonth ? "Add to every month" : "Take the bite"}
+            {takeLabel(everyMonth, months)}
           </Button>
           <Button
             type="button"
@@ -330,4 +385,11 @@ export function BiteComposer({
       </form>
     </li>
   );
+}
+
+/** "Take the bite", "Take it over 6 months", or "Add to every month". */
+function takeLabel(everyMonth: boolean, months: number | undefined): string {
+  if (everyMonth) return "Add to every month";
+
+  return months === undefined ? "Take the bite" : `Take it over ${months} months`;
 }

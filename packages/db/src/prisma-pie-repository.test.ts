@@ -5,6 +5,9 @@ import { startTestDatabase, type TestDatabase } from "./testing/test-database";
 
 const october = Month.of(new Date(Date.UTC(2026, 9, 15)));
 
+/** Pies are seeded from September, so October's bites ride along as later ones. */
+const september = october.previous();
+
 const yen = currencyOf("JPY");
 
 let database: TestDatabase;
@@ -33,6 +36,7 @@ function bakeFor(ownerId: string, id = `pie-${ownerId}`, bakedAt = new Date()) {
     id,
     ownerId,
     bakedAt,
+    month: september,
     income: Money.parse("450000", yen),
     slices: [
       { id: `${id}-needs`, name: "Needs", share: Proportion.of(0.5) },
@@ -154,6 +158,35 @@ describe("PrismaPieRepository (Postgres)", () => {
       ["Wants", 0, true],
     ]);
     expect(found?.bites.map((bite) => bite.id)).toEqual(["ramen"]);
+  });
+
+  it("keeps each part of a spread in its month, and puts back the rest", async () => {
+    const pie = bakeFor("ada");
+
+    const part = (n: number, eatenAt: Date) => ({
+      id: `laptop-${n}`,
+      sliceId: "pie-ada-wants",
+      amount: Money.parse("1000", yen),
+      note: "Laptop",
+      eatenAt,
+      spread: { id: "laptop", part: n, of: 3 },
+    });
+
+    pie.take(part(1, september.start));
+    pie.take(part(2, october.start));
+    pie.take(part(3, october.next().start));
+    await pies.save(pie);
+
+    const served = await pies.find("ada", october);
+
+    expect(served?.bites.map((bite) => bite.spread)).toEqual([{ id: "laptop", part: 2, of: 3 }]);
+
+    served?.putBackSpread("laptop");
+    await pies.save(served!);
+
+    expect((await pies.find("ada", september))?.bites.map((bite) => bite.id)).toEqual(["laptop-1"]);
+    expect((await pies.find("ada", october))?.bites).toEqual([]);
+    expect((await pies.find("ada", october.next()))?.bites).toEqual([]);
   });
 
   it("serves only the bites of the asked month", async () => {

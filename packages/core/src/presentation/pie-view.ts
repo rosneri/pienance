@@ -54,6 +54,8 @@ export interface BiteView {
   /** The same, in rough words, e.g. "about half". */
   readonly portionWords: string;
   readonly eatenAt: string;
+  /** Part of a spread: which one, e.g. "2 of 6", and how many parts are still to come. */
+  readonly spread?: { readonly id: string; readonly words: string; readonly toCome: number };
 }
 
 export interface StapleView {
@@ -98,6 +100,10 @@ export interface WeighingView {
   /** How much of the slice its staples already take. */
   readonly stapled: string;
   readonly verdict: Verdict;
+  /** Weighed as a spread: over how many months, and the whole amount's verdict now. */
+  readonly spread?: { readonly months: number; readonly wholeVerdict: Verdict };
+  /** The fewest months over which it would fit, when it is too big at once. */
+  readonly fitsOver?: number;
 }
 
 export interface Served {
@@ -168,6 +174,13 @@ export function viewBite(pie: Pie, bite: Bite): BiteView {
     portion: asFraction(portion),
     portionWords: roughly(portion),
     eatenAt: bite.eatenAt.toISOString(),
+    ...(bite.spread && {
+      spread: {
+        id: bite.spread.id,
+        words: `${bite.spread.part} of ${bite.spread.of}`,
+        toCome: bite.spread.of - bite.spread.part,
+      },
+    }),
   };
 }
 
@@ -196,5 +209,9 @@ export function viewWeighing(weighing: Weighing): WeighingView {
     leftAfter: roughly(weighing.leftAfter),
     stapled: roughly(weighing.stapled),
     verdict: weighing.verdict,
+    ...(weighing.spread && {
+      spread: { months: weighing.spread.months, wholeVerdict: weighing.spread.whole.verdict },
+    }),
+    ...(weighing.fitsOver !== undefined && { fitsOver: weighing.fitsOver }),
   };
 }

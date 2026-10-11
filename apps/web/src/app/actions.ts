@@ -9,13 +9,13 @@ import type {
   MoveBiteInput,
   PieView,
   PutBackBiteInput,
+  PutBackSpreadInput,
   ResliceInput,
   ReslicePreview,
   ResliceView,
   ShelfMonthView,
   StapleView,
   StockStapleInput,
-  TakeBiteInput,
   TakenBites,
   TakeBitesInput,
   WeighBiteInput,
@@ -30,6 +30,7 @@ import type { Outcome } from "@/server/outcome";
 import {
   pieActions,
   type Asked,
+  type BiteToTake,
   type StatementReading,
   type StatementUpload,
 } from "@/server/pie-actions";
@@ -87,8 +88,12 @@ export async function weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<W
   return pies.weighBite(input);
 }
 
-export async function takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<BiteView>> {
+export async function takeBite(input: BiteToTake): Promise<Outcome<BiteView>> {
   return pies.takeBite(input);
+}
+
+export async function putBackSpread(input: Asked<PutBackSpreadInput>): Promise<Outcome<null>> {
+  return pies.putBackSpread(input);
 }
 
 export async function putBackBite(input: Asked<PutBackBiteInput>): Promise<Outcome<null>> {

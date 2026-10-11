@@ -74,7 +74,9 @@ function fakeActions(): PieActions & { calls: string[] } {
       return { ok: true, value: pieView };
     },
     weighBite: async (input) => {
-      calls.push(`weigh ${input.sliceId} ${input.amount}`);
+      calls.push(
+        `weigh ${input.sliceId} ${input.amount}${input.months ? ` over ${input.months}` : ""}`,
+      );
 
       return {
         ok: true,
@@ -101,6 +103,11 @@ function fakeActions(): PieActions & { calls: string[] } {
       return input.biteId === "shoes"
         ? { ok: true, value: null }
         : { ok: false, error: "That bite is not in this month's pie." };
+    },
+    putBackSpread: async (input) => {
+      calls.push(`put back spread ${input.spreadId}`);
+
+      return { ok: true, value: null };
     },
     moveBite: async (input) => {
       calls.push(`move ${input.biteId} ${input.sliceId}`);
@@ -196,6 +203,7 @@ describe("PieTools (WebMCP)", () => {
       "move_bite",
       "preview_reslice",
       "put_back_bite",
+      "put_back_spread",
       "read_pie",
       "read_shelf",
       "read_statement",
@@ -258,6 +266,20 @@ describe("PieTools (WebMCP)", () => {
       "stock needs 1000 Rent",
       "drop rent",
     ]);
+  });
+
+  it("weighs and takes a spread, and puts back the rest of one", async () => {
+    const actions = fakeActions();
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(tool("weigh_bite").inputSchema?.properties?.months).toMatchObject({
+      minimum: 2,
+      maximum: 24,
+    });
+    await tool("weigh_bite").execute({ amount: 600, slice: "Wants", months: 6 });
+    expect(await tool("put_back_spread").execute({ spreadId: "laptop" })).toBe("Put back.");
+    expect(actions.calls).toEqual(["weigh wants 600 over 6", "put back spread laptop"]);
   });
 
   it("re-slices by name: a known name keeps its slice, a new one is added", async () => {

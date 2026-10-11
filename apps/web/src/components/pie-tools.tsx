@@ -11,6 +11,7 @@ import {
   describeStaple,
   describeWeighing,
   putBackSentence,
+  spreadMonths,
   type PieView,
   type SliceView,
 } from "@pienance/core";
@@ -137,6 +138,7 @@ export function PieTools({
               note: bite.note || "Something",
               slice: bite.sliceName,
               portion: bite.portion,
+              ...(bite.spread && { spreadId: bite.spread.id, part: bite.spread.words }),
             })),
           };
         },
@@ -165,25 +167,42 @@ export function PieTools({
 
     if (past) return () => controller.abort();
 
+    const monthsProperty = {
+      months: {
+        type: "integer",
+        minimum: spreadMonths.fewest,
+        maximum: spreadMonths.most,
+        description: `Spread the expense in equal parts over this many months, starting now (${spreadMonths.fewest} to ${spreadMonths.most}). Leave it out to pay it all this month.`,
+      },
+    } as const;
+
     void modelContext.registerTool(
       {
         name: "weigh_bite",
         title: "Weigh an expense",
         description:
-          "Tells whether a prospective expense fits in what is left of a slice this month, without recording it. Use it to answer 'is this worth it?'.",
+          "Tells whether a prospective expense fits in what is left of a slice this month, without recording it. Use it to answer 'is this worth it?'. With months, it compares paying it all now with spreading it; when it is too big, it says over how few months it would fit.",
         annotations: { readOnlyHint: true },
         inputSchema: {
           type: "object",
-          properties: biteProperties,
+          properties: { ...biteProperties, ...monthsProperty },
           required: ["amount", "slice"],
         } as const,
         async execute(input) {
           const outcome = await actions.weighBite({
             sliceId: sliceIdOf(input.slice),
             amount: String(input.amount),
+            months: input.months,
           });
 
-          return outcome.ok ? describeWeighing(outcome.value) : outcome.error;
+          if (!outcome.ok) return outcome.error;
+
+          const { fitsOver } = outcome.value;
+
+          const nudge =
+            fitsOver === undefined ? "" : ` Spread over ${fitsOver} months, it would fit.`;
+
+          return `${describeWeighing(outcome.value)}${nudge}`;
         },
       },
       options,
@@ -193,11 +212,13 @@ export function PieTools({
       {
         name: "take_bite",
         title: "Record an expense",
-        description: "Records an expense the user made in this month's pie.",
+        description:
+          "Records an expense the user made in this month's pie, or spreads it in equal parts over several months from this one on.",
         inputSchema: {
           type: "object",
           properties: {
             ...biteProperties,
+            ...monthsProperty,
             note: { type: "string", description: "What the expense was, in a few words." },
           },
           required: ["amount", "slice", "note"],
@@ -207,9 +228,14 @@ export function PieTools({
             sliceId: sliceIdOf(input.slice),
             amount: String(input.amount),
             note: input.note,
+            months: input.months,
           });
 
-          return outcome.ok ? `Recorded ${input.note} in ${input.slice}.` : outcome.error;
+          if (!outcome.ok) return outcome.error;
+
+          return input.months === undefined
+            ? `Recorded ${input.note} in ${input.slice}.`
+            : `Recorded ${input.note} in ${input.slice}, over ${input.months} months.`;
         },
       },
       options,
@@ -228,6 +254,26 @@ export function PieTools({
         } as const,
         async execute(input) {
           const outcome = await actions.putBackBite({ biteId: input.biteId });
+
+          return outcome.ok ? putBackSentence : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "put_back_spread",
+        title: "Remove the rest of a spread expense",
+        description:
+          "Removes this month's part of a spread expense and every later part; earlier parts stay. Take the spreadId from read_pie.",
+        inputSchema: {
+          type: "object",
+          properties: { spreadId: { type: "string", description: "The spread's id." } },
+          required: ["spreadId"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.putBackSpread({ spreadId: input.spreadId });
 
           return outcome.ok ? putBackSentence : outcome.error;
         },

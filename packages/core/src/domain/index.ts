@@ -20,6 +20,8 @@ export type { PieRepository } from "./pie-repository";
 
 export { Proportion } from "./proportion";
 
+export { spreadMonths, spreadOver, type SpreadPart } from "./spread";
+
 export { asFraction, roughly } from "./rough-size";
 
 export { sliceNameLimit, type Slice } from "./slice";

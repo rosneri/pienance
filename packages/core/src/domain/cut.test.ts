@@ -21,6 +21,7 @@ const pie = Pie.bake({
   income: eur(1000),
   slices: [needs, wants],
   bakedAt: october.start,
+  month: october,
   bites: [
     { id: "concert", sliceId: "wants", amount: eur(100), note: "", eatenAt: october.start },
     { id: "bread", sliceId: "needs", amount: eur(50), note: "", eatenAt: october.start },

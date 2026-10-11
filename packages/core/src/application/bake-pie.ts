@@ -1,4 +1,4 @@
-import { currencyOf, Money, Pie, Proportion } from "../domain";
+import { currencyOf, Money, Month, Pie, Proportion } from "../domain";
 import type { Ports } from "./ports";
 
 /** The well-known 50/30/20 split, a sensible start until slices become editable. */
@@ -22,6 +22,7 @@ export function bakePie(ports: Ports) {
       id: ports.newId(),
       ownerId: input.ownerId,
       bakedAt: ports.now(),
+      month: Month.of(ports.now()),
       income: Money.parse(input.monthlyIncome, currencyOf(input.currency)),
       slices: defaultSlices.map((slice) => ({
         id: ports.newId(),

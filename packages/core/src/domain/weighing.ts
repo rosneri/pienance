@@ -22,4 +22,8 @@ export interface Weighing {
   /** How much of the slice its staples already take. */
   readonly stapled: Proportion;
   readonly verdict: Verdict;
+  /** Weighed as a spread: this weighing is this month's part, `whole` the full amount now. */
+  readonly spread?: { readonly months: number; readonly whole: Weighing };
+  /** The fewest months over which this month's part would fit, when the whole is too big. */
+  readonly fitsOver?: number;
 }

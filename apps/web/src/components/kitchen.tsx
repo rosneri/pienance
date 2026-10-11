@@ -18,7 +18,13 @@ export function Kitchen({
   pie: PieView;
   actions: Pick<
     PieActions,
-    "weighBite" | "takeBite" | "putBackBite" | "moveBite" | "stockStaple" | "dropStaple"
+    | "weighBite"
+    | "takeBite"
+    | "putBackBite"
+    | "putBackSpread"
+    | "moveBite"
+    | "stockStaple"
+    | "dropStaple"
   >;
 }) {
   const [changing, setChanging] = useState<StapleView | null>(null);

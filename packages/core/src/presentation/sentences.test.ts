@@ -71,6 +71,21 @@ describe("sentences", () => {
     expect(describeLeftover(words)).toBe(sentence);
   });
 
+  it("compares a spread with taking it all now", () => {
+    const spread = {
+      ...weighing,
+      verdict: "fits",
+      spread: { months: 6, wholeVerdict: "overflows" },
+    } as const;
+
+    expect(describeWeighing(spread)).toBe(
+      "Too big now. Spread over 6 months it is about a fifth of Wants each month, and fits.",
+    );
+    expect(describeVerdict(spread)).toBe(
+      "Too big now. Over 6 months it fits and leaves about half of Wants.",
+    );
+  });
+
   it("describes each verdict", () => {
     expect(describeWeighing({ ...weighing, verdict: "fits" })).toBe(
       "Fits. It is about a fifth of your Wants slice and leaves about half of it.",

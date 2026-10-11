@@ -228,6 +228,76 @@ describe("use cases", () => {
     });
   });
 
+  describe("spreads", () => {
+    async function baked() {
+      const kit = kitchen();
+      const pie = await kit.app.bakePie({ ownerId: "ada", monthlyIncome: "3000", currency: "EUR" });
+
+      return { ...kit, wants: pie.slices[1]!.id };
+    }
+
+    it("weighs a bite that is too big with the fewest months it would fit over", async () => {
+      const { app, wants } = await baked();
+
+      const weighing = await app.weighBite({ ownerId: "ada", sliceId: wants, amount: "2000" });
+
+      expect(weighing.verdict).toBe("overflows");
+      expect(weighing.fitsOver).toBe(3);
+      expect(
+        (await app.weighBite({ ownerId: "ada", sliceId: wants, amount: "2000", months: 3 }))
+          .verdict,
+      ).toBe("fits");
+    });
+
+    it("takes one part per month, each shown in its own month only", async () => {
+      const { app, clock, wants } = await baked();
+
+      const first = await app.takeSpread({
+        ownerId: "ada",
+        sliceId: wants,
+        amount: "10",
+        note: "Laptop",
+        months: 3,
+      });
+
+      expect(first.spread).toMatchObject({ part: 1, of: 3 });
+
+      const parts = async (month: Month) =>
+        (await app.servePie("ada", month))?.bites.map((bite) => [
+          bite.amount.toDecimal(),
+          bite.spread?.part,
+        ]);
+
+      const october = Month.of(clock.now);
+
+      expect(await parts(october)).toEqual([["3.34", 1]]);
+      expect(await parts(october.next())).toEqual([["3.33", 2]]);
+      expect(await parts(october.next().next())).toEqual([["3.33", 3]]);
+      expect(await parts(october.next().next().next())).toEqual([]);
+    });
+
+    it("puts back the rest of a spread and leaves its earlier parts", async () => {
+      const { app, clock, wants } = await baked();
+
+      const first = await app.takeSpread({
+        ownerId: "ada",
+        sliceId: wants,
+        amount: "30",
+        note: "Laptop",
+        months: 3,
+      });
+
+      clock.now = new Date(Date.UTC(2026, 10, 5));
+      await app.putBackSpread({ ownerId: "ada", spreadId: first.spread!.id });
+
+      const october = Month.of(first.eatenAt);
+
+      expect((await app.servePie("ada", october))?.bites).toHaveLength(1);
+      expect((await app.servePie("ada", october.next()))?.bites).toEqual([]);
+      expect((await app.servePie("ada", october.next().next()))?.bites).toEqual([]);
+    });
+  });
+
   describe("staples", () => {
     async function stocked() {
       const { app, clock } = kitchen();

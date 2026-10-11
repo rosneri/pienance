@@ -21,6 +21,7 @@ It answers two questions:
 | **Move**       | Take one of this month's bites out of its slice and into another.        |
 | **Re-slice**   | Change the pie's income or its slices (names, shares, adding, retiring). |
 | **Retired**    | A removed slice: it keeps its past bites but no longer takes a share.    |
+| **Spread**     | One expense split into equal bites over several months, starting now.    |
 | **Verdict**    | `fits`, `tight` (leaves only crumbs) or `overflows` (more than left).    |
 | **Serving**    | A slice with how much of it is eaten and left this month.                |
 | **Leftover**   | What is left of the whole pie this month.                                |

@@ -27,8 +27,24 @@ export function describePastLeftover(leftoverWords: string, monthName: string): 
   return `${capitalise(leftoverWords)} of ${monthName}'s pie was left.`;
 }
 
+const nowWords: Record<Verdict, string> = {
+  fits: "Fits now.",
+  tight: "Tight now.",
+  overflows: "Too big now.",
+};
+
+const eachMonthWords: Record<Verdict, string> = {
+  fits: "and fits",
+  tight: "and fits, but tightly",
+  overflows: "and is still too big",
+};
+
 /** The answer to "is it worth it?", in one or two sentences. */
 export function describeWeighing(view: WeighingView): string {
+  if (view.spread) {
+    return `${nowWords[view.spread.wholeVerdict]} Spread over ${view.spread.months} months it is ${view.ofSlice} of ${view.sliceName} each month, ${eachMonthWords[view.verdict]}.`;
+  }
+
   switch (view.verdict) {
     case "fits":
       return `Fits. It is ${view.ofSlice} of your ${view.sliceName} slice and leaves ${view.leftAfter} of it.`;
@@ -41,6 +57,10 @@ export function describeWeighing(view: WeighingView): string {
 
 /** The verdict alone, for a bite being typed: its portion is shown beside it. */
 export function describeVerdict(view: WeighingView): string {
+  if (view.spread) {
+    return `${nowWords[view.spread.wholeVerdict]} Over ${view.spread.months} months it ${monthlyVerdict(view)}.`;
+  }
+
   switch (view.verdict) {
     case "fits":
       return `Fits: leaves ${view.leftAfter} of ${view.sliceName}.`;
@@ -122,8 +142,12 @@ export function describeFocus(focus: FocusView, view: PieView): string {
   return `${capitalise(count(focus.biteIds.length, "bite"))} taken once ${past ? `in ${view.monthName} ate` : "this month ate"} ${share} of your pie.`;
 }
 
-/** The answer after taking a bite. */
+/** The answer after taking a bite; for a spread, this month's part. */
 export function describeTaken(view: BiteView): string {
+  if (view.spread) {
+    return `Taken over ${view.spread.toCome + 1} months. ${capitalise(view.portionWords)} of ${view.sliceName} this month.`;
+  }
+
   return `Taken. ${capitalise(view.portionWords)} of ${view.sliceName}.`;
 }
 
@@ -198,6 +222,18 @@ function appetiteSentence(view: AppetiteView): string {
       return view.usualWords === "nothing"
         ? `You usually leave ${view.sliceName} untouched.`
         : `You usually eat ${view.usualWords} of ${view.sliceName}.`;
+  }
+}
+
+/** How a spread's part sits in this month: "fits and leaves about half of Wants". */
+function monthlyVerdict(view: WeighingView): string {
+  switch (view.verdict) {
+    case "fits":
+      return `fits and leaves ${view.leftAfter} of ${view.sliceName}`;
+    case "tight":
+      return "fits, but tightly";
+    case "overflows":
+      return "is still too big";
   }
 }
 

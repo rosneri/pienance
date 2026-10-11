@@ -1,19 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import type { PieActions } from "@/server/pie-actions";
 import { pieView } from "@/testing/fixtures";
 import { Kitchen } from "./kitchen";
 
 const refused = async () => ({ ok: false, error: "Not now" }) as const;
 
-const actions: Pick<
-  PieActions,
-  "weighBite" | "takeBite" | "putBackBite" | "moveBite" | "stockStaple" | "dropStaple"
-> = {
+const actions: Parameters<typeof Kitchen>[0]["actions"] = {
   weighBite: refused,
   takeBite: refused,
   putBackBite: refused,
+  putBackSpread: refused,
   moveBite: refused,
   stockStaple: refused,
   dropStaple: refused,

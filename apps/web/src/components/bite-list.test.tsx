@@ -1,4 +1,4 @@
-import type { BiteView, MoveBiteInput, PutBackBiteInput } from "@pienance/core";
+import type { BiteView, MoveBiteInput, PutBackBiteInput, PutBackSpreadInput } from "@pienance/core";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
@@ -19,6 +19,12 @@ function Eaten({ moved, calls }: { moved: Outcome<BiteView>; calls: string[] }) 
     putBackBite: async ({ biteId }: Asked<PutBackBiteInput>): Promise<Outcome<null>> => {
       calls.push(`put back ${biteId}`);
       setBites((current) => current.filter((bite) => bite.id !== biteId));
+
+      return { ok: true, value: null };
+    },
+    putBackSpread: async ({ spreadId }: Asked<PutBackSpreadInput>): Promise<Outcome<null>> => {
+      calls.push(`put back spread ${spreadId}`);
+      setBites((current) => current.filter((bite) => bite.spread?.id !== spreadId));
 
       return { ok: true, value: null };
     },
@@ -111,5 +117,45 @@ describe("BiteList", () => {
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent("That bite is not in this month's pie."),
     );
+  });
+
+  it("tells a spread's part and offers to put back the rest of it", async () => {
+    const calls: string[] = [];
+
+    const laptop = {
+      ...shoes!,
+      id: "laptop-2",
+      note: "Laptop",
+      spread: { id: "laptop", words: "2 of 6", toCome: 4 },
+    };
+
+    const user = userEvent.setup();
+
+    render(
+      <FocusProvider focuses={pieView.focuses}>
+        <BiteList
+          bites={[laptop]}
+          slices={pieView.slices}
+          actions={{
+            putBackBite: async () => ({ ok: true, value: null }),
+            putBackSpread: async ({ spreadId }) => {
+              calls.push(spreadId);
+
+              return { ok: true, value: null };
+            },
+            moveBite: async () => ({ ok: false, error: "No" }),
+          }}
+        />
+      </FocusProvider>,
+    );
+
+    expect(screen.getByText("· 2 of 6")).toBeInTheDocument();
+    expect(screen.getByText("4 more months")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Options for Laptop" }));
+    await user.click(screen.getByRole("button", { name: "Put back this and the 4 to come" }));
+    await user.click(screen.getByRole("button", { name: "Put back" }));
+
+    await waitFor(() => expect(calls).toEqual(["laptop"]));
   });
 });
