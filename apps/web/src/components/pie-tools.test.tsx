@@ -168,7 +168,7 @@ describe("PieTools (WebMCP)", () => {
         { id: "rent", staple: "Rent: about half of Needs" },
         { id: "gym", staple: "Gym: a sliver of Wants, ends after October" },
       ],
-      bites: ["Shoes: about three quarters of Wants", "Something: a crumb of Needs"],
+      bites: ["Shoes: 3/4 of Wants", "Something: under 1/10 of Needs"],
     });
     expect(await tool("stock_staple").execute({ amount: 1000, slice: "Needs", note: "Rent" })).toBe(
       "Added. Rent takes about half of Needs every month.",

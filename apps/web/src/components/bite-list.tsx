@@ -22,7 +22,7 @@ export function BiteList({
             <li key={bite.id} className="flex justify-between gap-4 border-b py-3">
               <span>{bite.note || "Something"}</span>
               <span className="text-end text-muted-foreground">
-                {bite.portionWords} of {bite.sliceName}
+                {bite.portion} of {bite.sliceName}
               </span>
             </li>
           ))}

@@ -1,5 +1,6 @@
 import {
   aheadOf,
+  asFraction,
   isVoid,
   paceOf,
   roughly,
@@ -39,7 +40,8 @@ export interface BiteView {
   readonly id: string;
   readonly note: string;
   readonly sliceName: string;
-  readonly portionWords: string;
+  /** How much of its slice the bite took, as a simple fraction, e.g. "5/9". */
+  readonly portion: string;
   readonly eatenAt: string;
 }
 
@@ -102,7 +104,7 @@ export function viewPie(pie: Pie, served: Served): PieView {
       id: bite.id,
       note: bite.note,
       sliceName: pie.slice(bite.sliceId).name,
-      portionWords: roughly(pie.portionOf(bite)),
+      portion: asFraction(pie.portionOf(bite)),
       eatenAt: bite.eatenAt.toISOString(),
     })),
     staples: pie.staples

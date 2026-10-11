@@ -86,7 +86,7 @@ export function PieTools({
         name: "read_pie",
         title: "Read a month's pie",
         description:
-          "Returns how much of the user's monthly pie is left, per slice, how fast slices are eaten, the staples that come back every month (with their ids) and what was eaten. This month by default, or a past month on the shelf. Everything is described in rough proportions.",
+          "Returns how much of the user's monthly pie is left, per slice, how fast slices are eaten, the staples that come back every month (with their ids) and what was eaten. This month by default, or a past month on the shelf. Everything is described in proportions: rough words, and simple fractions for bites.",
         annotations: { readOnlyHint: true },
         inputSchema: {
           type: "object",
@@ -117,7 +117,7 @@ export function PieTools({
               staple: `${staple.note || "Something"}: ${staple.portionWords} of ${staple.sliceName}${staple.endsAfter ? `, ends after ${staple.endsAfter}` : ""}`,
             })),
             bites: served.bites.map(
-              (bite) => `${bite.note || "Something"}: ${bite.portionWords} of ${bite.sliceName}`,
+              (bite) => `${bite.note || "Something"}: ${bite.portion} of ${bite.sliceName}`,
             ),
           };
         },

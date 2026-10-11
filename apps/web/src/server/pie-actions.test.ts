@@ -83,8 +83,8 @@ describe("pie actions", () => {
     expect((await ada.takeBite({ sliceId: needs, amount: "150", note: "Groceries" })).ok).toBe(
       true,
     );
-    expect((await ada.readPie())?.bites.map((bite) => [bite.note, bite.portionWords])).toEqual([
-      ["Groceries", "about a tenth"],
+    expect((await ada.readPie())?.bites.map((bite) => [bite.note, bite.portion])).toEqual([
+      ["Groceries", "1/10"],
     ]);
   });
 

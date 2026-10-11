@@ -16,7 +16,7 @@ export type { PieRepository } from "./pie-repository";
 
 export { Proportion } from "./proportion";
 
-export { roughly } from "./rough-size";
+export { asFraction, roughly } from "./rough-size";
 
 export type { Slice } from "./slice";
 

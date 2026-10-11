@@ -52,7 +52,7 @@ describe("viewPie", () => {
         id: "coffee",
         note: "Coffee",
         sliceName: "Wants",
-        portionWords: "about a quarter",
+        portion: "1/4",
         eatenAt: "2026-10-01T00:00:00.000Z",
       },
     ]);

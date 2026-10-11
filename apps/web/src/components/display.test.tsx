@@ -220,7 +220,7 @@ describe("BiteList", () => {
 
     const items = screen.getAllByRole("listitem");
 
-    expect(items[0]).toHaveTextContent("Shoesabout three quarters of Wants");
+    expect(items[0]).toHaveTextContent("Shoes3/4 of Wants");
     expect(within(items[1] ?? document.body).getByText("Something")).toBeInTheDocument();
   });
 
