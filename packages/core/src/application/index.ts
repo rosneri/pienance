@@ -2,17 +2,21 @@ import { bakePie } from "./bake-pie";
 import { dropStaple } from "./drop-staple";
 import type { Ports } from "./ports";
 import { readAppetite } from "./read-appetite";
+import { readStatement } from "./read-statement";
 import { servePie } from "./serve-pie";
 import { shelvePie } from "./shelve-pie";
 import { stockStaple } from "./stock-staple";
 import { takeBite } from "./take-bite";
+import { takeBites } from "./take-bites";
 import { weighBite } from "./weigh-bite";
 
 export type { BakePieInput } from "./bake-pie";
 
 export type { DropStapleInput } from "./drop-staple";
 
-export type { Ports } from "./ports";
+export type { Advisor, Ports, Rows } from "./ports";
+
+export type { DraftBite, ReadStatementInput, StatementPreview } from "./read-statement";
 
 export type { ReadAppetiteInput, SliceAppetite } from "./read-appetite";
 
@@ -22,9 +26,24 @@ export type { StockStapleInput } from "./stock-staple";
 
 export type { TakeBiteInput } from "./take-bite";
 
+export type { TakenBites, TakeBitesInput } from "./take-bites";
+
 export type { WeighBiteInput } from "./weigh-bite";
 
-export { bakePie, dropStaple, readAppetite, servePie, shelvePie, stockStaple, takeBite, weighBite };
+export { mostBites } from "./read-statement";
+
+export {
+  bakePie,
+  dropStaple,
+  readAppetite,
+  readStatement,
+  servePie,
+  shelvePie,
+  stockStaple,
+  takeBite,
+  takeBites,
+  weighBite,
+};
 
 /** Every use case, wired to one set of ports. */
 export function pienance(ports: Ports) {
@@ -37,6 +56,8 @@ export function pienance(ports: Ports) {
     dropStaple: dropStaple(ports),
     shelvePie: shelvePie(ports),
     readAppetite: readAppetite(ports),
+    readStatement: readStatement(ports),
+    takeBites: takeBites(ports),
   };
 }
 

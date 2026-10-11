@@ -1,6 +1,7 @@
 "use client";
 
 import type { BiteView } from "@pienance/core";
+import Link from "next/link";
 import type { ReactNode } from "react";
 import { useFocus } from "./focus";
 
@@ -9,12 +10,15 @@ export function BiteList({
   heading = "Eaten this month",
   empty = "Not a crumb yet.",
   composer,
+  importable = false,
 }: {
   bites: readonly BiteView[];
   heading?: string;
   empty?: string;
   /** The first row, for adding a bite; absent on a month that is over. */
   composer?: ReactNode;
+  /** Links to importing a bank statement, for this month's bites. */
+  importable?: boolean;
 }) {
   const { focused } = useFocus();
   const shown = focused ? bites.filter((bite) => focused.biteIds.includes(bite.id)) : bites;
@@ -43,6 +47,14 @@ export function BiteList({
         <p className="max-w-[60ch] text-muted-foreground">
           {focused && bites.length > 0 ? `Nothing here for ${focused.name}.` : empty}
         </p>
+      )}
+      {importable && (
+        <Link
+          href="/import"
+          className="w-fit text-sm whitespace-nowrap underline decoration-berry underline-offset-4"
+        >
+          Bring in a statement
+        </Link>
       )}
     </section>
   );

@@ -30,9 +30,11 @@ import {
   readAppetite,
   readPie,
   readShelf,
+  readStatement,
   signOut,
   stockStaple,
   takeBite,
+  takeBites,
   weighBite,
 } from "./actions";
 
@@ -47,6 +49,8 @@ const actions = {
   takeBite,
   stockStaple,
   dropStaple,
+  readStatement,
+  takeBites,
 };
 
 export default async function Home({

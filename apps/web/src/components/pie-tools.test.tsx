@@ -11,7 +11,9 @@ interface RegisteredTool {
     readonly properties?: Record<string, { readonly enum?: readonly string[] }>;
   };
   readonly annotations?: { readonly readOnlyHint?: boolean };
-  execute(input: Record<string, string | number>): Promise<string | object>;
+  execute(
+    input: Record<string, string | number | readonly Record<string, string | number>[]>,
+  ): Promise<string | object>;
 }
 
 let tools: Map<string, RegisteredTool>;
@@ -93,6 +95,34 @@ function fakeActions(): PieActions & { calls: string[] } {
 
       return { ok: false, error: "Bake a pie first" };
     },
+    readStatement: async (upload) => {
+      calls.push(`read ${upload.csv}`);
+
+      return {
+        ok: true,
+        value: {
+          layout: {
+            skipRows: 1,
+            columns: ["date", "description", "amount"],
+            dates: "ymd",
+            decimal: ".",
+            spending: "negative",
+          },
+          header: ["Date", "Description", "Amount"],
+          bites: [{ eatenOn: "2026-10-02", amount: "4.20", note: "Bakery", sliceId: "needs" }],
+          incoming: 1,
+          unreadable: 0,
+          trimmed: { kept: 2_000, total: 2_400 },
+        },
+      };
+    },
+    takeBites: async (input) => {
+      calls.push(
+        ...input.bites.map((bite) => `take ${bite.eatenOn} ${bite.sliceId} ${bite.amount}`),
+      );
+
+      return { ok: true, value: { taken: input.bites.length, duplicates: 0 } };
+    },
   };
 }
 
@@ -139,8 +169,10 @@ describe("PieTools (WebMCP)", () => {
       "drop_staple",
       "read_pie",
       "read_shelf",
+      "read_statement",
       "stock_staple",
       "take_bite",
+      "take_bites",
       "weigh_bite",
     ]);
     expect(tool("read_pie").annotations?.readOnlyHint).toBe(true);
@@ -222,6 +254,25 @@ describe("PieTools (WebMCP)", () => {
     render(<PieTools pie={pastPieView} past actions={fakeActions()} />);
 
     expect([...tools.keys()].toSorted()).toEqual(["read_pie", "read_shelf"]);
+  });
+
+  it("reads a statement, then takes its bites", async () => {
+    const actions = fakeActions();
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(tool("read_statement").annotations?.readOnlyHint).toBe(true);
+    expect(await tool("read_statement").execute({ csv: "Date,Description,Amount" })).toEqual({
+      found:
+        "Read the first 2000 of 2400 lines. 1 expenses; skipped 1 incoming and 0 unreadable rows.",
+      bites: [{ day: "2026-10-02", amount: 4.2, note: "Bakery", slice: "Needs" }],
+    });
+    expect(
+      await tool("take_bites").execute({
+        bites: [{ day: "2026-10-02", amount: 4.2, note: "Bakery", slice: "Wants" }],
+      }),
+    ).toBe("Recorded 1 expenses; 0 were already there.");
+    expect(actions.calls).toEqual(["read Date,Description,Amount", "take 2026-10-02 wants 4.2"]);
   });
 
   it("swaps tools when the page changes and removes them when it goes away", () => {

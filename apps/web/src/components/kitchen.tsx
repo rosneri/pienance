@@ -31,6 +31,7 @@ export function Kitchen({
       <BiteList
         bites={pie.bites}
         empty={discovery}
+        importable
         composer={
           <BiteComposer
             slices={pie.slices}

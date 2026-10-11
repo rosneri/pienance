@@ -15,12 +15,29 @@ import {
   type ShelfMonthView,
   type StapleView,
   type StockStapleInput,
+  type StatementLayout,
+  type StatementPreview,
   type TakeBiteInput,
+  type TakenBites,
+  type TakeBitesInput,
   type WeighBiteInput,
   type WeighingView,
 } from "@pienance/core";
 import type { ProductEvent } from "@pienance/telemetry/contract";
+import { rowsOf } from "@/import/csv";
+import { withinLimits, type Trimmed } from "@/import/lines";
 import { failed, succeeded, type Outcome } from "./outcome";
+
+/** A bank statement as uploaded, and how to read it when the person corrected the guess. */
+export interface StatementUpload {
+  readonly csv: string;
+  readonly layout?: StatementLayout | undefined;
+}
+
+/** A statement read into draft bites, and whether only its first lines were. */
+export interface StatementReading extends StatementPreview {
+  readonly trimmed: Trimmed | null;
+}
 
 /** What a signed-in person sends; who they are comes from their session. */
 export type Asked<T> = Omit<T, "ownerId">;
@@ -161,6 +178,42 @@ export function pieActions(deps: PieActionsDeps) {
         deps.refresh();
 
         return bite.id;
+      });
+    },
+
+    readStatement(upload: StatementUpload): Promise<Outcome<StatementReading>> {
+      return attempt(async (ownerId) => {
+        // A statement over the limits is cut to its first lines rather than refused.
+        const statement = withinLimits(upload.csv);
+
+        if (!statement) throw new RangeError("That file is too big to read");
+
+        const preview = await deps.app.readStatement({
+          ownerId,
+          rows: rowsOf(statement.text),
+          layout: upload.layout,
+        });
+
+        deps.track(
+          {
+            name: "statement.read",
+            properties: { bites: preview.bites.length, trimmed: statement.trimmed !== null },
+          },
+          ownerId,
+        );
+
+        return { ...preview, trimmed: statement.trimmed };
+      });
+    },
+
+    takeBites(input: Asked<TakeBitesInput>): Promise<Outcome<TakenBites>> {
+      return attempt(async (ownerId) => {
+        const taken = await deps.app.takeBites({ ...input, ownerId });
+
+        deps.track({ name: "bites.taken", properties: taken }, ownerId);
+        deps.refresh();
+
+        return taken;
       });
     },
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  aiGatewayFrom,
   authSecretFrom,
   baseUrlFrom,
   deploymentFrom,
@@ -87,5 +88,17 @@ describe("deploymentFrom", () => {
     );
     expect(deploymentFrom({ VERCEL_GIT_COMMIT_SHA: "abc" })).toBe("abc");
     expect(deploymentFrom({})).toBeNull();
+  });
+});
+
+describe("aiGatewayFrom", () => {
+  it("calls the gateway with an API key, or on Vercel", () => {
+    expect(aiGatewayFrom({ AI_GATEWAY_API_KEY: "key" })).toBe(true);
+    expect(aiGatewayFrom({ VERCEL: "1" })).toBe(true);
+  });
+
+  it("stays off locally without a key", () => {
+    expect(aiGatewayFrom({ AI_GATEWAY_API_KEY: "" })).toBe(false);
+    expect(aiGatewayFrom({})).toBe(false);
   });
 });
