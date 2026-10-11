@@ -4,7 +4,11 @@ export { currencyCodes, currencyOf, type Currency } from "./currency";
 
 export { Money } from "./money";
 
+export { appetiteOf, type Appetite } from "./appetite";
+
 export { Month } from "./month";
+
+export { aheadOf, paceOf, type Pace } from "./pace";
 
 export { Pie, PieError, type BiteCandidate, type Serving } from "./pie";
 
@@ -15,5 +19,7 @@ export { Proportion } from "./proportion";
 export { roughly } from "./rough-size";
 
 export type { Slice } from "./slice";
+
+export { isActiveIn, isVoid, type Staple } from "./staple";
 
 export type { Verdict, Weighing } from "./weighing";

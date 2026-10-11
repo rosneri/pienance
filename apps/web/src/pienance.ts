@@ -80,6 +80,10 @@ export const pienance: Pienance = {
   servePie: traced("pienance.servePie", app.servePie),
   weighBite: traced("pienance.weighBite", app.weighBite),
   takeBite: traced("pienance.takeBite", app.takeBite),
+  stockStaple: traced("pienance.stockStaple", app.stockStaple),
+  dropStaple: traced("pienance.dropStaple", app.dropStaple),
+  shelvePie: traced("pienance.shelvePie", app.shelvePie),
+  readAppetite: traced("pienance.readAppetite", app.readAppetite),
 };
 
 let authInstance: Auth | undefined;

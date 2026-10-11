@@ -1,13 +1,21 @@
 import type { BiteView } from "@pienance/core";
 
-export function BiteList({ bites }: { bites: readonly BiteView[] }) {
+export function BiteList({
+  bites,
+  heading = "Eaten this month",
+  empty = "Not a crumb yet.",
+}: {
+  bites: readonly BiteView[];
+  heading?: string;
+  empty?: string;
+}) {
   return (
     <section className="grid content-start gap-4" aria-labelledby="bites-heading">
       <h2 id="bites-heading" className="text-2xl">
-        Eaten this month
+        {heading}
       </h2>
       {bites.length === 0 ? (
-        <p className="text-muted-foreground">Not a crumb yet.</p>
+        <p className="max-w-[60ch] text-muted-foreground">{empty}</p>
       ) : (
         <ul className="grid">
           {bites.map((bite) => (

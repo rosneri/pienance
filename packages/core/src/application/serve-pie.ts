@@ -1,7 +1,8 @@
 import { Month, type Pie } from "../domain";
 import type { Ports } from "./ports";
 
-/** The owner's pie this month, with what was eaten and what is left. */
+/** The owner's pie in a month (this one by default), with what was eaten and what is left. */
 export function servePie(ports: Ports) {
-  return (ownerId: string): Promise<Pie | null> => ports.pies.find(ownerId, Month.of(ports.now()));
+  return (ownerId: string, month: Month = Month.of(ports.now())): Promise<Pie | null> =>
+    ports.pies.find(ownerId, month);
 }

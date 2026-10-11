@@ -157,4 +157,12 @@ describe("traced", () => {
 
     await expect(traced("double", async (n: number) => n * 2, tracer)(21)).resolves.toBe(42);
   });
+
+  it("passes every argument through", async () => {
+    const { tracer } = pipeline(1);
+    const add = traced("add", async (a: number, b?: number) => a + (b ?? 1), tracer);
+
+    await expect(add(20, 22)).resolves.toBe(42);
+    await expect(add(41)).resolves.toBe(42);
+  });
 });

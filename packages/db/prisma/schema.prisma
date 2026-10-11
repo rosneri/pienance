@@ -18,6 +18,7 @@ model Pie {
   currency    String
   /// In the currency's minor units (cents, yen, fils…)
   incomeMinor BigInt
+  /// When the pie was baked: the first month on its shelf
   createdAt   DateTime @default(now())
   slices      Slice[]
 
@@ -25,14 +26,15 @@ model Pie {
 }
 
 model Slice {
-  id       String @id
+  id       String   @id
   pieId    String
-  pie      Pie    @relation(fields: [pieId], references: [id], onDelete: Cascade)
+  pie      Pie      @relation(fields: [pieId], references: [id], onDelete: Cascade)
   name     String
   /// Ratio of the pie, 0..1
   share    Float
   position Int
   bites    Bite[]
+  staples  Staple[]
 
   @@index([pieId])
 }
@@ -47,6 +49,22 @@ model Bite {
   eatenAt     DateTime
 
   @@index([sliceId, eatenAt])
+}
+
+/// A bite that comes back every month.
+model Staple {
+  id          String    @id
+  sliceId     String
+  slice       Slice     @relation(fields: [sliceId], references: [id], onDelete: Cascade)
+  currency    String
+  amountMinor BigInt
+  note        String
+  /// First day of the first month it counts in
+  since       DateTime
+  /// First day of the first month it no longer counts in; null while active
+  until       DateTime?
+
+  @@index([sliceId, since])
 }
 
 // ── Identity (Better Auth: core tables + the JWT plugin's keys) ──

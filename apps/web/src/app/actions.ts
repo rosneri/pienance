@@ -2,8 +2,13 @@
 
 import { ownerOf } from "@pienance/auth";
 import type {
+  AppetiteSentence,
   BakePieInput,
+  DropStapleInput,
   PieView,
+  ShelfMonthView,
+  StapleView,
+  StockStapleInput,
   TakeBiteInput,
   WeighBiteInput,
   WeighingView,
@@ -11,7 +16,7 @@ import type {
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { auth, pienance, track } from "@/pienance";
+import { auth, clock, pienance, track } from "@/pienance";
 import { accountActions, type Credentials, type SignUpDetails } from "@/server/account-actions";
 import type { Outcome } from "@/server/outcome";
 import { pieActions, type Asked } from "@/server/pie-actions";
@@ -23,12 +28,21 @@ const pies = pieActions({
   owner: async () => ownerOf(auth(), await headers()),
   refresh: () => revalidatePath("/"),
   track,
+  now: clock,
 });
 
 const accounts = () => accountActions(auth(), headers);
 
-export async function readPie(): Promise<PieView | null> {
-  return pies.readPie();
+export async function readPie(month?: string): Promise<PieView | null> {
+  return pies.readPie(month);
+}
+
+export async function readShelf(selected?: string): Promise<ShelfMonthView[]> {
+  return pies.readShelf(selected);
+}
+
+export async function readAppetite(): Promise<AppetiteSentence[]> {
+  return pies.readAppetite();
 }
 
 export async function bakePie(input: Asked<BakePieInput>): Promise<Outcome<PieView>> {
@@ -41,6 +55,14 @@ export async function weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<W
 
 export async function takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<string>> {
   return pies.takeBite(input);
+}
+
+export async function stockStaple(input: Asked<StockStapleInput>): Promise<Outcome<StapleView>> {
+  return pies.stockStaple(input);
+}
+
+export async function dropStaple(input: Asked<DropStapleInput>): Promise<Outcome<StapleView>> {
+  return pies.dropStaple(input);
 }
 
 export async function signUp(details: SignUpDetails): Promise<Outcome<null>> {

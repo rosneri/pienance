@@ -2,7 +2,7 @@ import type { PieView } from "@pienance/core";
 import { render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { PieActions } from "@/server/pie-actions";
-import { pieView } from "@/testing/fixtures";
+import { pastPieView, pieView } from "@/testing/fixtures";
 import { PieTools } from "./pie-tools";
 
 interface RegisteredTool {
@@ -36,7 +36,36 @@ function fakeActions(): PieActions & { calls: string[] } {
 
   return {
     calls,
-    readPie: async () => pieView,
+    readPie: async (month) => (month === "2026-09" ? pastPieView : pieView),
+    readShelf: async () => [
+      {
+        month: "2026-10",
+        label: "Oct",
+        name: "October",
+        slices: [],
+        leftoverWords: "about half",
+        current: true,
+      },
+      {
+        month: "2026-09",
+        label: "Sep",
+        name: "September",
+        slices: [],
+        leftoverWords: "about a tenth",
+        current: false,
+      },
+    ],
+    readAppetite: async () => [{ sentence: "You usually eat about three quarters of Needs." }],
+    stockStaple: async (input) => {
+      calls.push(`stock ${input.sliceId} ${input.amount} ${input.note}`);
+
+      return { ok: true, value: { ...pieView.staples[0]!, note: input.note } };
+    },
+    dropStaple: async (input) => {
+      calls.push(`drop ${input.stapleId}`);
+
+      return { ok: true, value: { ...pieView.staples[0]!, endsAfter: "October" } };
+    },
     bakePie: async (input) => {
       calls.push(`bake ${input.monthlyIncome} ${input.currency}`);
 
@@ -53,6 +82,7 @@ function fakeActions(): PieActions & { calls: string[] } {
           ofLeftover: "about a quarter",
           ofPie: "a sliver",
           leftAfter: "about half",
+          stapled: "nothing",
           verdict: "fits",
         },
       };
@@ -104,7 +134,14 @@ describe("PieTools (WebMCP)", () => {
 
     render(<PieTools pie={pie} actions={actions} />);
 
-    expect([...tools.keys()].toSorted()).toEqual(["read_pie", "take_bite", "weigh_bite"]);
+    expect([...tools.keys()].toSorted()).toEqual([
+      "drop_staple",
+      "read_pie",
+      "read_shelf",
+      "stock_staple",
+      "take_bite",
+      "weigh_bite",
+    ]);
     expect(tool("read_pie").annotations?.readOnlyHint).toBe(true);
     expect(tool("weigh_bite").inputSchema?.properties?.slice?.enum).toEqual([
       "Needs",
@@ -119,11 +156,54 @@ describe("PieTools (WebMCP)", () => {
     );
     expect(await tool("read_pie").execute({})).toEqual({
       summary: "About half of your pie is left.",
+      pace: "Wants is going fast: about three quarters eaten, about a third of the month gone.",
+      month: "October",
       currency: "EUR",
-      slices: ["Needs: all left", "Wants: about a quarter left", "Savings: all left"],
+      slices: [
+        "Needs: about a third left",
+        "Wants: about a quarter left, going fast",
+        "Savings: all left",
+      ],
+      staples: [
+        { id: "rent", staple: "Rent: about half of Needs" },
+        { id: "gym", staple: "Gym: a sliver of Wants, ends after October" },
+      ],
       bites: ["Shoes: about three quarters of Wants", "Something: a crumb of Needs"],
     });
-    expect(actions.calls).toEqual(["weigh wants 80", "take needs 5 Tea"]);
+    expect(await tool("stock_staple").execute({ amount: 1000, slice: "Needs", note: "Rent" })).toBe(
+      "Added. Rent takes about half of Needs every month.",
+    );
+    expect(await tool("drop_staple").execute({ stapleId: "rent" })).toBe(
+      "Stopped. Rent ends after October.",
+    );
+    expect(actions.calls).toEqual([
+      "weigh wants 80",
+      "take needs 5 Tea",
+      "stock needs 1000 Rent",
+      "drop rent",
+    ]);
+  });
+
+  it("reads a past month and the shelf", async () => {
+    render(<PieTools pie={pieView} actions={fakeActions()} />);
+
+    expect(await tool("read_pie").execute({ month: "2026-09" })).toMatchObject({
+      summary: "About half of September's pie was left.",
+      month: "September",
+    });
+    expect(await tool("read_pie").execute({ month: "2025-01" })).toBe(
+      "That month is not on the shelf.",
+    );
+    expect(await tool("read_shelf").execute({})).toEqual({
+      months: ["September: about a tenth left"],
+      usually: ["You usually eat about three quarters of Needs."],
+    });
+  });
+
+  it("offers only reading tools on a past month", () => {
+    render(<PieTools pie={pastPieView} past actions={fakeActions()} />);
+
+    expect([...tools.keys()].toSorted()).toEqual(["read_pie", "read_shelf"]);
   });
 
   it("swaps tools when the page changes and removes them when it goes away", () => {
