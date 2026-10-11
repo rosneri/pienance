@@ -78,6 +78,7 @@ function fakeActions(): PieActions & { calls: string[] } {
         ok: true,
         value: {
           sliceName: "Wants",
+          portion: "1/5",
           ofSlice: "about a fifth",
           ofLeftover: "about a quarter",
           ofPie: "a sliver",

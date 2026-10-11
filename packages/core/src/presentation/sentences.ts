@@ -39,6 +39,18 @@ export function describeWeighing(view: WeighingView): string {
   }
 }
 
+/** The verdict alone, for a bite being typed: its portion is shown beside it. */
+export function describeVerdict(view: WeighingView): string {
+  switch (view.verdict) {
+    case "fits":
+      return `Fits: leaves ${view.leftAfter} of ${view.sliceName}.`;
+    case "tight":
+      return `Tight: it takes ${view.ofLeftover} of what is left of ${view.sliceName}.${staplesClause(view)}`;
+    case "overflows":
+      return `Too big: more than what is left of ${view.sliceName}.${staplesClause(view)}`;
+  }
+}
+
 /** Names the slice furthest ahead of the month, or null when there is no pace to tell. */
 export function describePace(view: PieView): string | null {
   if (view.gone === undefined || view.goneWords === undefined || view.gone < paceFrom) return null;

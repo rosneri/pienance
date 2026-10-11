@@ -11,10 +11,13 @@ import { describe, expect, it } from "vitest";
 import type { Outcome } from "@/server/outcome";
 import type { Asked } from "@/server/pie-actions";
 import { pieView } from "@/testing/fixtures";
-import { WeighForm } from "./weigh-form";
+import { BiteComposer } from "./bite-composer";
+import { FocusProvider } from "./focus";
+import { Legend } from "./legend";
 
 const fits: WeighingView = {
   sliceName: "Wants",
+  portion: "1/5",
   ofSlice: "about a fifth",
   ofLeftover: "about a quarter",
   ofPie: "a sliver",
@@ -50,80 +53,106 @@ function setup(weighed: Outcome<WeighingView> = { ok: true, value: fits }) {
     },
   };
 
-  const form = (changing: StapleView | null = null) => (
-    <WeighForm slices={pieView.slices} currency="EUR" actions={actions} changing={changing} />
+  const row = (changing: StapleView | null = null) => (
+    <FocusProvider focuses={pieView.focuses}>
+      <Legend slices={pieView.slices} />
+      <ul>
+        <BiteComposer
+          slices={pieView.slices}
+          currency="EUR"
+          actions={actions}
+          changing={changing}
+        />
+      </ul>
+    </FocusProvider>
   );
 
-  const { rerender } = render(form());
+  const { rerender } = render(row());
 
   return {
     weighs,
     takes,
     stocks,
-    change: (staple: StapleView) => rerender(form(staple)),
+    change: (staple: StapleView) => rerender(row(staple)),
     user: userEvent.setup(),
   };
 }
 
-describe("WeighForm", () => {
-  it("shows the price in the pie's currency and starts on the first slice", () => {
-    setup();
+const price = () => screen.getByLabelText("Price (€)");
 
-    expect(screen.getByLabelText("Price (€)")).toBeInTheDocument();
+describe("BiteComposer", () => {
+  it("is a + row until it is opened", async () => {
+    const { user } = setup();
+
+    expect(screen.queryByLabelText("Price (€)")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
+
+    expect(price()).toHaveFocus();
     expect(screen.getByRole("radio", { name: "Needs" })).toBeChecked();
   });
 
-  it("weighs a bite and answers in words, keeping what was typed", async () => {
+  it("weighs the bite as the price is typed: its portion and the verdict", async () => {
     const { weighs, user } = setup();
 
-    await user.type(screen.getByLabelText("What is it?"), "Concert");
-    await user.type(screen.getByLabelText("Price (€)"), "80");
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
     await user.click(screen.getByRole("radio", { name: "Wants" }));
-    await user.click(screen.getByRole("button", { name: "Weigh it" }));
+    await user.type(price(), "80");
 
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
-        "Fits. It is about a fifth of your Wants slice and leaves about half of it.",
+        "1/5 of Wants · Fits: leaves about half of Wants.",
       ),
     );
-    expect(weighs).toEqual([{ sliceId: "wants", amount: "80", note: "Concert" }]);
-    expect(screen.getByLabelText("Price (€)")).toHaveValue("80");
+    // Typing pauses are what get weighed, not every key.
+    expect(weighs).toEqual([{ sliceId: "wants", amount: "80" }]);
   });
 
-  it("takes a bite silently", async () => {
+  it("starts on the focused slice", async () => {
+    const { user } = setup();
+
+    await user.click(screen.getByRole("button", { name: /^Savings/ }));
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
+
+    expect(screen.getByRole("radio", { name: "Savings" })).toBeChecked();
+  });
+
+  it("takes the bite silently and closes", async () => {
     const { takes, user } = setup();
 
-    await user.type(screen.getByLabelText("Price (€)"), "12.50");
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
+    await user.type(screen.getByLabelText("What is it?"), "Tea");
+    await user.type(price(), "12.50");
     await user.click(screen.getByRole("button", { name: "Take the bite" }));
 
-    await waitFor(() => expect(takes).toHaveLength(1));
-    expect(takes[0]).toEqual({ sliceId: "needs", amount: "12.50", note: "" });
-    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    await waitFor(() =>
+      expect(takes).toEqual([{ sliceId: "needs", amount: "12.50", note: "Tea" }]),
+    );
+    expect(screen.getByRole("button", { name: "Add a bite" })).toBeInTheDocument();
   });
 
   it("shows why a bite could not be weighed or taken", async () => {
     const { user } = setup({ ok: false, error: "Bake a pie first" });
 
-    await user.type(screen.getByLabelText("Price (€)"), "5");
-    await user.click(screen.getByRole("button", { name: "Weigh it" }));
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
+    await user.type(price(), "5");
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Bake a pie first"));
-    expect(screen.getByLabelText("Price (€)")).toHaveAttribute("aria-invalid", "true");
+    expect(price()).toHaveAttribute("aria-invalid", "true");
 
-    await user.clear(screen.getByLabelText("Price (€)"));
-    await user.type(screen.getByLabelText("Price (€)"), "0");
+    await user.clear(price());
+    await user.type(price(), "0");
     await user.click(screen.getByRole("button", { name: "Take the bite" }));
 
     await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent("Nothing to take"));
   });
 
-  it("adds a staple instead of a bite when every month is ticked", async () => {
+  it("adds a staple instead when every month is ticked", async () => {
     const { takes, stocks, user } = setup();
 
-    expect(screen.getByRole("button", { name: "Take the bite" })).toBeInTheDocument();
-
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
     await user.type(screen.getByLabelText("What is it?"), "Rent");
-    await user.type(screen.getByLabelText("Price (€)"), "900");
+    await user.type(price(), "900");
     await user.click(screen.getByRole("checkbox", { name: "Every month" }));
 
     expect(screen.queryByRole("button", { name: "Take the bite" })).not.toBeInTheDocument();
@@ -137,11 +166,20 @@ describe("WeighForm", () => {
     );
     expect(stocks).toEqual([{ sliceId: "needs", amount: "900", note: "Rent" }]);
     expect(takes).toEqual([]);
-    expect(screen.getByLabelText("Price (€)")).toHaveValue("");
-    expect(screen.getByRole("checkbox", { name: "Every month" })).not.toBeChecked();
   });
 
-  it("changes a staple's amount: prefilled, and replacing the old one", async () => {
+  it("cancels without taking anything", async () => {
+    const { takes, user } = setup();
+
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
+    await user.type(price(), "5");
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    expect(takes).toEqual([]);
+    expect(screen.getByRole("button", { name: "Add a bite" })).toBeInTheDocument();
+  });
+
+  it("opens with a staple to change its amount, replacing the old one", async () => {
     const scrolled: Element[] = [];
 
     // jsdom does not lay pages out, so it cannot scroll.
@@ -154,14 +192,13 @@ describe("WeighForm", () => {
     change(rent);
 
     expect(scrolled).toHaveLength(1);
-    expect(screen.getByLabelText("Price (€)")).toHaveFocus();
+    expect(price()).toHaveFocus();
     expect(screen.getByLabelText("What is it?")).toHaveValue("Rent");
-    expect(screen.getByLabelText("Price (€)")).toHaveValue("1000.00");
-    expect(screen.getByRole("radio", { name: "Needs" })).toBeChecked();
+    expect(price()).toHaveValue("1000.00");
     expect(screen.getByRole("checkbox", { name: "Every month" })).toBeChecked();
 
-    await user.clear(screen.getByLabelText("Price (€)"));
-    await user.type(screen.getByLabelText("Price (€)"), "1100");
+    await user.clear(price());
+    await user.type(price(), "1100");
     await user.click(screen.getByRole("button", { name: "Add to every month" }));
 
     await waitFor(() => expect(stocks).toHaveLength(1));

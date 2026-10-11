@@ -80,6 +80,8 @@ export interface PieView {
 
 export interface WeighingView {
   readonly sliceName: string;
+  /** The bite as a simple fraction of its slice, e.g. "1/5". */
+  readonly portion: string;
   readonly ofSlice: string;
   readonly ofLeftover: string;
   readonly ofPie: string;
@@ -164,6 +166,7 @@ export function viewStaple(pie: Pie, staple: Staple, month: Month): StapleView {
 export function viewWeighing(weighing: Weighing): WeighingView {
   return {
     sliceName: weighing.slice.name,
+    portion: asFraction(weighing.ofSlice),
     ofSlice: roughly(weighing.ofSlice),
     ofLeftover: roughly(weighing.ofLeftover),
     ofPie: roughly(weighing.ofPie),

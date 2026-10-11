@@ -15,23 +15,28 @@ const actions: Pick<PieActions, "weighBite" | "takeBite" | "stockStaple" | "drop
 };
 
 describe("Kitchen", () => {
-  it("shows the pantry between the weigh form and the bites", () => {
+  it("shows the pantry, then the bites with a row to add one first", () => {
     render(<Kitchen pie={pieView} actions={actions} />);
 
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
-      "Is it worth it?",
       "Every month",
       "Eaten this month",
     ]);
+
+    const [first] = screen.getAllByRole("list").at(-1)!.querySelectorAll("li");
+
+    expect(first).toHaveTextContent("Add a bite");
   });
 
   it("points an empty month at staples", () => {
     render(<Kitchen pie={{ ...pieView, bites: [], staples: [] }} actions={actions} />);
 
-    expect(screen.getByText(/Rent or subscriptions\? Tick “Every month”/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Rent or subscriptions\? Add them with “Every month”/),
+    ).toBeInTheDocument();
   });
 
-  it("moves a staple into the weigh form to change its amount", async () => {
+  it("opens the add row with a staple to change its amount", async () => {
     Element.prototype.scrollIntoView = function scrollIntoView() {
       // jsdom does not lay pages out, so it cannot scroll.
     };

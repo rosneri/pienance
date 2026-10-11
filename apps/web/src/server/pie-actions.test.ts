@@ -63,6 +63,7 @@ describe("pie actions", () => {
       ok: true,
       value: {
         sliceName: "Wants",
+        portion: "1/4",
         ofSlice: "about a quarter",
         ofLeftover: "about a quarter",
         ofPie: "a sliver",

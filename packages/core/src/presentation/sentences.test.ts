@@ -11,11 +11,13 @@ import {
   describeShelfMonth,
   describeSlice,
   describeStaple,
+  describeVerdict,
   describeWeighing,
 } from "./sentences";
 
 const weighing = {
   sliceName: "Wants",
+  portion: "1/5",
   ofSlice: "about a fifth",
   ofLeftover: "about a quarter",
   ofPie: "about a tenth",
@@ -41,6 +43,18 @@ describe("sentences", () => {
     );
     expect(describeWeighing({ ...weighing, verdict: "overflows" })).toBe(
       "Too big. It is more than what is left of Wants.",
+    );
+  });
+
+  it("gives the verdict alone, for a bite being typed", () => {
+    expect(describeVerdict({ ...weighing, verdict: "fits" })).toBe(
+      "Fits: leaves about half of Wants.",
+    );
+    expect(describeVerdict({ ...weighing, verdict: "tight", stapled: "about half" })).toBe(
+      "Tight: it takes about a quarter of what is left of Wants. Staples already take about half of it.",
+    );
+    expect(describeVerdict({ ...weighing, verdict: "overflows" })).toBe(
+      "Too big: more than what is left of Wants.",
     );
   });
 

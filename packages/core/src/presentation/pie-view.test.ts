@@ -63,6 +63,7 @@ describe("viewPie", () => {
     const view = viewWeighing(pie.weigh({ sliceId: "wants", amount: eur(100) }));
     expect(view).toEqual({
       sliceName: "Wants",
+      portion: "1/5",
       ofSlice: "about a fifth",
       ofLeftover: "about a quarter",
       ofPie: "about a tenth",
