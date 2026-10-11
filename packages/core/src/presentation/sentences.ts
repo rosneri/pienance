@@ -1,4 +1,6 @@
-import type { PieView, StapleView, WeighingView } from "./pie-view";
+import { Proportion, roughly } from "../domain";
+import type { FocusView } from "./focus-view";
+import type { PieView, SliceView, StapleView, WeighingView } from "./pie-view";
 import type { AppetiteView, ShelfMonthView } from "./shelf-view";
 
 /** Below this much of the month gone, there is no pace to speak of: "nothing" or "a crumb". */
@@ -37,6 +39,18 @@ export function describeWeighing(view: WeighingView): string {
   }
 }
 
+/** The verdict alone, for a bite being typed: its portion is shown beside it. */
+export function describeVerdict(view: WeighingView): string {
+  switch (view.verdict) {
+    case "fits":
+      return `Fits: leaves ${view.leftAfter} of ${view.sliceName}.`;
+    case "tight":
+      return `Tight: it takes ${view.ofLeftover} of what is left of ${view.sliceName}.${staplesClause(view)}`;
+    case "overflows":
+      return `Too big: more than what is left of ${view.sliceName}.${staplesClause(view)}`;
+  }
+}
+
 /** Names the slice furthest ahead of the month, or null when there is no pace to tell. */
 export function describePace(view: PieView): string | null {
   if (view.gone === undefined || view.goneWords === undefined || view.gone < paceFrom) return null;
@@ -48,11 +62,64 @@ export function describePace(view: PieView): string | null {
 
   const others = fast.filter((slice) => slice !== fastest);
 
-  const sentence = `${fastest.name} is going fast: ${fastest.eatenWords ?? "some"} eaten, ${view.goneWords} of the month gone`;
+  const afterStaples = fastest.stapledWords ? " after staples" : "";
+  const sentence = `${fastest.name} is going fast: ${fastest.eatenWords ?? "some"} eaten${afterStaples}, ${view.goneWords} of the month gone`;
 
   if (others.length === 0) return `${sentence}.`;
 
   return `${sentence}, and ${others.map((slice) => slice.name).join(" and ")} too.`;
+}
+
+/**
+ * One slice, told on its own: what is left, against how much of the month is still to
+ * go, and what its staples take. A month that is over just says what was left.
+ */
+export function describeSlice(slice: SliceView, view: PieView): string {
+  if (view.gone === undefined) {
+    const staples = slice.stapledWords ? ` Staples took ${slice.stapledWords} of it.` : "";
+
+    return `${capitalise(slice.leftWords)} of ${slice.name} was left in ${view.monthName}.${staples}`;
+  }
+
+  const staples = slice.stapledWords
+    ? ` Staples take ${slice.stapledWords} of it, so pace counts only the rest: ${slice.eatenWords ?? "nothing"} of it eaten.`
+    : "";
+
+  const toGo = roughly(Proportion.of(1 - view.gone));
+  const left = `${slice.leftWords} of it is left, with ${toGo} of ${view.monthName} to go`;
+
+  switch (slice.pace ?? "steady") {
+    case "fast":
+      return `${slice.name} is going fast: ${left}.${staples}`;
+    case "slow":
+      return `${slice.name} is going slowly: ${left}.${staples}`;
+    case "steady":
+      return `${slice.name} is on pace: ${left}.${staples}`;
+  }
+}
+
+/** A single view, told in a sentence: a slice tells its pace, a recurrence its share of the pie. */
+export function describeFocus(focus: FocusView, view: PieView): string {
+  const slice = view.slices.find((candidate) => candidate.id === focus.sliceId);
+
+  if (slice) return describeSlice(slice, view);
+
+  const past = view.gone === undefined;
+  const share = focus.ofPieWords;
+
+  if (focus.key === "recurrence:every-month") {
+    if (focus.stapleIds.length === 0) return "Nothing comes back every month yet.";
+
+    return `Every month, ${count(focus.stapleIds.length, "staple")} ${past ? "took" : focus.stapleIds.length === 1 ? "takes" : "take"} ${share} of your pie.`;
+  }
+
+  if (focus.biteIds.length === 0) {
+    return past
+      ? `Nothing was eaten once in ${view.monthName}.`
+      : "Nothing eaten once this month yet.";
+  }
+
+  return `${capitalise(count(focus.biteIds.length, "bite"))} taken once ${past ? `in ${view.monthName} ate` : "this month ate"} ${share} of your pie.`;
 }
 
 /** The answer after stocking a staple. */
@@ -108,6 +175,10 @@ function appetiteSentence(view: AppetiteView): string {
 
 function staplesClause(view: WeighingView): string {
   return view.stapled === "nothing" ? "" : ` Staples already take ${view.stapled} of it.`;
+}
+
+function count(n: number, noun: string): string {
+  return n === 1 ? `one ${noun}` : `${n} ${noun}s`;
 }
 
 function capitalise(words: string): string {

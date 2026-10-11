@@ -2,6 +2,7 @@
 
 import {
   describeDropped,
+  describeFocus,
   describeLeftover,
   describePace,
   describePastLeftover,
@@ -86,12 +87,18 @@ export function PieTools({
         name: "read_pie",
         title: "Read a month's pie",
         description:
-          "Returns how much of the user's monthly pie is left, per slice, how fast slices are eaten, the staples that come back every month (with their ids) and what was eaten. This month by default, or a past month on the shelf. Everything is described in rough proportions.",
+          "Returns how much of the user's monthly pie is left, per slice, how fast slices are eaten, the staples that come back every month (with their ids) and what was eaten. This month by default, or a past month on the shelf; the whole pie by default, or a single view (focus). Everything is described in proportions: rough words, and simple fractions for bites.",
         annotations: { readOnlyHint: true },
         inputSchema: {
           type: "object",
           properties: {
             month: { type: "string", description: 'A past month on the shelf, as "2026-09".' },
+            focus: {
+              type: "string",
+              enum: pie.focuses.map((focus) => focus.name),
+              description:
+                "A single view instead of the whole pie: one slice, what comes back every month, or what was eaten one time.",
+            },
           },
         } as const,
         async execute(input) {
@@ -101,23 +108,29 @@ export function PieTools({
 
           if (input.month && served.month !== input.month) return "That month is not on the shelf.";
 
+          const focus = served.focuses.find((candidate) => candidate.name === input.focus);
           const pace = describePace(served);
+
+          const inView = <T extends { id: string }>(
+            items: readonly T[],
+            ids?: readonly string[],
+          ) => (ids ? items.filter((item) => ids.includes(item.id)) : items);
 
           return {
             summary:
               served.gone === undefined
                 ? describePastLeftover(served.leftoverWords, served.monthName)
                 : describeLeftover(served.leftoverWords),
-            ...(pace && { pace }),
+            ...(focus ? { focus: describeFocus(focus, served) } : pace && { pace }),
             month: served.monthName,
             currency: served.currency,
             slices: served.slices.map(describeSlice),
-            staples: served.staples.map((staple) => ({
+            staples: inView(served.staples, focus?.stapleIds).map((staple) => ({
               id: staple.id,
               staple: `${staple.note || "Something"}: ${staple.portionWords} of ${staple.sliceName}${staple.endsAfter ? `, ends after ${staple.endsAfter}` : ""}`,
             })),
-            bites: served.bites.map(
-              (bite) => `${bite.note || "Something"}: ${bite.portionWords} of ${bite.sliceName}`,
+            bites: inView(served.bites, focus?.biteIds).map(
+              (bite) => `${bite.note || "Something"}: ${bite.portion} of ${bite.sliceName}`,
             ),
           };
         },

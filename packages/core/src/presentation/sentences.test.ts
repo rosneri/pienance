@@ -4,16 +4,20 @@ import type { PieView, SliceView } from "./pie-view";
 import {
   describeAppetite,
   describeDropped,
+  describeFocus,
   describeLeftover,
   describePace,
   describePastLeftover,
   describeShelfMonth,
+  describeSlice,
   describeStaple,
+  describeVerdict,
   describeWeighing,
 } from "./sentences";
 
 const weighing = {
   sliceName: "Wants",
+  portion: "1/5",
   ofSlice: "about a fifth",
   ofLeftover: "about a quarter",
   ofPie: "about a tenth",
@@ -39,6 +43,18 @@ describe("sentences", () => {
     );
     expect(describeWeighing({ ...weighing, verdict: "overflows" })).toBe(
       "Too big. It is more than what is left of Wants.",
+    );
+  });
+
+  it("gives the verdict alone, for a bite being typed", () => {
+    expect(describeVerdict({ ...weighing, verdict: "fits" })).toBe(
+      "Fits: leaves about half of Wants.",
+    );
+    expect(describeVerdict({ ...weighing, verdict: "tight", stapled: "about half" })).toBe(
+      "Tight: it takes about a quarter of what is left of Wants. Staples already take about half of it.",
+    );
+    expect(describeVerdict({ ...weighing, verdict: "overflows" })).toBe(
+      "Too big: more than what is left of Wants.",
     );
   });
 
@@ -70,6 +86,7 @@ describe("sentences", () => {
       to: 1,
       left: 0.5,
       leftWords: "about half",
+      stapled: 0,
       pace,
       eatenWords: "about half",
       ahead,
@@ -83,6 +100,7 @@ describe("sentences", () => {
       slices,
       bites: [],
       staples: [],
+      focuses: [],
       gone,
       goneWords: gone < 0.04 ? "a crumb" : "about a third",
     });
@@ -97,6 +115,14 @@ describe("sentences", () => {
     it("says every slice is on pace when none is fast", () => {
       expect(describePace(paced(0.33, [slice("Wants", "slow", -0.2)]))).toBe(
         "Every slice is on pace.",
+      );
+    });
+
+    it("says a slice with staples is paced after them", () => {
+      expect(
+        describePace(paced(0.33, [{ ...slice("Needs", "fast", 0.2), stapledWords: "about half" }])),
+      ).toBe(
+        "Needs is going fast: about half eaten after staples, about a third of the month gone.",
       );
     });
 
@@ -117,6 +143,144 @@ describe("sentences", () => {
         ),
       ).toBe(
         "Wants is going fast: about half eaten, about a third of the month gone, and Needs and Savings too.",
+      );
+    });
+  });
+
+  describe("one slice", () => {
+    const wants = (pace: Pace): SliceView => ({
+      id: "wants",
+      name: "Wants",
+      from: 0,
+      to: 1,
+      left: 0.5,
+      leftWords: "about half",
+      stapled: 0,
+      pace,
+    });
+
+    const october: PieView = {
+      currency: "EUR",
+      month: "2026-10",
+      monthName: "October",
+      leftoverWords: "about half",
+      slices: [],
+      bites: [],
+      staples: [],
+      focuses: [],
+      gone: 1 / 3,
+      goneWords: "about a third",
+    };
+
+    it.each([
+      ["fast", "Wants is going fast"],
+      ["steady", "Wants is on pace"],
+      ["slow", "Wants is going slowly"],
+    ] as const)("tells a %s slice against the month still to go", (pace, opening) => {
+      expect(describeSlice(wants(pace), october)).toBe(
+        `${opening}: about half of it is left, with about two thirds of October to go.`,
+      );
+    });
+
+    it("adds what staples take", () => {
+      expect(
+        describeSlice(
+          { ...wants("steady"), stapledWords: "about a third", eatenWords: "about a third" },
+          october,
+        ),
+      ).toContain(
+        "Staples take about a third of it, so pace counts only the rest: about a third of it eaten.",
+      );
+    });
+
+    it("tells a month that is over in the past tense", () => {
+      const {
+        gone: _gone,
+        goneWords: _words,
+        ...september
+      } = {
+        ...october,
+        monthName: "September",
+      };
+
+      expect(describeSlice(wants("fast"), september)).toBe(
+        "About half of Wants was left in September.",
+      );
+    });
+  });
+
+  describe("a focus", () => {
+    const recurrence = (key: string, biteIds: string[], stapleIds: string[]) => ({
+      key,
+      kind: "recurrence" as const,
+      name: "Every month",
+      eatenWords: "about a third",
+      leftWords: "about two thirds",
+      ofPieWords: "about a third",
+      biteIds,
+      stapleIds,
+    });
+
+    const october: PieView = {
+      currency: "EUR",
+      month: "2026-10",
+      monthName: "October",
+      leftoverWords: "about half",
+      slices: [
+        {
+          id: "wants",
+          name: "Wants",
+          from: 0,
+          to: 1,
+          left: 0.5,
+          leftWords: "about half",
+          stapled: 0,
+          pace: "fast",
+        },
+      ],
+      bites: [],
+      staples: [],
+      focuses: [],
+      gone: 1 / 3,
+      goneWords: "about a third",
+    };
+
+    it("tells a slice by its pace", () => {
+      expect(
+        describeFocus(
+          { ...recurrence("slice:wants", [], []), kind: "slice", sliceId: "wants", name: "Wants" },
+          october,
+        ),
+      ).toMatch(/^Wants is going fast/);
+    });
+
+    it("tells what comes back every month", () => {
+      expect(describeFocus(recurrence("recurrence:every-month", [], ["rent"]), october)).toBe(
+        "Every month, one staple takes about a third of your pie.",
+      );
+      expect(describeFocus(recurrence("recurrence:every-month", [], ["a", "b"]), october)).toBe(
+        "Every month, 2 staples take about a third of your pie.",
+      );
+      expect(describeFocus(recurrence("recurrence:every-month", [], []), october)).toBe(
+        "Nothing comes back every month yet.",
+      );
+    });
+
+    it("tells what was eaten once, now or in a month that is over", () => {
+      const {
+        gone: _gone,
+        goneWords: _words,
+        ...september
+      } = { ...october, monthName: "September" };
+
+      expect(describeFocus(recurrence("recurrence:one-time", ["a", "b"], []), october)).toBe(
+        "2 bites taken once this month ate about a third of your pie.",
+      );
+      expect(describeFocus(recurrence("recurrence:one-time", ["a"], []), september)).toBe(
+        "One bite taken once in September ate about a third of your pie.",
+      );
+      expect(describeFocus(recurrence("recurrence:one-time", [], []), september)).toBe(
+        "Nothing was eaten once in September.",
       );
     });
   });

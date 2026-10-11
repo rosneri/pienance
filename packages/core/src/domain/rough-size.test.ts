@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Proportion } from "./proportion";
-import { roughly } from "./rough-size";
+import { asFraction, roughly } from "./rough-size";
 
 describe("roughly", () => {
   it.each([
@@ -16,5 +16,26 @@ describe("roughly", () => {
     [Number.POSITIVE_INFINITY, "way more than all"],
   ])("describes %d as %s", (ratio, words) => {
     expect(roughly(Proportion.of(ratio))).toBe(words);
+  });
+});
+
+describe("asFraction", () => {
+  it.each([
+    [5 / 9, "5/9"],
+    [0.5, "1/2"],
+    [0.25, "1/4"],
+    [0.3, "3/10"],
+    [0.333, "1/3"],
+    [0.7, "7/10"],
+    [0.12, "1/8"],
+    [0.06, "1/10"],
+    [0.02, "under 1/10"],
+    [0, "nothing"],
+    [0.98, "all"],
+    [1, "all"],
+    [1.5, "3/2"],
+    [Number.POSITIVE_INFINITY, "more than all"],
+  ])("says %d as %s", (ratio, fraction) => {
+    expect(asFraction(Proportion.of(ratio))).toBe(fraction);
   });
 });

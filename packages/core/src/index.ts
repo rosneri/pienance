@@ -4,6 +4,8 @@ export * from "./application";
 
 export * from "./domain";
 
+export * from "./presentation/focus-view";
+
 export * from "./presentation/month-words";
 
 export * from "./presentation/pie-geometry";

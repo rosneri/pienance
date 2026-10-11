@@ -2,7 +2,7 @@
 
 Finance app that shows money as proportions of a monthly pie. See README.md for the ubiquitous
 language and layout; use those terms (Pie, Slice, Bite, Bake, Weigh, Verdict, Serving, Leftover,
-Staple, Pantry, Pace, Shelf, Appetite) in code, UI and agent tools.
+Staple, Pantry, Pace, Shelf, Appetite, Overview, Focus, Cut) in code, UI and agent tools.
 
 ## Standards
 

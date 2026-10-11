@@ -1,5 +1,7 @@
 import {
   aheadOf,
+  asFraction,
+  freeEatenOf,
   isVoid,
   paceOf,
   roughly,
@@ -11,6 +13,7 @@ import {
   type Verdict,
   type Weighing,
 } from "../domain";
+import { viewFocuses, type FocusView } from "./focus-view";
 import { monthName } from "./month-words";
 
 /**
@@ -26,10 +29,13 @@ export interface SliceView {
   /** Fraction of the slice still left, between 0 and 1. */
   readonly left: number;
   readonly leftWords: string;
+  /** Fraction of the slice its staples take, between 0 and 1: they come off its end first. */
+  readonly stapled: number;
   /** How much of the slice its staples take, when it has any. */
   readonly stapledWords?: string;
   /** Only while the month is running. */
   readonly pace?: Pace;
+  /** How much of what the staples leave was eaten: what pace is measured on. */
   readonly eatenWords?: string;
   /** How far eating is ahead of the month (negative when behind), to find the fastest slice. */
   readonly ahead?: number;
@@ -37,9 +43,11 @@ export interface SliceView {
 
 export interface BiteView {
   readonly id: string;
+  readonly sliceId: string;
   readonly note: string;
   readonly sliceName: string;
-  readonly portionWords: string;
+  /** How much of its slice the bite took, as a simple fraction, e.g. "5/9". */
+  readonly portion: string;
   readonly eatenAt: string;
 }
 
@@ -67,6 +75,8 @@ export interface PieView {
   readonly slices: readonly SliceView[];
   readonly bites: readonly BiteView[];
   readonly staples: readonly StapleView[];
+  /** Every single view besides this overview: each slice, every month, one time. */
+  readonly focuses: readonly FocusView[];
   /** How much of the month is gone, between 0 and 1. Only while the month is running. */
   readonly gone?: number;
   readonly goneWords?: string;
@@ -74,6 +84,8 @@ export interface PieView {
 
 export interface WeighingView {
   readonly sliceName: string;
+  /** The bite as a simple fraction of its slice, e.g. "1/5". */
+  readonly portion: string;
   readonly ofSlice: string;
   readonly ofLeftover: string;
   readonly ofPie: string;
@@ -100,14 +112,16 @@ export function viewPie(pie: Pie, served: Served): PieView {
     slices: viewSlices(pie, gone),
     bites: pie.bites.toReversed().map((bite) => ({
       id: bite.id,
+      sliceId: bite.sliceId,
       note: bite.note,
       sliceName: pie.slice(bite.sliceId).name,
-      portionWords: roughly(pie.portionOf(bite)),
+      portion: asFraction(pie.portionOf(bite)),
       eatenAt: bite.eatenAt.toISOString(),
     })),
     staples: pie.staples
       .filter((staple) => !isVoid(staple))
       .map((staple) => viewStaple(pie, staple, served.month)),
+    focuses: viewFocuses(pie),
     ...(gone && { gone: gone.ratio, goneWords: roughly(gone) }),
   };
 }
@@ -126,10 +140,11 @@ export function viewSlices(pie: Pie, gone?: Proportion): SliceView[] {
       to,
       left: Math.min(serving.left.ratio, 1),
       leftWords: roughly(serving.left),
+      stapled: Math.min(serving.stapled.ratio, 1),
       ...(serving.stapled.ratio > 0 && { stapledWords: roughly(serving.stapled) }),
       ...(gone && {
         pace: paceOf(serving, gone),
-        eatenWords: roughly(serving.eaten),
+        eatenWords: roughly(freeEatenOf(serving)),
         ahead: aheadOf(serving, gone),
       }),
     };
@@ -156,6 +171,7 @@ export function viewStaple(pie: Pie, staple: Staple, month: Month): StapleView {
 export function viewWeighing(weighing: Weighing): WeighingView {
   return {
     sliceName: weighing.slice.name,
+    portion: asFraction(weighing.ofSlice),
     ofSlice: roughly(weighing.ofSlice),
     ofLeftover: roughly(weighing.ofLeftover),
     ofPie: roughly(weighing.ofPie),

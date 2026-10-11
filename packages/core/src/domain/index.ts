@@ -6,17 +6,21 @@ export { Money } from "./money";
 
 export { appetiteOf, type Appetite } from "./appetite";
 
+export { Cut, cutsOf, RecurrenceCut, SliceCut, WholeCut, type Recurrence } from "./cut";
+
+export { focusOn, type Focus } from "./focus";
+
 export { Month } from "./month";
 
-export { aheadOf, paceOf, type Pace } from "./pace";
+export { aheadOf, freeEatenOf, paceOf, type Pace } from "./pace";
 
-export { Pie, PieError, type BiteCandidate, type Serving } from "./pie";
+export { Pie, PieError, type BiteCandidate, type Food, type Serving } from "./pie";
 
 export type { PieRepository } from "./pie-repository";
 
 export { Proportion } from "./proportion";
 
-export { roughly } from "./rough-size";
+export { asFraction, roughly } from "./rough-size";
 
 export type { Slice } from "./slice";
 

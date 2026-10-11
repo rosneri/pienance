@@ -26,3 +26,31 @@ export function roughly(proportion: Proportion): string {
 
   return match?.[1] ?? "way more than all";
 }
+
+/** Denominators up to ten keep a fraction readable at a glance. */
+const largestDenominator = 10;
+
+/**
+ * The nearest simple fraction, e.g. "5/9": still a proportion, never an amount.
+ * The simplest fraction wins a tie, so "2/4" is always said as "1/2".
+ */
+export function asFraction(proportion: Proportion): string {
+  const { ratio } = proportion;
+
+  if (!Number.isFinite(ratio)) return "more than all";
+
+  let best = { numerator: 0, denominator: 1, error: ratio };
+
+  for (let denominator = 2; denominator <= largestDenominator; denominator++) {
+    const numerator = Math.round(ratio * denominator);
+    const error = Math.abs(ratio - numerator / denominator);
+
+    if (error < best.error - 1e-9) best = { numerator, denominator, error };
+  }
+
+  if (best.numerator === 0) return ratio === 0 ? "nothing" : `under 1/${largestDenominator}`;
+
+  if (best.numerator === best.denominator) return "all";
+
+  return `${best.numerator}/${best.denominator}`;
+}
