@@ -37,7 +37,8 @@ export interface StatementPreview {
 
 const notTransactions = "This file does not look like a list of transactions";
 
-const mostBites = 2_000;
+/** The most bites one statement may hold: a few months of a busy account. */
+export const mostBites = 2_000;
 
 /** Reads a bank statement into draft bites, each with a suggested slice, without taking any. */
 export function readStatement(ports: Ports) {

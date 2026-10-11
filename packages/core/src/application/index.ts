@@ -18,6 +18,8 @@ export type { TakenBites, TakeBitesInput } from "./take-bites";
 
 export type { WeighBiteInput } from "./weigh-bite";
 
+export { mostBites } from "./read-statement";
+
 export { bakePie, readStatement, servePie, takeBite, takeBites, weighBite };
 
 /** Every use case, wired to one set of ports. */

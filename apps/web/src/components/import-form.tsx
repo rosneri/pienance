@@ -14,6 +14,7 @@ import { Field, FieldGroup, FieldLabel } from "@pienance/ui/components/field";
 import { Input } from "@pienance/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@pienance/ui/components/native-select";
 import { useState, useTransition } from "react";
+import { firstLines, lineCount, linesThatFit } from "@/import/lines";
 import type { PieActions } from "@/server/pie-actions";
 import { Answer } from "./answer";
 import { currencySymbol } from "./currency-symbol";
@@ -58,8 +59,15 @@ function columnsOf(preview: StatementPreview) {
 type Actions = Pick<PieActions, "readStatement" | "takeBites">;
 
 interface Said {
-  readonly tone: "fits" | "error";
+  readonly tone: "fits" | "tight" | "error";
   readonly sentence: string;
+}
+
+/** A statement over the limits, waiting for the person to take only its first lines. */
+interface Oversized {
+  readonly text: string;
+  /** How many of its first lines fit. */
+  readonly fit: number;
 }
 
 function plural(count: number, one: string, many: string): string {
@@ -94,6 +102,7 @@ export function ImportForm({
   const [preview, setPreview] = useState<StatementPreview | null>(null);
   const [rows, setRows] = useState<readonly Row[]>([]);
   const [said, setSaid] = useState<Said | null>(null);
+  const [oversized, setOversized] = useState<Oversized | null>(null);
   const [pending, startTransition] = useTransition();
   const symbol = currencySymbol(currency);
 
@@ -117,7 +126,33 @@ export function ImportForm({
     if (!file) return;
 
     const text = await file.text();
+    const fit = linesThatFit(text);
 
+    setPreview(null);
+    setRows([]);
+
+    if (fit === null) {
+      setOversized(null);
+      setCsv(text);
+      read(text);
+    } else if (fit === 0) {
+      setOversized(null);
+      setSaid({ tone: "error", sentence: "This file is too big to read." });
+    } else {
+      setOversized({ text, fit });
+      setSaid({
+        tone: "tight",
+        sentence: `This statement has ${lineCount(text).toLocaleString("en")} lines, more than pienance reads at once.`,
+      });
+    }
+  }
+
+  function takeFirstLines() {
+    if (!oversized) return;
+
+    const text = firstLines(oversized.text, oversized.fit);
+
+    setOversized(null);
     setCsv(text);
     read(text);
   }
@@ -187,6 +222,14 @@ export function ImportForm({
       <Answer tone={pending ? undefined : said?.tone}>
         {pending ? "Reading…" : said?.sentence}
       </Answer>
+
+      {oversized && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="lg" onClick={takeFirstLines} disabled={pending} data-track="first-lines">
+            Read the first {oversized.fit.toLocaleString("en")} lines
+          </Button>
+        </div>
+      )}
 
       {preview && (
         <>

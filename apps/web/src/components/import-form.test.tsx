@@ -102,6 +102,31 @@ describe("ImportForm", () => {
     expect(uploads[1]?.layout?.columns).toEqual(["date", "ignore", "amount"]);
   });
 
+  it("offers to read only the first lines of a statement over the limits", async () => {
+    const { uploads, user } = setup();
+
+    const lines = [
+      "Date,Description,Amount",
+      ...Array.from({ length: 2_500 }, () => "02/10/2026,Coffee,-3.00"),
+    ];
+
+    await user.upload(
+      screen.getByLabelText("Statement (CSV)"),
+      new File([lines.join("\n")], "years.csv", { type: "text/csv" }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "This statement has 2,501 lines, more than pienance reads at once.",
+    );
+    expect(uploads).toEqual([]);
+
+    await user.click(screen.getByRole("button", { name: "Read the first 2,000 lines" }));
+
+    await waitFor(() => expect(uploads).toHaveLength(1));
+    expect(uploads[0]?.csv).toBe(lines.slice(0, 2_000).join("\n"));
+    expect(screen.queryByRole("button", { name: /Read the first/ })).not.toBeInTheDocument();
+  });
+
   it("says why a file could not be read", async () => {
     const { user } = setup({
       ok: false,

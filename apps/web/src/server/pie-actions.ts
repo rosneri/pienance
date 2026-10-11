@@ -14,7 +14,8 @@ import {
   type WeighingView,
 } from "@pienance/core";
 import type { ProductEvent } from "@pienance/telemetry/contract";
-import { largestStatement, rowsOf } from "@/import/csv";
+import { rowsOf } from "@/import/csv";
+import { largestStatement } from "@/import/lines";
 import { failed, succeeded, type Outcome } from "./outcome";
 
 /** A bank statement as uploaded, and how to read it when the person corrected the guess. */
