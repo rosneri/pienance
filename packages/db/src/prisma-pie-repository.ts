@@ -32,6 +32,7 @@ export class PrismaPieRepository implements PieRepository {
       ownerId: row.ownerId,
       income: Money.ofMinor(Number(row.incomeMinor), currencyOf(row.currency)),
       bakedAt: row.createdAt,
+      month,
       slices: row.slices.map((slice) => ({
         id: slice.id,
         name: slice.name,
@@ -47,6 +48,11 @@ export class PrismaPieRepository implements PieRepository {
           amount: Money.ofMinor(Number(bite.amountMinor), currencyOf(bite.currency)),
           note: bite.note,
           eatenAt: bite.eatenAt,
+          ...(bite.spreadId !== null &&
+            bite.spreadPart !== null &&
+            bite.spreadOf !== null && {
+              spread: { id: bite.spreadId, part: bite.spreadPart, of: bite.spreadOf },
+            }),
         })),
       staples: row.slices
         .flatMap((slice) => slice.staples)
@@ -92,8 +98,20 @@ export class PrismaPieRepository implements PieRepository {
             }),
           ]
         : []),
+      // A spread put back goes from the served month on; its earlier parts stay.
+      ...(pie.putBackSpreadIds().length > 0
+        ? [
+            this.db.bite.deleteMany({
+              where: {
+                spreadId: { in: [...pie.putBackSpreadIds()] },
+                eatenAt: { gte: pie.month.start },
+                slice: { pieId: pie.id },
+              },
+            }),
+          ]
+        : []),
       // A bite only changes when it is moved into another slice.
-      ...pie.bites.map((bite) =>
+      ...[...pie.bites, ...pie.laterBites].map((bite) =>
         this.db.bite.upsert({
           where: { id: bite.id },
           create: {
@@ -103,6 +121,9 @@ export class PrismaPieRepository implements PieRepository {
             amountMinor: BigInt(bite.amount.minor),
             note: bite.note,
             eatenAt: bite.eatenAt,
+            spreadId: bite.spread?.id ?? null,
+            spreadPart: bite.spread?.part ?? null,
+            spreadOf: bite.spread?.of ?? null,
           },
           update: { sliceId: bite.sliceId },
         }),

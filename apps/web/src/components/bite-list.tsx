@@ -39,7 +39,7 @@ export function BiteList({
   /** Where a bite can be moved to. */
   slices?: readonly SliceView[];
   /** Without them (a month that is over) the rows are read-only. */
-  actions?: Pick<PieActions, "putBackBite" | "moveBite">;
+  actions?: Pick<PieActions, "putBackBite" | "putBackSpread" | "moveBite">;
 }) {
   const { focused } = useFocus();
   const [open, setOpen] = useState<Open>(null);
@@ -72,7 +72,11 @@ export function BiteList({
     setBusy(bite.id);
     focusAfter.current = next?.id ?? "";
     startTransition(async () => {
-      const outcome = await actions.putBackBite({ biteId: bite.id });
+      // A spread with parts to come goes with them; earlier parts stay.
+      const outcome =
+        bite.spread && bite.spread.toCome > 0
+          ? await actions.putBackSpread({ spreadId: bite.spread.id })
+          : await actions.putBackBite({ biteId: bite.id });
 
       setOpen(null);
 
@@ -113,6 +117,8 @@ export function BiteList({
           const name = bite.note || "Something";
           const isOpen = open?.id === bite.id;
           const pending = busy === bite.id;
+          const toCome = bite.spread?.toCome ?? 0;
+          const putBackWords = toCome > 0 ? `Put back this and the ${toCome} to come` : "Put back";
 
           return (
             <li
@@ -127,7 +133,19 @@ export function BiteList({
                   pending && "opacity-50",
                 )}
               >
-                <span>{name}</span>
+                <span className="grid">
+                  <span>
+                    {name}
+                    {bite.spread && (
+                      <span className="text-muted-foreground"> · {bite.spread.words}</span>
+                    )}
+                  </span>
+                  {toCome > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      {toCome === 1 ? "1 more month" : `${toCome} more months`}
+                    </span>
+                  )}
+                </span>
                 <span className="ms-auto text-end text-muted-foreground tabular-nums">
                   {bite.portion} of {bite.sliceName}
                 </span>
@@ -170,14 +188,16 @@ export function BiteList({
                     onClick={() => setOpen({ id: bite.id, confirming: true })}
                     data-track="put-back-options"
                   >
-                    Put back
+                    {putBackWords}
                   </Button>
                 </div>
               )}
 
               {isOpen && open.confirming && (
                 <div className="flex flex-wrap items-center justify-end gap-2 pb-2">
-                  <span className="me-auto">Put back {name}?</span>
+                  <span className="me-auto">
+                    {toCome > 0 ? `${putBackWords}?` : `Put back ${name}?`}
+                  </span>
                   <Button
                     variant="outline"
                     className="h-11"

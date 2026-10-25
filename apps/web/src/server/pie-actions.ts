@@ -18,6 +18,7 @@ import {
   type Pienance,
   type PieView,
   type PutBackBiteInput,
+  type PutBackSpreadInput,
   type ReslicePreview,
   type ResliceInput,
   type ResliceView,
@@ -50,6 +51,11 @@ export interface StatementReading extends StatementPreview {
 
 /** What a signed-in person sends; who they are comes from their session. */
 export type Asked<T> = Omit<T, "ownerId">;
+
+/** A bite to take now, or spread over this many months from this one on. */
+export interface BiteToTake extends Asked<TakeBiteInput> {
+  readonly months?: number | undefined;
+}
 
 export interface PieActionsDeps {
   readonly app: Pienance;
@@ -223,14 +229,34 @@ export function pieActions(deps: PieActionsDeps) {
       });
     },
 
-    takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<BiteView>> {
+    takeBite({ months, ...input }: BiteToTake): Promise<Outcome<BiteView>> {
       return attempt(async (ownerId) => {
-        const bite = await deps.app.takeBite({ ...input, ownerId });
+        const bite =
+          months === undefined
+            ? await deps.app.takeBite({ ...input, ownerId })
+            : await deps.app.takeSpread({ ...input, months, ownerId });
 
-        deps.track({ name: "bite.taken", properties: {} }, ownerId);
+        deps.track(
+          months === undefined
+            ? { name: "bite.taken", properties: {} }
+            : { name: "spread.taken", properties: { months } },
+          ownerId,
+        );
         deps.refresh();
 
         return thisMonthsBite(ownerId, bite.id);
+      });
+    },
+
+    /** Puts back this month's part of a spread and every later one. */
+    putBackSpread(input: Asked<PutBackSpreadInput>): Promise<Outcome<null>> {
+      return attempt(async (ownerId) => {
+        await deps.app.putBackSpread({ ...input, ownerId });
+
+        deps.track({ name: "spread.put-back", properties: {} }, ownerId);
+        deps.refresh();
+
+        return null;
       });
     },
 

@@ -3,6 +3,7 @@ import { dropStaple } from "./drop-staple";
 import { moveBite } from "./move-bite";
 import type { Ports } from "./ports";
 import { putBackBite } from "./put-back-bite";
+import { putBackSpread } from "./put-back-spread";
 import { readAppetite } from "./read-appetite";
 import { readStatement } from "./read-statement";
 import { previewReslice, reslicePie } from "./reslice-pie";
@@ -11,6 +12,7 @@ import { shelvePie } from "./shelve-pie";
 import { stockStaple } from "./stock-staple";
 import { takeBite } from "./take-bite";
 import { takeBites } from "./take-bites";
+import { takeSpread } from "./take-spread";
 import { weighBite } from "./weigh-bite";
 
 export type { BakePieInput } from "./bake-pie";
@@ -22,6 +24,8 @@ export type { Advisor, Ports, Rows } from "./ports";
 export type { MoveBiteInput } from "./move-bite";
 
 export type { PutBackBiteInput } from "./put-back-bite";
+
+export type { PutBackSpreadInput } from "./put-back-spread";
 
 export type { DraftBite, ReadStatementInput, StatementPreview } from "./read-statement";
 
@@ -37,6 +41,8 @@ export type { TakeBiteInput } from "./take-bite";
 
 export type { TakenBites, TakeBitesInput } from "./take-bites";
 
+export type { TakeSpreadInput } from "./take-spread";
+
 export type { WeighBiteInput } from "./weigh-bite";
 
 export { mostBites } from "./read-statement";
@@ -49,6 +55,7 @@ export {
   moveBite,
   previewReslice,
   putBackBite,
+  putBackSpread,
   readAppetite,
   readStatement,
   reslicePie,
@@ -57,6 +64,7 @@ export {
   stockStaple,
   takeBite,
   takeBites,
+  takeSpread,
   weighBite,
 };
 
@@ -68,6 +76,8 @@ export function pienance(ports: Ports) {
     weighBite: weighBite(ports),
     takeBite: takeBite(ports),
     putBackBite: putBackBite(ports),
+    takeSpread: takeSpread(ports),
+    putBackSpread: putBackSpread(ports),
     moveBite: moveBite(ports),
     reslicePie: reslicePie(ports),
     previewReslice: previewReslice(ports),

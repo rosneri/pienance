@@ -17,6 +17,7 @@ const pie = Pie.bake({
     { id: "wants", name: "Wants", share: Proportion.of(0.5) },
   ],
   bakedAt: new Date(Date.UTC(2026, 9, 1)),
+  month: october,
   bites: [
     {
       id: "coffee",
@@ -115,6 +116,7 @@ describe("viewPie", () => {
       income: eur(1000),
       slices: [{ id: "needs", name: "Needs", share: Proportion.whole }],
       bakedAt: october.start,
+      month: october,
       bites: [
         { id: "lunch", sliceId: "needs", amount: eur(100), note: "", eatenAt: october.start },
       ],
@@ -138,6 +140,7 @@ describe("viewPie", () => {
       income: eur(1000),
       slices: [{ id: "needs", name: "Needs", share: Proportion.whole }],
       bakedAt: october.start,
+      month: october,
       staples: [
         { id: "rent", sliceId: "needs", amount: eur(650), note: "Rent", since: october },
         {

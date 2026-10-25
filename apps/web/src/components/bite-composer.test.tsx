@@ -1,6 +1,7 @@
 import type {
   BiteView,
   PutBackBiteInput,
+  PutBackSpreadInput,
   StapleView,
   StockStapleInput,
   TakeBiteInput,
@@ -59,6 +60,11 @@ function setup(weighed: Outcome<WeighingView> = { ok: true, value: fits }) {
     },
     putBackBite: async (input: Asked<PutBackBiteInput>): Promise<Outcome<null>> => {
       putBacks.push(input);
+
+      return { ok: true, value: null };
+    },
+    putBackSpread: async (input: Asked<PutBackSpreadInput>): Promise<Outcome<null>> => {
+      putBacks.push({ biteId: `spread ${input.spreadId}` });
 
       return { ok: true, value: null };
     },
@@ -166,6 +172,33 @@ describe("BiteComposer", () => {
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
     expect(screen.queryByRole("button", { name: "Put back" })).not.toBeInTheDocument();
+  });
+
+  it("weighs and takes a spread chosen in Pay over", async () => {
+    const { weighs, takes, user } = setup();
+
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
+    await user.type(price(), "600");
+    await user.selectOptions(screen.getByLabelText("Pay over"), "6 months");
+
+    await waitFor(() =>
+      expect(weighs.at(-1)).toEqual({ sliceId: "needs", amount: "600", months: 6 }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Take it over 6 months" }));
+
+    await waitFor(() => expect(takes.at(-1)).toMatchObject({ amount: "600", months: 6 }));
+  });
+
+  it("offers to spread a bite that is too big, over the fewest months it fits", async () => {
+    const { user } = setup({ ok: true, value: { ...fits, verdict: "overflows", fitsOver: 3 } });
+
+    await user.click(screen.getByRole("button", { name: "Add a bite" }));
+    await user.type(price(), "2000");
+    await user.click(await screen.findByRole("button", { name: "Spread it to fit" }));
+
+    expect(screen.getByLabelText("Pay over")).toHaveValue("3");
+    expect(screen.getByRole("button", { name: "Take it over 3 months" })).toBeInTheDocument();
   });
 
   it("shows why a bite could not be weighed or taken", async () => {

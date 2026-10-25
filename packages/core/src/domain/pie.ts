@@ -4,6 +4,7 @@ import { Money } from "./money";
 import type { Month } from "./month";
 import { Proportion } from "./proportion";
 import { sliceNameLimit, type Slice } from "./slice";
+import { spreadMonths, spreadOver } from "./spread";
 import { isVoid, type Staple } from "./staple";
 import type { Verdict, Weighing } from "./weighing";
 
@@ -28,6 +29,8 @@ export type Food =
 export interface BiteCandidate {
   readonly sliceId: string;
   readonly amount: Money;
+  /** Spread over this many months, starting with this one. */
+  readonly months?: number | undefined;
 }
 
 export class PieError extends Error {
@@ -44,6 +47,10 @@ export class Pie {
   private readonly sizes: ReadonlyMap<string, Money>;
   /** Bites put back since the pie was loaded, so repositories can forget them. */
   private readonly putBacks: string[] = [];
+  /** Spreads put back from this month on, since the pie was loaded. */
+  private readonly putBackSpreads: string[] = [];
+  /** Parts of spreads dated after the served month, taken since the pie was loaded. */
+  private readonly later: Bite[] = [];
 
   private constructor(
     readonly id: string,
@@ -53,6 +60,8 @@ export class Pie {
     readonly slices: readonly Slice[],
     /** When the pie was first baked: no month before this one is on its shelf. */
     readonly bakedAt: Date,
+    /** The month the pie is served for: its bites are eaten in it. */
+    readonly month: Month,
     private readonly eaten: Bite[],
     private readonly pantry: Staple[],
   ) {
@@ -69,6 +78,8 @@ export class Pie {
     income: Money;
     slices: readonly Slice[];
     bakedAt: Date;
+    month: Month;
+    /** The month's bites, and any parts of spreads dated later. */
     bites?: readonly Bite[];
     /** The staples active in the served month: the pie counts every one it holds. */
     staples?: readonly Staple[];
@@ -91,7 +102,16 @@ export class Pie {
       );
     }
 
-    const pie = new Pie(props.id, props.ownerId, props.income, props.slices, props.bakedAt, [], []);
+    const pie = new Pie(
+      props.id,
+      props.ownerId,
+      props.income,
+      props.slices,
+      props.bakedAt,
+      props.month,
+      [],
+      [],
+    );
 
     // What was eaten stays, even from a slice retired since.
     for (const bite of props.bites ?? []) pie.hold(bite);
@@ -132,7 +152,8 @@ export class Pie {
       income,
       slices: props.slices,
       bakedAt: this.bakedAt,
-      bites: this.eaten,
+      month: this.month,
+      bites: [...this.eaten, ...this.later],
       staples: this.pantry,
     });
   }
@@ -141,8 +162,14 @@ export class Pie {
     return this.income.currency;
   }
 
+  /** The bites eaten in the served month. */
   get bites(): readonly Bite[] {
     return this.eaten;
+  }
+
+  /** Parts of spreads dated after the served month, taken since the pie was loaded. */
+  get laterBites(): readonly Bite[] {
+    return this.later;
   }
 
   get staples(): readonly Staple[] {
@@ -162,8 +189,28 @@ export class Pie {
     return slice;
   }
 
-  /** Considers a bite without taking it. */
+  /** Considers a bite without taking it; spread, this month's part is what is weighed. */
   weigh(candidate: BiteCandidate): Weighing {
+    if (candidate.months === undefined) return this.weighNow(candidate);
+
+    const [part = candidate.amount] = spreadOver(candidate.amount, candidate.months);
+
+    return {
+      ...this.weighNow({ sliceId: candidate.sliceId, amount: part }),
+      spread: { months: candidate.months, whole: this.weighNow(candidate) },
+    };
+  }
+
+  /** The fewest months, up to `most`, over which this month's part fits; null if none. */
+  fewestMonthsToFit(candidate: BiteCandidate, most: number = spreadMonths.most): number | null {
+    for (let months = spreadMonths.fewest; months <= most; months++) {
+      if (this.weigh({ ...candidate, months }).verdict !== "overflows") return months;
+    }
+
+    return null;
+  }
+
+  private weighNow(candidate: BiteCandidate): Weighing {
     this.assertInCurrency(candidate.amount);
 
     const slice = this.liveSlice(candidate.sliceId);
@@ -182,6 +229,7 @@ export class Pie {
     };
   }
 
+  /** Takes a bite of the served month, or a later part of a spread. */
   take(bite: Bite): void {
     this.liveSlice(bite.sliceId);
     this.hold(bite);
@@ -220,6 +268,22 @@ export class Pie {
   /** The ids of the bites put back since the pie was loaded. */
   putBackIds(): readonly string[] {
     return this.putBacks;
+  }
+
+  /** Puts back this month's parts of a spread and every later one; earlier parts stay. */
+  putBackSpread(spreadId: string): void {
+    const ofSpread = (bite: Bite) => bite.spread?.id === spreadId;
+
+    if (!this.eaten.some(ofSpread)) throw new PieError(unknownBite);
+
+    this.eaten.splice(0, this.eaten.length, ...this.eaten.filter((bite) => !ofSpread(bite)));
+    this.later.splice(0, this.later.length, ...this.later.filter((bite) => !ofSpread(bite)));
+    this.putBackSpreads.push(spreadId);
+  }
+
+  /** The spreads put back from the served month on, since the pie was loaded. */
+  putBackSpreadIds(): readonly string[] {
+    return this.putBackSpreads;
   }
 
   /** Adds a staple to the pantry. */
@@ -330,7 +394,12 @@ export class Pie {
   private hold(bite: Bite): void {
     this.assertInCurrency(bite.amount);
     this.slice(bite.sliceId);
-    this.eaten.push(bite);
+
+    if (bite.eatenAt < this.month.start) {
+      throw new PieError("That bite belongs to an earlier month.");
+    }
+
+    (this.month.contains(bite.eatenAt) ? this.eaten : this.later).push(bite);
   }
 
   private shelve(staple: Staple): void {

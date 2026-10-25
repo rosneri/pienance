@@ -27,7 +27,16 @@ const bite = (sliceId: string, amount: number): Bite => ({
 });
 
 const pieOf = (bites: Bite[] = [], staples: Staple[] = []) =>
-  Pie.bake({ id: "pie", ownerId: "ada", income: eur(1000), slices, bakedAt, bites, staples });
+  Pie.bake({
+    id: "pie",
+    ownerId: "ada",
+    income: eur(1000),
+    slices,
+    bakedAt,
+    month: october,
+    bites,
+    staples,
+  });
 
 const october = Month.of(bakedAt);
 
@@ -48,6 +57,7 @@ describe("Pie", () => {
         income: eur(1000),
         slices: slices.slice(0, 1),
         bakedAt,
+        month: october,
       }),
     ).toThrow(PieError);
   });
@@ -329,6 +339,64 @@ describe("Pie", () => {
       expect(() => pieOf().reslice({ income: eur(0), slices })).toThrow(
         "The income needs to be above zero",
       );
+    });
+  });
+
+  describe("spreading", () => {
+    it("weighs this month's part, and the whole amount now", () => {
+      const weighing = pieOf().weigh({ sliceId: "wants", amount: eur(600), months: 6 });
+
+      expect(weighing.ofSlice.ratio).toBe(0.2);
+      expect(weighing.verdict).toBe("fits");
+      expect(weighing.spread?.months).toBe(6);
+      expect(weighing.spread?.whole.verdict).toBe("overflows");
+    });
+
+    it("finds the fewest months over which a bite fits, or none", () => {
+      const pie = pieOf([bite("wants", 400)]);
+
+      expect(pie.fewestMonthsToFit({ sliceId: "wants", amount: eur(300) })).toBe(3);
+      expect(pie.fewestMonthsToFit({ sliceId: "wants", amount: eur(90_000) })).toBeNull();
+    });
+
+    it("refuses months outside 2 to 24", () => {
+      expect(() => pieOf().weigh({ sliceId: "wants", amount: eur(10), months: 30 })).toThrow(
+        "Spread it over 2 to 24 months.",
+      );
+    });
+
+    it("keeps later parts apart from the month's bites, and refuses earlier ones", () => {
+      const pie = pieOf();
+      const later = { ...bite("wants", 50), eatenAt: october.next().start };
+
+      pie.take(later);
+
+      expect(pie.bites).toEqual([]);
+      expect(pie.laterBites).toEqual([later]);
+      expect(pie.leftover().ratio).toBe(1);
+      expect(() => pie.take({ ...bite("wants", 5), eatenAt: october.previous().start })).toThrow(
+        "That bite belongs to an earlier month.",
+      );
+    });
+
+    it("puts back this month's part and the later ones", () => {
+      const spread = { id: "laptop", part: 1, of: 2 };
+      const now = { ...bite("wants", 50), spread };
+
+      const next = {
+        ...bite("wants", 50),
+        eatenAt: october.next().start,
+        spread: { ...spread, part: 2 },
+      };
+
+      const pie = pieOf([now, next, bite("needs", 5)]);
+
+      pie.putBackSpread("laptop");
+
+      expect(pie.bites.map((eaten) => eaten.sliceId)).toEqual(["needs"]);
+      expect(pie.laterBites).toEqual([]);
+      expect(pie.putBackSpreadIds()).toEqual(["laptop"]);
+      expect(() => pie.putBackSpread("laptop")).toThrow("That bite is not in this month's pie.");
     });
   });
 });

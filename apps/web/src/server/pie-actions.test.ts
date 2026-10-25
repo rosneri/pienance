@@ -169,6 +169,28 @@ describe("pie actions", () => {
     });
   });
 
+  it("takes a spread, answering with this month's part, and puts back the rest", async () => {
+    const { as, tracked } = kitchen();
+    const ada = as("ada");
+    const baked = await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+    const wants = baked.ok ? (baked.value.slices[1]?.id ?? "") : "";
+    const taken = await ada.takeBite({ sliceId: wants, amount: "900", note: "Laptop", months: 6 });
+
+    expect(taken.ok && [taken.value.portion, taken.value.spread?.words]).toEqual(["1/6", "1 of 6"]);
+    expect(
+      await ada.putBackSpread({ spreadId: taken.ok ? (taken.value.spread?.id ?? "") : "" }),
+    ).toEqual({ ok: true, value: null });
+    expect((await ada.readPie())?.bites).toEqual([]);
+    expect(tracked.map(({ event }) => event)).toContainEqual({
+      name: "spread.taken",
+      properties: { months: 6 },
+    });
+    expect(await ada.takeBite({ sliceId: wants, amount: "9", note: "", months: 40 })).toEqual({
+      ok: false,
+      error: "Spread it over 2 to 24 months.",
+    });
+  });
+
   it("returns domain errors as values", async () => {
     const { as } = kitchen();
     const ada = as("ada");

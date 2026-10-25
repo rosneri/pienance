@@ -49,8 +49,15 @@ model Bite {
   amountMinor BigInt
   note        String
   eatenAt     DateTime
+  /// One expense split into equal monthly bites: they share this id
+  spreadId    String?
+  /// Which part of the spread, from 1
+  spreadPart  Int?
+  /// How many parts the spread has
+  spreadOf    Int?
 
   @@index([sliceId, eatenAt])
+  @@index([spreadId])
 }
 
 /// A bite that comes back every month.
