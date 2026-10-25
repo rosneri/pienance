@@ -189,6 +189,26 @@ describe("PrismaPieRepository (Postgres)", () => {
     expect((await pies.find("ada", october.next()))?.bites).toEqual([]);
   });
 
+  it("keeps one carry a month, and forgets it once undone", async () => {
+    await pies.save(bakeFor("ada"));
+
+    const served = await pies.find("ada", october);
+
+    served?.carryOver({ sliceId: "pie-ada-wants", amount: Money.parse("5000", yen) });
+    await pies.save(served!);
+
+    const carried = await pies.find("ada", october);
+
+    expect(carried?.carry?.amount.minor).toBe(5000);
+    expect(carried?.whole.minor).toBe(455_000);
+    expect((await pies.find("ada", september))?.carry).toBeUndefined();
+
+    carried?.dropCarry();
+    await pies.save(carried!);
+
+    expect((await pies.find("ada", october))?.carry).toBeUndefined();
+  });
+
   it("serves only the bites of the asked month", async () => {
     const pie = bakeFor("ada");
 

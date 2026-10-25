@@ -3,6 +3,9 @@ import { Proportion, type Pace } from "../domain";
 import type { PieView, SliceView } from "./pie-view";
 import {
   describeAppetite,
+  describeCarried,
+  describeCarry,
+  describeCarryOffer,
   describeDropped,
   describeFocus,
   describeLeftover,
@@ -29,9 +32,24 @@ const weighing = {
 } as const;
 
 describe("sentences", () => {
+  it("offers, carries and tells a carry", () => {
+    expect(
+      describeCarryOffer({
+        month: "2026-09",
+        monthName: "September",
+        leftoverWords: "about a fifth",
+      }),
+    ).toBe("September left about a fifth of your pie.");
+    expect(describeCarried("Savings")).toBe("Carried into Savings. It is bigger this month.");
+    expect(describeCarry({ sliceId: "savings", sliceName: "Savings", from: "September" })).toBe(
+      "Savings holds September's leftover.",
+    );
+  });
+
   it("previews a re-slice by the first slice it would eat up", () => {
     const serving = (name: string, left: number, retired = false) => ({
       slice: { id: name, name, share: Proportion.none },
+      ofPie: Proportion.none,
       retired,
       eaten: Proportion.of(1 - left),
       left: Proportion.of(left),

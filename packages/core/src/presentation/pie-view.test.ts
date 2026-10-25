@@ -274,4 +274,27 @@ describe("focuses", () => {
       ],
     });
   });
+
+  it("draws a slice holding a carry wider than its share, and names the carry", () => {
+    const carried = Pie.bake({
+      id: "pie",
+      ownerId: "ada",
+      income: eur(1000),
+      slices: [
+        { id: "needs", name: "Needs", share: Proportion.of(0.5) },
+        { id: "savings", name: "Savings", share: Proportion.of(0.5) },
+      ],
+      bakedAt: october.previous().start,
+      month: october,
+      carry: { sliceId: "savings", amount: eur(1000) },
+    });
+
+    const view = viewPie(carried, { month: october });
+
+    expect(view.slices.map((slice) => [slice.from, slice.to])).toEqual([
+      [0, 0.25],
+      [0.25, 1],
+    ]);
+    expect(view.carry).toEqual({ sliceId: "savings", sliceName: "Savings", from: "September" });
+  });
 });

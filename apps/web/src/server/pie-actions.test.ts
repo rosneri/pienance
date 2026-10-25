@@ -191,6 +191,37 @@ describe("pie actions", () => {
     });
   });
 
+  it("offers last month's leftover, carries it, and undoes it", async () => {
+    const { as, clock, tracked } = kitchen();
+    const ada = as("ada");
+    const baked = await ada.bakePie({ monthlyIncome: "1000", currency: "EUR" });
+    const savings = baked.ok ? (baked.value.slices[2]?.id ?? "") : "";
+
+    expect(await ada.readCarryOffer()).toBeNull();
+
+    clock.now = new Date(Date.UTC(2026, 10, 3));
+
+    expect(await ada.readCarryOffer()).toEqual({
+      month: "2026-10",
+      monthName: "October",
+      leftoverWords: "all",
+    });
+
+    const carried = await ada.carryOver({ sliceId: savings });
+
+    expect(carried.ok && carried.value.carry).toEqual({
+      sliceId: savings,
+      sliceName: "Savings",
+      from: "October",
+    });
+    expect(await ada.readCarryOffer()).toBeNull();
+    expect((await ada.dropCarry()).ok).toBe(true);
+    expect(tracked.slice(-2).map(({ event }) => event.name)).toEqual([
+      "carry.carried",
+      "carry.dropped",
+    ]);
+  });
+
   it("returns domain errors as values", async () => {
     const { as } = kitchen();
     const ada = as("ada");

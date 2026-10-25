@@ -10,6 +10,8 @@ export type ProductEvent =
   | { readonly name: "bite.put-back"; readonly properties: Readonly<Record<string, never>> }
   | { readonly name: "bite.moved"; readonly properties: Readonly<Record<string, never>> }
   | { readonly name: "spread.taken"; readonly properties: { readonly months: number } }
+  | { readonly name: "carry.carried"; readonly properties: Readonly<Record<string, never>> }
+  | { readonly name: "carry.dropped"; readonly properties: Readonly<Record<string, never>> }
   | { readonly name: "spread.put-back"; readonly properties: Readonly<Record<string, never>> }
   | { readonly name: "staple.stocked"; readonly properties: { readonly replaced: boolean } }
   | { readonly name: "staple.dropped"; readonly properties: { readonly removed: boolean } }

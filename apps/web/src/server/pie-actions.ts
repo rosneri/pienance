@@ -5,6 +5,7 @@ import {
   PieError,
   viewAppetite,
   viewBite,
+  viewCarryOffer,
   viewPie,
   viewReslice,
   viewShelf,
@@ -13,9 +14,12 @@ import {
   type AppetiteSentence,
   type BakePieInput,
   type BiteView,
+  type CarryOfferView,
+  type CarryOverInput,
   type DropStapleInput,
   type MoveBiteInput,
   type Pienance,
+  type Pie,
   type PieView,
   type PutBackBiteInput,
   type PutBackSpreadInput,
@@ -115,6 +119,12 @@ export function pieActions(deps: PieActionsDeps) {
     return viewStaple(pie, staple, Month.of(deps.now()));
   }
 
+  function thisMonth(pie: Pie): PieView {
+    const now = deps.now();
+
+    return viewPie(pie, { month: Month.of(now), gone: Month.of(now).gone(now) });
+  }
+
   async function thisMonthsBite(ownerId: string, biteId: string): Promise<BiteView> {
     const pie = await deps.app.servePie(ownerId);
 
@@ -180,6 +190,36 @@ export function pieActions(deps: PieActionsDeps) {
         deps.refresh();
 
         return viewPie(pie, { month: Month.of(now), gone: Month.of(now).gone(now) });
+      });
+    },
+
+    /** Last month's leftover, while this month can still carry it; null otherwise. */
+    async readCarryOffer(): Promise<CarryOfferView | null> {
+      const ownerId = await deps.owner();
+      const offer = ownerId ? await deps.app.readCarryOffer({ ownerId }) : null;
+
+      return offer ? viewCarryOffer(offer) : null;
+    },
+
+    carryOver(input: Asked<CarryOverInput>): Promise<Outcome<PieView>> {
+      return attempt(async (ownerId) => {
+        const pie = await deps.app.carryOver({ ...input, ownerId });
+
+        deps.track({ name: "carry.carried", properties: {} }, ownerId);
+        deps.refresh();
+
+        return thisMonth(pie);
+      });
+    },
+
+    dropCarry(): Promise<Outcome<PieView>> {
+      return attempt(async (ownerId) => {
+        const pie = await deps.app.dropCarry({ ownerId });
+
+        deps.track({ name: "carry.dropped", properties: {} }, ownerId);
+        deps.refresh();
+
+        return thisMonth(pie);
       });
     },
 

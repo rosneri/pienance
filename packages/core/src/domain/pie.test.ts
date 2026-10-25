@@ -399,4 +399,59 @@ describe("Pie", () => {
       expect(() => pie.putBackSpread("laptop")).toThrow("That bite is not in this month's pie.");
     });
   });
+
+  describe("carrying last month's leftover", () => {
+    it("makes its slice bigger and the whole pie the income plus the carry", () => {
+      const pie = pieOf([bite("wants", 100)]);
+
+      pie.carryOver({ sliceId: "needs", amount: eur(500) });
+
+      expect(pie.whole.minor).toBe(150_000);
+      expect(pie.sizeOf(slices[0]!).minor).toBe(100_000);
+      expect(pie.sizeOf(slices[1]!).minor).toBe(50_000);
+      expect(pie.servings().map((serving) => serving.ofPie.ratio)).toEqual([2 / 3, 1 / 3]);
+      expect(pie.leftover().ratio).toBeCloseTo(1 - 100 / 1500);
+      expect(pie.leftoverMoney().minor).toBe(140_000);
+    });
+
+    it("carries nothing from an overspent month", () => {
+      expect(pieOf([bite("wants", 1200)]).leftoverMoney().minor).toBe(0);
+    });
+
+    it("carries once, into a live slice, and can be undone", () => {
+      const pie = pieOf();
+
+      expect(() => pie.carryOver({ sliceId: "dessert", amount: eur(5) })).toThrow(PieError);
+      expect(() => pie.carryOver({ sliceId: "needs", amount: eur(0) })).toThrow(
+        "There is nothing to carry.",
+      );
+
+      pie.carryOver({ sliceId: "needs", amount: eur(5) });
+
+      expect(() => pie.carryOver({ sliceId: "wants", amount: eur(5) })).toThrow(
+        "Already carried this month.",
+      );
+
+      pie.dropCarry();
+
+      expect(pie.carry).toBeUndefined();
+      expect(pie.carryDropped()).toBe(true);
+      expect(pie.whole.minor).toBe(100_000);
+    });
+
+    it("refuses to retire the slice holding the carry", () => {
+      const pie = pieOf();
+
+      pie.carryOver({ sliceId: "wants", amount: eur(5) });
+
+      expect(() =>
+        pie.reslice({
+          slices: [
+            { id: "needs", name: "Needs", share: Proportion.whole },
+            { id: "wants", name: "Wants", share: Proportion.none, retired: true },
+          ],
+        }),
+      ).toThrow("Undo the carry first.");
+    });
+  });
 });

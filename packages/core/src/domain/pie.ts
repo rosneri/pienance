@@ -1,4 +1,5 @@
 import type { Bite } from "./bite";
+import type { Carry } from "./carry";
 import type { Currency } from "./currency";
 import { Money } from "./money";
 import type { Month } from "./month";
@@ -13,6 +14,8 @@ const tightThreshold = Proportion.of(0.1);
 
 export interface Serving {
   readonly slice: Slice;
+  /** How much of the whole pie the slice holds: its share, plus any carry it holds. */
+  readonly ofPie: Proportion;
   /** A retired slice has no size: its bites only count against the whole pie. */
   readonly retired: boolean;
   readonly eaten: Proportion;
@@ -44,7 +47,12 @@ const unknownBite = "That bite is not in this month's pie.";
  * with the bites eaten from it during one month and the staples that month counts.
  */
 export class Pie {
-  private readonly sizes: ReadonlyMap<string, Money>;
+  /** Each slice's share of the income, before any carry. */
+  private readonly shares: ReadonlyMap<string, Money>;
+  /** Last month's leftover, carried into one slice. */
+  private carried: Carry | undefined;
+  /** Whether a carry loaded with the pie was undone since. */
+  private dropped = false;
   /** Bites put back since the pie was loaded, so repositories can forget them. */
   private readonly putBacks: string[] = [];
   /** Spreads put back from this month on, since the pie was loaded. */
@@ -67,7 +75,7 @@ export class Pie {
   ) {
     const parts = income.split(slices.map((slice) => slice.share));
 
-    this.sizes = new Map(
+    this.shares = new Map(
       slices.map((slice, index) => [slice.id, parts[index] ?? Money.zero(income.currency)]),
     );
   }
@@ -83,6 +91,8 @@ export class Pie {
     bites?: readonly Bite[];
     /** The staples active in the served month: the pie counts every one it holds. */
     staples?: readonly Staple[];
+    /** Last month's leftover, carried into this month. */
+    carry?: Carry | undefined;
   }): Pie {
     if (!props.slices.some((slice) => !slice.retired)) {
       throw new PieError("A pie needs at least one slice");
@@ -118,6 +128,8 @@ export class Pie {
 
     for (const staple of props.staples ?? []) pie.shelve(staple);
 
+    if (props.carry) pie.holdCarry(props.carry);
+
     return pie;
   }
 
@@ -144,6 +156,10 @@ export class Pie {
       if (slice.retired && !before?.retired && active) {
         throw new PieError(`Stop ${before?.name ?? slice.name}'s staples first.`);
       }
+
+      if (slice.retired && this.carried?.sliceId === slice.id) {
+        throw new PieError("Undo the carry first.");
+      }
     }
 
     return Pie.bake({
@@ -155,11 +171,53 @@ export class Pie {
       month: this.month,
       bites: [...this.eaten, ...this.later],
       staples: this.pantry,
+      carry: this.carried,
     });
   }
 
   get currency(): Currency {
     return this.income.currency;
+  }
+
+  /** The whole pie this month: the income, plus any carry. */
+  get whole(): Money {
+    return this.carried ? this.income.plus(this.carried.amount) : this.income;
+  }
+
+  /** Last month's leftover, when it was carried into this month. */
+  get carry(): Carry | undefined {
+    return this.carried;
+  }
+
+  /** Whether a carry loaded with the pie was undone, so repositories can forget it. */
+  carryDropped(): boolean {
+    return this.dropped;
+  }
+
+  /** Adds last month's leftover to one live slice, once a month. */
+  carryOver(carry: Carry): void {
+    if (this.carried) throw new PieError("Already carried this month.");
+
+    this.liveSlice(carry.sliceId);
+    this.holdCarry(carry);
+  }
+
+  /** Undoes this month's carry. */
+  dropCarry(): void {
+    if (!this.carried) throw new PieError("Nothing was carried this month.");
+
+    this.carried = undefined;
+    this.dropped = true;
+  }
+
+  /** What is left of the whole pie in money, never below zero: what a next month can carry. */
+  leftoverMoney(): Money {
+    return this.whole.minus(
+      Money.sum(
+        [...this.eaten, ...this.counted()].map((food) => food.amount),
+        this.currency,
+      ),
+    );
   }
 
   /** The bites eaten in the served month. */
@@ -222,7 +280,7 @@ export class Pie {
       slice,
       stapled: this.stapledFrom(slice).proportionOf(size),
       ofSlice: candidate.amount.proportionOf(size),
-      ofPie: candidate.amount.proportionOf(this.income),
+      ofPie: candidate.amount.proportionOf(this.whole),
       ofLeftover: candidate.amount.proportionOf(leftover),
       leftAfter: leftAfter.proportionOf(size),
       verdict: verdictFor(candidate.amount, leftover, leftAfter.proportionOf(size)),
@@ -337,7 +395,7 @@ export class Pie {
 
         const none = Proportion.none;
 
-        return [{ slice, retired: true, eaten: none, left: none, stapled: none }];
+        return [{ slice, ofPie: none, retired: true, eaten: none, left: none, stapled: none }];
       }
 
       const size = this.sizeOf(slice);
@@ -346,6 +404,7 @@ export class Pie {
       return [
         {
           slice,
+          ofPie: size.proportionOf(this.whole),
           retired: false,
           eaten,
           left: eaten.complement(),
@@ -361,7 +420,7 @@ export class Pie {
       [...this.eaten, ...this.counted()].map((food) => food.amount),
       this.currency,
     )
-      .proportionOf(this.income)
+      .proportionOf(this.whole)
       .complement();
   }
 
@@ -373,13 +432,26 @@ export class Pie {
     ];
   }
 
-  /** How much money a slice holds. */
+  /** How much money a slice holds: its share of the income, plus any carry it holds. */
   sizeOf(slice: Slice): Money {
-    return this.sizes.get(slice.id) ?? Money.zero(this.currency);
+    const share = this.shares.get(slice.id) ?? Money.zero(this.currency);
+
+    return this.carried?.sliceId === slice.id ? share.plus(this.carried.amount) : share;
   }
 
   private wholeOf(slice: Slice): Money {
-    return slice.retired ? this.income : this.sizeOf(slice);
+    return slice.retired ? this.whole : this.sizeOf(slice);
+  }
+
+  private holdCarry(carry: Carry): void {
+    this.assertInCurrency(carry.amount);
+    this.slice(carry.sliceId);
+
+    if (!carry.amount.isMoreThan(Money.zero(this.currency))) {
+      throw new PieError("There is nothing to carry.");
+    }
+
+    this.carried = carry;
   }
 
   /** A slice that can still be eaten from. */

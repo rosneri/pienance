@@ -1,6 +1,7 @@
 import {
   isActiveIn,
   type Bite,
+  type Carry,
   type Money,
   type Month,
   Pie,
@@ -17,6 +18,8 @@ interface Stored {
   readonly bakedAt: Date;
   readonly bites: readonly Bite[];
   readonly staples: readonly Staple[];
+  /** Each month's carry, by month ("2026-10"). */
+  readonly carries: ReadonlyMap<string, Carry>;
 }
 
 /** For tests and running the app without a database. Keeps one pie per owner. */
@@ -37,6 +40,7 @@ export class InMemoryPieRepository implements PieRepository {
       month,
       bites: stored.bites.filter((bite) => month.contains(bite.eatenAt)),
       staples: stored.staples.filter((staple) => isActiveIn(staple, month)),
+      carry: stored.carries.get(month.toString()),
     });
   }
 
@@ -47,6 +51,10 @@ export class InMemoryPieRepository implements PieRepository {
     const biteIds = new Set([...bites.map((bite) => bite.id), ...pie.putBackIds()]);
     const putBackSpreads = new Set(pie.putBackSpreadIds());
     const stapleIds = new Set(pie.staples.map((staple) => staple.id));
+    const carries = new Map(same ? stored.carries : []);
+
+    if (pie.carry) carries.set(pie.month.toString(), pie.carry);
+    else if (pie.carryDropped()) carries.delete(pie.month.toString());
 
     // A spread put back goes from the served month on; its earlier parts stay.
     const kept = (bite: Bite) =>
@@ -63,6 +71,7 @@ export class InMemoryPieRepository implements PieRepository {
         ...(same ? stored.staples : []).filter((staple) => !stapleIds.has(staple.id)),
         ...pie.staples,
       ],
+      carries,
     });
   }
 }

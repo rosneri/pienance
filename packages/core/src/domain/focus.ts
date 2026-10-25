@@ -24,5 +24,5 @@ export function focusOn(pie: Pie, cut: Cut): Focus {
 
   const eaten = total.proportionOf(cut.wholeOf(pie));
 
-  return { cut, food, eaten, left: eaten.complement(), ofPie: total.proportionOf(pie.income) };
+  return { cut, food, eaten, left: eaten.complement(), ofPie: total.proportionOf(pie.whole) };
 }

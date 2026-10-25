@@ -5,6 +5,8 @@ import type {
   AppetiteSentence,
   BakePieInput,
   BiteView,
+  CarryOfferView,
+  CarryOverInput,
   DropStapleInput,
   MoveBiteInput,
   PieView,
@@ -61,6 +63,18 @@ export async function readAppetite(): Promise<AppetiteSentence[]> {
 
 export async function bakePie(input: Asked<BakePieInput>): Promise<Outcome<PieView>> {
   return pies.bakePie(input);
+}
+
+export async function readCarryOffer(): Promise<CarryOfferView | null> {
+  return pies.readCarryOffer();
+}
+
+export async function carryOver(input: Asked<CarryOverInput>): Promise<Outcome<PieView>> {
+  return pies.carryOver(input);
+}
+
+export async function dropCarry(): Promise<Outcome<PieView>> {
+  return pies.dropCarry();
 }
 
 export async function readReslice(): Promise<ResliceView | null> {
