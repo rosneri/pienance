@@ -1,5 +1,7 @@
 export type { Bite } from "./bite";
 
+export type { Carry } from "./carry";
+
 export { currencyCodes, currencyOf, type Currency } from "./currency";
 
 export { Money } from "./money";
@@ -20,9 +22,13 @@ export type { PieRepository } from "./pie-repository";
 
 export { Proportion } from "./proportion";
 
-export { asFraction, roughly } from "./rough-size";
+export { spreadMonths, spreadOver, type SpreadPart } from "./spread";
 
-export type { Slice } from "./slice";
+export { sweepSteps, sweptBy, type Sweep } from "./sweep";
+
+export { asFraction, portionOf, roughly } from "./rough-size";
+
+export { sliceNameLimit, type Slice } from "./slice";
 
 export { isActiveIn, isVoid, type Staple } from "./staple";
 

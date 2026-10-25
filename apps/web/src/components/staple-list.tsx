@@ -1,6 +1,6 @@
 "use client";
 
-import type { StapleView } from "@pienance/core";
+import { portionOf, type StapleView } from "@pienance/core";
 import { Button } from "@pienance/ui/components/button";
 import { cn } from "@pienance/ui/lib/utils";
 import { useState, useTransition } from "react";
@@ -77,7 +77,7 @@ export function StapleList({
                 <span className="ms-auto text-end text-muted-foreground">
                   {staple.endsAfter
                     ? `Ends after ${staple.endsAfter}`
-                    : `${staple.portionWords} of ${staple.sliceName}`}
+                    : portionOf(staple.portion, staple.sliceName)}
                 </span>
                 {canStop && (
                   <Button

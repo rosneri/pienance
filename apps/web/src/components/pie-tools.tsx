@@ -1,14 +1,25 @@
 "use client";
 
 import {
+  describeCarried,
+  describeCarry,
+  describeCarryOffer,
   describeDropped,
   describeFocus,
   describeLeftover,
+  describeMoved,
   describePace,
   describePastLeftover,
   describeShelfMonth,
   describeStaple,
+  describeSweep,
+  describeSwept,
   describeWeighing,
+  droppedCarrySentence,
+  portionOf,
+  putBackSentence,
+  spreadMonths,
+  viewSweepSteps,
   type PieView,
   type SliceView,
 } from "@pienance/core";
@@ -70,7 +81,8 @@ export function PieTools({
       return () => controller.abort();
     }
 
-    const { slices } = pie;
+    // Nothing more is eaten from a retired slice, so tools only offer the live ones.
+    const slices = pie.slices.filter((slice) => !slice.retired);
     const sliceIdOf = (name: string) => slices.find((slice) => slice.name === name)?.id ?? "";
 
     const biteProperties = {
@@ -87,7 +99,7 @@ export function PieTools({
         name: "read_pie",
         title: "Read a month's pie",
         description:
-          "Returns how much of the user's monthly pie is left, per slice, how fast slices are eaten, the staples that come back every month (with their ids) and what was eaten. This month by default, or a past month on the shelf; the whole pie by default, or a single view (focus). Everything is described in proportions: rough words, and simple fractions for bites.",
+          "Returns how much of the user's monthly pie is left, per slice, how fast slices are eaten, the staples that come back every month and what was eaten, both with their ids. This month by default, or a past month on the shelf; the whole pie by default, or a single view (focus). Everything is described in proportions: rough words, and simple fractions for bites.",
         annotations: { readOnlyHint: true },
         inputSchema: {
           type: "object",
@@ -110,6 +122,10 @@ export function PieTools({
 
           const focus = served.focuses.find((candidate) => candidate.name === input.focus);
           const pace = describePace(served);
+          // Only this month can still carry last month's leftover.
+
+          const offer =
+            served.gone !== undefined && !served.carry ? await actions.readCarryOffer() : null;
 
           const inView = <T extends { id: string }>(
             items: readonly T[],
@@ -124,14 +140,24 @@ export function PieTools({
             ...(focus ? { focus: describeFocus(focus, served) } : pace && { pace }),
             month: served.monthName,
             currency: served.currency,
+            ...(served.carry && { carry: describeCarry(served.carry) }),
+            ...(served.sweep && {
+              sweep: `Bites round up to the next ${served.sweep.step} into ${served.sweep.sliceName}.`,
+            }),
+            ...(served.swept.length > 0 && { swept: describeSwept(served) }),
+            ...(offer && { carryOffer: describeCarryOffer(offer) }),
             slices: served.slices.map(describeSlice),
             staples: inView(served.staples, focus?.stapleIds).map((staple) => ({
               id: staple.id,
-              staple: `${staple.note || "Something"}: ${staple.portionWords} of ${staple.sliceName}${staple.endsAfter ? `, ends after ${staple.endsAfter}` : ""}`,
+              staple: `${staple.note || "Something"}: ${portionOf(staple.portion, staple.sliceName)}${staple.endsAfter ? `, ends after ${staple.endsAfter}` : ""}`,
             })),
-            bites: inView(served.bites, focus?.biteIds).map(
-              (bite) => `${bite.note || "Something"}: ${bite.portion} of ${bite.sliceName}`,
-            ),
+            bites: inView(served.bites, focus?.biteIds).map((bite) => ({
+              id: bite.id,
+              note: bite.note || "Something",
+              slice: bite.sliceName,
+              portion: bite.portion,
+              ...(bite.spread && { spreadId: bite.spread.id, part: bite.spread.words }),
+            })),
           };
         },
       },
@@ -159,25 +185,42 @@ export function PieTools({
 
     if (past) return () => controller.abort();
 
+    const monthsProperty = {
+      months: {
+        type: "integer",
+        minimum: spreadMonths.fewest,
+        maximum: spreadMonths.most,
+        description: `Spread the expense in equal parts over this many months, starting now (${spreadMonths.fewest} to ${spreadMonths.most}). Leave it out to pay it all this month.`,
+      },
+    } as const;
+
     void modelContext.registerTool(
       {
         name: "weigh_bite",
         title: "Weigh an expense",
         description:
-          "Tells whether a prospective expense fits in what is left of a slice this month, without recording it. Use it to answer 'is this worth it?'.",
+          "Tells whether a prospective expense fits in what is left of a slice this month, without recording it. Use it to answer 'is this worth it?'. With months, it compares paying it all now with spreading it; when it is too big, it says over how few months it would fit.",
         annotations: { readOnlyHint: true },
         inputSchema: {
           type: "object",
-          properties: biteProperties,
+          properties: { ...biteProperties, ...monthsProperty },
           required: ["amount", "slice"],
         } as const,
         async execute(input) {
           const outcome = await actions.weighBite({
             sliceId: sliceIdOf(input.slice),
             amount: String(input.amount),
+            months: input.months,
           });
 
-          return outcome.ok ? describeWeighing(outcome.value) : outcome.error;
+          if (!outcome.ok) return outcome.error;
+
+          const { fitsOver } = outcome.value;
+
+          const nudge =
+            fitsOver === undefined ? "" : ` Spread over ${fitsOver} months, it would fit.`;
+
+          return `${describeWeighing(outcome.value)}${nudge}`;
         },
       },
       options,
@@ -187,11 +230,13 @@ export function PieTools({
       {
         name: "take_bite",
         title: "Record an expense",
-        description: "Records an expense the user made in this month's pie.",
+        description:
+          "Records an expense the user made in this month's pie, or spreads it in equal parts over several months from this one on.",
         inputSchema: {
           type: "object",
           properties: {
             ...biteProperties,
+            ...monthsProperty,
             note: { type: "string", description: "What the expense was, in a few words." },
           },
           required: ["amount", "slice", "note"],
@@ -201,9 +246,222 @@ export function PieTools({
             sliceId: sliceIdOf(input.slice),
             amount: String(input.amount),
             note: input.note,
+            months: input.months,
           });
 
-          return outcome.ok ? `Recorded ${input.note} in ${input.slice}.` : outcome.error;
+          if (!outcome.ok) return outcome.error;
+
+          const { swept } = outcome.value;
+          const sweep = swept ? ` Swept ${portionOf(swept.portion, swept.sliceName)}.` : "";
+
+          return input.months === undefined
+            ? `Recorded ${input.note} in ${input.slice}.${sweep}`
+            : `Recorded ${input.note} in ${input.slice}, over ${input.months} months.${sweep}`;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "put_back_bite",
+        title: "Remove an expense",
+        description:
+          "Removes an expense recorded this month, as if it was never made. Take the id from read_pie.",
+        inputSchema: {
+          type: "object",
+          properties: { biteId: { type: "string", description: "The bite's id." } },
+          required: ["biteId"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.putBackBite({ biteId: input.biteId });
+
+          return outcome.ok ? putBackSentence : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "put_back_spread",
+        title: "Remove the rest of a spread expense",
+        description:
+          "Removes this month's part of a spread expense and every later part; earlier parts stay. Take the spreadId from read_pie.",
+        inputSchema: {
+          type: "object",
+          properties: { spreadId: { type: "string", description: "The spread's id." } },
+          required: ["spreadId"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.putBackSpread({ spreadId: input.spreadId });
+
+          return outcome.ok ? putBackSentence : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "move_bite",
+        title: "Move an expense to another slice",
+        description:
+          "Moves an expense recorded this month into another slice, keeping its amount and note. Take the id from read_pie.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            biteId: { type: "string", description: "The bite's id." },
+            slice: biteProperties.slice,
+          },
+          required: ["biteId", "slice"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.moveBite({
+            biteId: input.biteId,
+            sliceId: sliceIdOf(input.slice),
+          });
+
+          return outcome.ok ? describeMoved(outcome.value) : outcome.error;
+        },
+      },
+      options,
+    );
+
+    const steps = viewSweepSteps(pie.currency);
+
+    const resliceSchema = {
+      type: "object",
+      properties: {
+        monthlyIncome: {
+          type: "number",
+          description: `Money that comes in each month, in ${pie.currency}. Leave it out to keep it.`,
+        },
+        slices: {
+          type: "array",
+          description:
+            "Every slice the pie should have, in order. An existing name keeps its slice and bites, a new name adds a slice, and a slice left out is retired (it keeps this month's bites).",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "The slice's name, up to 30 letters." },
+              percent: {
+                type: "number",
+                description: "Its share of the pie in steps of 5; all shares add up to 100.",
+              },
+            },
+            required: ["name", "percent"],
+          },
+        },
+      },
+      required: ["slices"],
+    } as const;
+
+    const resliceInput = (input: {
+      monthlyIncome?: number;
+      slices: readonly { name: string; percent: number }[];
+    }) => ({
+      ...(input.monthlyIncome !== undefined && { monthlyIncome: String(input.monthlyIncome) }),
+      slices: input.slices.map((slice) => ({
+        id: slices.find((known) => known.name === slice.name.trim())?.id,
+        name: slice.name,
+        percent: slice.percent,
+      })),
+    });
+
+    void modelContext.registerTool(
+      {
+        name: "preview_reslice",
+        title: "Preview new slices",
+        description:
+          "Tells how this month's expenses would sit in the pie with a new income or new slices, without changing anything.",
+        annotations: { readOnlyHint: true },
+        inputSchema: resliceSchema,
+        async execute(input) {
+          const outcome = await actions.previewReslice(resliceInput(input));
+
+          return outcome.ok ? outcome.value.sentence : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "reslice_pie",
+        title: "Change the income or slices",
+        description:
+          "Changes the pie's monthly income or its slices (names, shares, adding, retiring) in place. Every expense stays. Preview it first with preview_reslice.",
+        inputSchema: resliceSchema,
+        async execute(input) {
+          const outcome = await actions.reslicePie(resliceInput(input));
+
+          return outcome.ok ? describeLeftover(outcome.value.leftoverWords) : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "carry_over",
+        title: "Carry last month's leftover",
+        description:
+          "Adds what last month left of the whole pie to one slice of this month's pie, making it bigger. Once a month; read_pie tells when there is a leftover on offer.",
+        inputSchema: {
+          type: "object",
+          properties: { slice: biteProperties.slice },
+          required: ["slice"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.carryOver({ sliceId: sliceIdOf(input.slice) });
+
+          return outcome.ok ? describeCarried(input.slice) : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "drop_carry",
+        title: "Undo the carry",
+        description: "Undoes this month's carry of last month's leftover.",
+        async execute() {
+          const outcome = await actions.dropCarry();
+
+          return outcome.ok ? droppedCarrySentence : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "set_sweep",
+        title: "Round expenses up into a slice",
+        description:
+          "Turns on rounding every expense up to the next step, counting the difference as eaten from one slice (usually Savings); or turns it off with off: true. Past expenses keep what they swept.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            slice: biteProperties.slice,
+            step: {
+              type: "string",
+              enum: steps,
+              description: `Round up to the next this many ${pie.currency}.`,
+            },
+            off: { type: "boolean", description: "Turn rounding up off." },
+          },
+        } as const,
+        async execute(input) {
+          const outcome = await actions.setSweep(
+            input.off || !input.slice || !input.step
+              ? { off: true }
+              : { sliceId: sliceIdOf(input.slice), step: input.step },
+          );
+
+          return outcome.ok ? describeSweep(outcome.value) : outcome.error;
         },
       },
       options,
@@ -340,5 +598,7 @@ export function PieTools({
 
 /** "Wants: about half left, going fast" */
 function describeSlice(slice: SliceView): string {
+  if (slice.retired) return `${slice.name}: retired, still has bites this month`;
+
   return `${slice.name}: ${slice.leftWords} left${slice.pace === "fast" ? ", going fast" : ""}`;
 }

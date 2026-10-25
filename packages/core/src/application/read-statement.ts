@@ -64,10 +64,10 @@ export function readStatement(ports: Ports) {
     }
 
     const notes = [...new Set(reading.spends.map((spend) => spend.note))];
-    const suggested = await ports.advisor.slicesFor(notes, pie.slices);
+    const suggested = await ports.advisor.slicesFor(notes, pie.liveSlices);
     const sliceOf = new Map(notes.map((note, index) => [note, suggested[index]]));
-    const known = new Set(pie.slices.map((slice) => slice.id));
-    const fallback = pie.slices[0]?.id ?? "";
+    const known = new Set(pie.liveSlices.map((slice) => slice.id));
+    const fallback = pie.liveSlices[0]?.id ?? "";
     const names = input.rows[layout.skipRows - 1] ?? [];
 
     return {

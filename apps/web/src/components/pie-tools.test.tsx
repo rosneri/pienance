@@ -74,7 +74,9 @@ function fakeActions(): PieActions & { calls: string[] } {
       return { ok: true, value: pieView };
     },
     weighBite: async (input) => {
-      calls.push(`weigh ${input.sliceId} ${input.amount}`);
+      calls.push(
+        `weigh ${input.sliceId} ${input.amount}${input.months ? ` over ${input.months}` : ""}`,
+      );
 
       return {
         ok: true,
@@ -94,6 +96,60 @@ function fakeActions(): PieActions & { calls: string[] } {
       calls.push(`take ${input.sliceId} ${input.amount} ${input.note}`);
 
       return { ok: false, error: "Bake a pie first" };
+    },
+    putBackBite: async (input) => {
+      calls.push(`put back ${input.biteId}`);
+
+      return input.biteId === "shoes"
+        ? { ok: true, value: null }
+        : { ok: false, error: "That bite is not in this month's pie." };
+    },
+    putBackSpread: async (input) => {
+      calls.push(`put back spread ${input.spreadId}`);
+
+      return { ok: true, value: null };
+    },
+    moveBite: async (input) => {
+      calls.push(`move ${input.biteId} ${input.sliceId}`);
+
+      return {
+        ok: true,
+        value: { ...pieView.bites[0]!, sliceName: "Needs", portion: "1/10" },
+      };
+    },
+    readReslice: async () => null,
+    setSweep: async (input) => {
+      calls.push(`sweep ${JSON.stringify(input)}`);
+
+      return {
+        ok: true,
+        value: { ...pieView, sweep: { sliceId: "savings", sliceName: "Savings", step: "1.00" } },
+      };
+    },
+    readCarryOffer: async () => ({
+      month: "2026-09",
+      monthName: "September",
+      leftoverWords: "about a fifth",
+    }),
+    carryOver: async (input) => {
+      calls.push(`carry ${input.sliceId}`);
+
+      return { ok: true, value: pieView };
+    },
+    dropCarry: async () => {
+      calls.push("drop carry");
+
+      return { ok: false, error: "Nothing was carried this month." };
+    },
+    reslicePie: async (input) => {
+      calls.push(`reslice ${JSON.stringify(input)}`);
+
+      return { ok: true, value: pieView };
+    },
+    previewReslice: async (input) => {
+      calls.push(`preview ${input.slices.length}`);
+
+      return { ok: true, value: { verdict: "overflows", sentence: "Wants would be all eaten." } };
     },
     readStatement: async (upload) => {
       calls.push(`read ${upload.csv}`);
@@ -166,10 +222,18 @@ describe("PieTools (WebMCP)", () => {
     render(<PieTools pie={pie} actions={actions} />);
 
     expect([...tools.keys()].toSorted()).toEqual([
+      "carry_over",
+      "drop_carry",
       "drop_staple",
+      "move_bite",
+      "preview_reslice",
+      "put_back_bite",
+      "put_back_spread",
       "read_pie",
       "read_shelf",
       "read_statement",
+      "reslice_pie",
+      "set_sweep",
       "stock_staple",
       "take_bite",
       "take_bites",
@@ -182,7 +246,7 @@ describe("PieTools (WebMCP)", () => {
       "Savings",
     ]);
     expect(await tool("weigh_bite").execute({ amount: 80, slice: "Wants" })).toBe(
-      "Fits. It is about a fifth of your Wants slice and leaves about half of it.",
+      "Fits. It is about a fifth (Wants) and leaves about half of it.",
     );
     expect(await tool("take_bite").execute({ amount: 5, slice: "Needs", note: "Tea" })).toBe(
       "Bake a pie first",
@@ -192,19 +256,30 @@ describe("PieTools (WebMCP)", () => {
       pace: "Wants is going fast: about three quarters eaten, about a third of the month gone.",
       month: "October",
       currency: "EUR",
+      carryOffer: "September left about a fifth of your pie.",
       slices: [
         "Needs: about a third left",
         "Wants: about a quarter left, going fast",
         "Savings: all left",
       ],
       staples: [
-        { id: "rent", staple: "Rent: about half of Needs" },
-        { id: "gym", staple: "Gym: a sliver of Wants, ends after October" },
+        { id: "rent", staple: "Rent: 1/2 (Needs)" },
+        { id: "gym", staple: "Gym: 1/27 (Wants), ends after October" },
       ],
-      bites: ["Shoes: 3/4 of Wants", "Something: under 1/10 of Needs"],
+      bites: [
+        { id: "shoes", note: "Shoes", slice: "Wants", portion: "3/4" },
+        { id: "nameless", note: "Something", slice: "Needs", portion: "1/30" },
+      ],
     });
+    expect(await tool("put_back_bite").execute({ biteId: "shoes" })).toBe("Put back.");
+    expect(await tool("put_back_bite").execute({ biteId: "old" })).toBe(
+      "That bite is not in this month's pie.",
+    );
+    expect(await tool("move_bite").execute({ biteId: "shoes", slice: "Needs" })).toBe(
+      "Moved. 1/10 (Needs).",
+    );
     expect(await tool("stock_staple").execute({ amount: 1000, slice: "Needs", note: "Rent" })).toBe(
-      "Added. Rent takes about half of Needs every month.",
+      "Added. Rent: 1/2 (Needs) every month.",
     );
     expect(await tool("drop_staple").execute({ stapleId: "rent" })).toBe(
       "Stopped. Rent ends after October.",
@@ -212,9 +287,94 @@ describe("PieTools (WebMCP)", () => {
     expect(actions.calls).toEqual([
       "weigh wants 80",
       "take needs 5 Tea",
+      "put back shoes",
+      "put back old",
+      "move shoes needs",
       "stock needs 1000 Rent",
       "drop rent",
     ]);
+  });
+
+  it("weighs and takes a spread, and puts back the rest of one", async () => {
+    const actions = fakeActions();
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(tool("weigh_bite").inputSchema?.properties?.months).toMatchObject({
+      minimum: 2,
+      maximum: 24,
+    });
+    await tool("weigh_bite").execute({ amount: 600, slice: "Wants", months: 6 });
+    expect(await tool("put_back_spread").execute({ spreadId: "laptop" })).toBe("Put back.");
+    expect(actions.calls).toEqual(["weigh wants 600 over 6", "put back spread laptop"]);
+  });
+
+  it("carries last month's leftover and undoes it", async () => {
+    const actions = fakeActions();
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(await tool("carry_over").execute({ slice: "Savings" })).toBe(
+      "Carried into Savings. It is bigger this month.",
+    );
+    expect(await tool("drop_carry").execute({})).toBe("Nothing was carried this month.");
+    expect(actions.calls).toEqual(["carry savings", "drop carry"]);
+  });
+
+  it("sets the sweep by slice name and step", async () => {
+    const actions = fakeActions();
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(tool("set_sweep").inputSchema?.properties?.step?.enum).toEqual([
+      "1.00",
+      "5.00",
+      "10.00",
+    ]);
+    expect(await tool("set_sweep").execute({ slice: "Savings", step: "1.00" })).toBe(
+      "Bites now round up to the next 1.00 into Savings.",
+    );
+    expect(actions.calls).toEqual([
+      `sweep ${JSON.stringify({ sliceId: "savings", step: "1.00" })}`,
+    ]);
+  });
+
+  it("re-slices by name: a known name keeps its slice, a new one is added", async () => {
+    const actions = fakeActions();
+
+    const input = {
+      monthlyIncome: 4000,
+      slices: [
+        { name: "Needs", percent: 60 },
+        { name: "Travel", percent: 40 },
+      ],
+    };
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(tool("preview_reslice").annotations?.readOnlyHint).toBe(true);
+    expect(await tool("preview_reslice").execute(input)).toBe("Wants would be all eaten.");
+    expect(await tool("reslice_pie").execute(input)).toBe("About half of your pie is left.");
+    expect(actions.calls).toEqual([
+      "preview 2",
+      `reslice ${JSON.stringify({
+        monthlyIncome: "4000",
+        slices: [
+          { id: "needs", name: "Needs", percent: 60 },
+          { name: "Travel", percent: 40 },
+        ],
+      })}`,
+    ]);
+  });
+
+  it("offers only live slices to eat from", () => {
+    const retired = pieView.slices.map((slice) =>
+      slice.id === "savings" ? { ...slice, retired: true } : slice,
+    );
+
+    render(<PieTools pie={{ ...pieView, slices: retired }} actions={fakeActions()} />);
+
+    expect(tool("take_bite").inputSchema?.properties?.slice?.enum).toEqual(["Needs", "Wants"]);
   });
 
   it("reads a past month and the shelf", async () => {

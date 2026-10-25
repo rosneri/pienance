@@ -4,7 +4,12 @@ import {
   freeEatenOf,
   isVoid,
   paceOf,
+  currencyOf,
+  Money,
   roughly,
+  sweepSteps,
+  sweptBy,
+  type Bite,
   type Month,
   type Pace,
   type Pie,
@@ -23,6 +28,8 @@ import { monthName } from "./month-words";
 export interface SliceView {
   readonly id: string;
   readonly name: string;
+  /** Takes no share and draws no wedge; listed only while it has bites this month. */
+  readonly retired: boolean;
   /** Where the slice starts and ends around the pie, as fractions of a full turn. */
   readonly from: number;
   readonly to: number;
@@ -49,6 +56,10 @@ export interface BiteView {
   /** How much of its slice the bite took, as a simple fraction, e.g. "5/9". */
   readonly portion: string;
   readonly eatenAt: string;
+  /** What rounding it up swept, and into which slice, e.g. "1/800" of "Savings". */
+  readonly swept?: { readonly sliceName: string; readonly portion: string };
+  /** Part of a spread: which one, e.g. "2 of 6", and how many parts are still to come. */
+  readonly spread?: { readonly id: string; readonly words: string; readonly toCome: number };
 }
 
 export interface StapleView {
@@ -56,7 +67,8 @@ export interface StapleView {
   readonly sliceId: string;
   readonly note: string;
   readonly sliceName: string;
-  readonly portionWords: string;
+  /** How much of its slice it takes each month, as a simple fraction, e.g. "1/2". */
+  readonly portion: string;
   /** As a person would type it, to change it. */
   readonly amount: string;
   /** Stocked in the served month: dropping it removes it rather than stopping it. */
@@ -77,6 +89,12 @@ export interface PieView {
   readonly staples: readonly StapleView[];
   /** Every single view besides this overview: each slice, every month, one time. */
   readonly focuses: readonly FocusView[];
+  /** Rounding bites up, when it is on: into which slice, and to the next what. */
+  readonly sweep?: { readonly sliceId: string; readonly sliceName: string; readonly step: string };
+  /** What this month's sweeps add up to, per slice they went into. */
+  readonly swept: readonly { readonly sliceName: string; readonly portion: string }[];
+  /** Last month's leftover, carried into one slice: which, and from which month. */
+  readonly carry?: { readonly sliceId: string; readonly sliceName: string; readonly from: string };
   /** How much of the month is gone, between 0 and 1. Only while the month is running. */
   readonly gone?: number;
   readonly goneWords?: string;
@@ -93,6 +111,10 @@ export interface WeighingView {
   /** How much of the slice its staples already take. */
   readonly stapled: string;
   readonly verdict: Verdict;
+  /** Weighed as a spread: over how many months, and the whole amount's verdict now. */
+  readonly spread?: { readonly months: number; readonly wholeVerdict: Verdict };
+  /** The fewest months over which it would fit, when it is too big at once. */
+  readonly fitsOver?: number;
 }
 
 export interface Served {
@@ -110,18 +132,26 @@ export function viewPie(pie: Pie, served: Served): PieView {
     monthName: monthName(served.month),
     leftoverWords: roughly(pie.leftover()),
     slices: viewSlices(pie, gone),
-    bites: pie.bites.toReversed().map((bite) => ({
-      id: bite.id,
-      sliceId: bite.sliceId,
-      note: bite.note,
-      sliceName: pie.slice(bite.sliceId).name,
-      portion: asFraction(pie.portionOf(bite)),
-      eatenAt: bite.eatenAt.toISOString(),
-    })),
+    bites: pie.bites.toReversed().map((bite) => viewBite(pie, bite)),
     staples: pie.staples
       .filter((staple) => !isVoid(staple))
       .map((staple) => viewStaple(pie, staple, served.month)),
     focuses: viewFocuses(pie),
+    ...(pie.sweep && {
+      sweep: {
+        sliceId: pie.sweep.sliceId,
+        sliceName: pie.slice(pie.sweep.sliceId).name,
+        step: pie.sweep.step.toDecimal(),
+      },
+    }),
+    swept: viewSwept(pie),
+    ...(pie.carry && {
+      carry: {
+        sliceId: pie.carry.sliceId,
+        sliceName: pie.slice(pie.carry.sliceId).name,
+        from: monthName(served.month.previous()),
+      },
+    }),
     ...(gone && { gone: gone.ratio, goneWords: roughly(gone) }),
   };
 }
@@ -131,22 +161,25 @@ export function viewSlices(pie: Pie, gone?: Proportion): SliceView[] {
   let from = 0;
 
   return pie.servings().map((serving) => {
-    const to = from + serving.slice.share.ratio;
+    // Angles follow sizes, so a slice holding a carry draws wider than its share.
+    const to = from + serving.ofPie.ratio;
 
     const view: SliceView = {
       id: serving.slice.id,
       name: serving.slice.name,
+      retired: serving.retired,
       from,
       to,
       left: Math.min(serving.left.ratio, 1),
       leftWords: roughly(serving.left),
       stapled: Math.min(serving.stapled.ratio, 1),
       ...(serving.stapled.ratio > 0 && { stapledWords: roughly(serving.stapled) }),
-      ...(gone && {
-        pace: paceOf(serving, gone),
-        eatenWords: roughly(freeEatenOf(serving)),
-        ahead: aheadOf(serving, gone),
-      }),
+      ...(gone &&
+        !serving.retired && {
+          pace: paceOf(serving, gone),
+          eatenWords: roughly(freeEatenOf(serving)),
+          ahead: aheadOf(serving, gone),
+        }),
     };
 
     from = to;
@@ -155,13 +188,45 @@ export function viewSlices(pie: Pie, gone?: Proportion): SliceView[] {
   });
 }
 
+export function viewBite(pie: Pie, bite: Bite): BiteView {
+  const portion = pie.portionOf(bite);
+  const slice = pie.slice(bite.sliceId);
+
+  return {
+    id: bite.id,
+    sliceId: bite.sliceId,
+    note: bite.note,
+    // A retired slice has no size: its bites are told against the whole pie.
+    sliceName: slice.retired ? "the pie" : slice.name,
+    portion: asFraction(portion),
+    eatenAt: bite.eatenAt.toISOString(),
+    ...(bite.swept && {
+      swept: {
+        sliceName: pie.slice(bite.swept.sliceId).name,
+        portion: asFraction(
+          bite.swept.amount.proportionOf(pie.sizeOf(pie.slice(bite.swept.sliceId))),
+        ),
+      },
+    }),
+    ...(bite.spread && {
+      spread: {
+        id: bite.spread.id,
+        words: `${bite.spread.part} of ${bite.spread.of}`,
+        toCome: bite.spread.of - bite.spread.part,
+      },
+    }),
+  };
+}
+
 export function viewStaple(pie: Pie, staple: Staple, month: Month): StapleView {
+  const slice = pie.slice(staple.sliceId);
+
   return {
     id: staple.id,
     sliceId: staple.sliceId,
     note: staple.note,
-    sliceName: pie.slice(staple.sliceId).name,
-    portionWords: roughly(pie.portionOfStaple(staple)),
+    sliceName: slice.retired ? "the pie" : slice.name,
+    portion: asFraction(pie.portionOfStaple(staple)),
     amount: staple.amount.toDecimal(),
     stockedThisMonth: staple.since.equals(month),
     ...(staple.until && !isVoid(staple) && { endsAfter: monthName(staple.until.previous()) }),
@@ -172,11 +237,71 @@ export function viewWeighing(weighing: Weighing): WeighingView {
   return {
     sliceName: weighing.slice.name,
     portion: asFraction(weighing.ofSlice),
-    ofSlice: roughly(weighing.ofSlice),
-    ofLeftover: roughly(weighing.ofLeftover),
-    ofPie: roughly(weighing.ofPie),
-    leftAfter: roughly(weighing.leftAfter),
-    stapled: roughly(weighing.stapled),
+    ofSlice: asFraction(weighing.ofSlice),
+    ofLeftover: asFraction(weighing.ofLeftover),
+    ofPie: asFraction(weighing.ofPie),
+    leftAfter: asFraction(weighing.leftAfter),
+    stapled: asFraction(weighing.stapled),
     verdict: weighing.verdict,
+    ...(weighing.spread && {
+      spread: { months: weighing.spread.months, wholeVerdict: weighing.spread.whole.verdict },
+    }),
+    ...(weighing.fitsOver !== undefined && { fitsOver: weighing.fitsOver }),
   };
+}
+
+/** Last month's leftover, as the offer to carry it tells it. */
+export interface CarryOfferView {
+  /** e.g. "2026-09" */
+  readonly month: string;
+  readonly monthName: string;
+  readonly leftoverWords: string;
+}
+
+/** Last month, and how much of its whole pie it left. */
+export function viewCarryOffer(offer: { month: Month; leftover: Proportion }): CarryOfferView {
+  return {
+    month: offer.month.toString(),
+    monthName: monthName(offer.month),
+    leftoverWords: roughly(offer.leftover),
+  };
+}
+
+/** This month's sweeps, added up per slice they went into, against that slice's size. */
+function viewSwept(pie: Pie): PieView["swept"] {
+  const bySlice = new Map<string, Money>();
+
+  for (const { swept } of pie.bites) {
+    if (!swept) continue;
+
+    const sofar = bySlice.get(swept.sliceId);
+
+    bySlice.set(swept.sliceId, sofar ? sofar.plus(swept.amount) : swept.amount);
+  }
+
+  return [...bySlice].map(([sliceId, amount]) => {
+    const slice = pie.slice(sliceId);
+
+    return { sliceName: slice.name, portion: asFraction(amount.proportionOf(pie.sizeOf(slice))) };
+  });
+}
+
+/** An example bite and what it sweeps, as exact amounts: rounding is where numbers help. */
+export interface SweepExample {
+  readonly bite: string;
+  readonly swept: string;
+}
+
+export function sweepExample(currencyCode: string, step: string): SweepExample {
+  const currency = currencyOf(currencyCode);
+  const stepMoney = Money.parse(step, currency);
+  // 4.3 steps: a bite that is plainly not on a whole step.
+  const bite = Money.ofMinor(Math.round((stepMoney.minor * 43) / 10), currency);
+
+  return { bite: bite.toDecimal(), swept: sweptBy(bite, stepMoney).toDecimal() };
+}
+
+/** The steps a pie in this currency offers, as typed. */
+export function viewSweepSteps(currencyCode: string): string[] {
+  return sweepSteps(currencyOf(currencyCode)).map((step) => step.toDecimal());
 }

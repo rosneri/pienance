@@ -10,6 +10,7 @@ export const pieView: PieView = {
     {
       id: "needs",
       name: "Needs",
+      retired: false,
       from: 0,
       to: 0.5,
       left: 0.4,
@@ -23,6 +24,7 @@ export const pieView: PieView = {
     {
       id: "wants",
       name: "Wants",
+      retired: false,
       from: 0.5,
       to: 0.8,
       left: 0.25,
@@ -35,6 +37,7 @@ export const pieView: PieView = {
     {
       id: "savings",
       name: "Savings",
+      retired: false,
       from: 0.8,
       to: 1,
       left: 1,
@@ -59,7 +62,7 @@ export const pieView: PieView = {
       sliceId: "needs",
       note: "",
       sliceName: "Needs",
-      portion: "under 1/10",
+      portion: "1/30",
       eatenAt: "2026-10-02T10:00:00.000Z",
     },
   ],
@@ -69,7 +72,7 @@ export const pieView: PieView = {
       sliceId: "needs",
       note: "Rent",
       sliceName: "Needs",
-      portionWords: "about half",
+      portion: "1/2",
       amount: "1000.00",
       stockedThisMonth: false,
     },
@@ -78,12 +81,13 @@ export const pieView: PieView = {
       sliceId: "wants",
       note: "Gym",
       sliceName: "Wants",
-      portionWords: "a sliver",
+      portion: "1/27",
       amount: "30.00",
       stockedThisMonth: false,
       endsAfter: "October",
     },
   ],
+  swept: [],
   focuses: [
     {
       key: "slice:needs",

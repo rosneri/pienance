@@ -6,6 +6,9 @@ const eur = currencyOf("EUR");
 
 const october = Month.of(new Date(Date.UTC(2026, 9, 1)));
 
+/** Pies are seeded from September, so later months' bites ride along. */
+const seededIn = Month.of(new Date(Date.UTC(2026, 8, 1)));
+
 function pieFor(ownerId: string, bites: readonly Bite[] = []) {
   return Pie.bake({
     id: `pie-${ownerId}`,
@@ -13,6 +16,7 @@ function pieFor(ownerId: string, bites: readonly Bite[] = []) {
     income: Money.parse("1000", eur),
     slices: [{ id: "all", name: "All", share: Proportion.of(1) }],
     bakedAt: new Date(Date.UTC(2026, 8, 1)),
+    month: seededIn,
     bites,
   });
 }
@@ -99,5 +103,36 @@ describe("InMemoryPieRepository", () => {
     expect((await pies.find("ada", october))?.staples).toHaveLength(1);
     expect((await pies.find("ada", november))?.staples).toHaveLength(1);
     expect((await pies.find("ada", november.next()))?.staples).toHaveLength(0);
+  });
+
+  it("forgets put back bites and keeps moved ones in their new slice", async () => {
+    const pies = new InMemoryPieRepository();
+    const september = biteOn(new Date(Date.UTC(2026, 8, 30)));
+    const kept = biteOn(new Date(Date.UTC(2026, 9, 2)));
+    const gone = biteOn(new Date(Date.UTC(2026, 9, 3)));
+
+    const pie = Pie.bake({
+      id: "pie-ada",
+      ownerId: "ada",
+      income: Money.parse("1000", eur),
+      slices: [
+        { id: "all", name: "All", share: Proportion.of(0.5) },
+        { id: "rest", name: "Rest", share: Proportion.of(0.5) },
+      ],
+      bakedAt: new Date(Date.UTC(2026, 8, 1)),
+      month: Month.of(september.eatenAt),
+      bites: [september, kept, gone],
+    });
+
+    await pies.save(pie);
+
+    const served = await pies.find("ada", october);
+
+    served?.putBack(gone.id);
+    served?.move(kept.id, "rest");
+    await pies.save(served!);
+
+    expect((await pies.find("ada", october))?.bites).toEqual([{ ...kept, sliceId: "rest" }]);
+    expect((await pies.find("ada", Month.of(september.eatenAt)))?.bites).toEqual([september]);
   });
 });

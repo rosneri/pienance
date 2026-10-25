@@ -4,12 +4,21 @@ import { ownerOf } from "@pienance/auth";
 import type {
   AppetiteSentence,
   BakePieInput,
+  BiteView,
+  CarryOfferView,
+  CarryOverInput,
   DropStapleInput,
+  MoveBiteInput,
   PieView,
+  PutBackBiteInput,
+  PutBackSpreadInput,
+  ResliceInput,
+  ReslicePreview,
+  ResliceView,
+  SweepChoice,
   ShelfMonthView,
   StapleView,
   StockStapleInput,
-  TakeBiteInput,
   TakenBites,
   TakeBitesInput,
   WeighBiteInput,
@@ -24,6 +33,7 @@ import type { Outcome } from "@/server/outcome";
 import {
   pieActions,
   type Asked,
+  type BiteToTake,
   type StatementReading,
   type StatementUpload,
 } from "@/server/pie-actions";
@@ -56,12 +66,61 @@ export async function bakePie(input: Asked<BakePieInput>): Promise<Outcome<PieVi
   return pies.bakePie(input);
 }
 
+export async function readCarryOffer(): Promise<CarryOfferView | null> {
+  return pies.readCarryOffer();
+}
+
+export async function carryOver(input: Asked<CarryOverInput>): Promise<Outcome<PieView>> {
+  return pies.carryOver(input);
+}
+
+export async function dropCarry(): Promise<Outcome<PieView>> {
+  return pies.dropCarry();
+}
+
+export async function setSweep(input: SweepChoice): Promise<Outcome<PieView>> {
+  return pies.setSweep(input);
+}
+
+export async function readReslice(): Promise<ResliceView | null> {
+  return pies.readReslice();
+}
+
+export async function reslicePie(input: Asked<ResliceInput>): Promise<Outcome<PieView>> {
+  return pies.reslicePie(input);
+}
+
+/** The re-slice page's save: back to the pie once it is re-sliced, where the new cut shows. */
+export async function saveReslice(input: Asked<ResliceInput>): Promise<Outcome<PieView>> {
+  const outcome = await pies.reslicePie(input);
+
+  if (outcome.ok) redirect("/");
+
+  return outcome;
+}
+
+export async function previewReslice(input: Asked<ResliceInput>): Promise<Outcome<ReslicePreview>> {
+  return pies.previewReslice(input);
+}
+
 export async function weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<WeighingView>> {
   return pies.weighBite(input);
 }
 
-export async function takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<string>> {
+export async function takeBite(input: BiteToTake): Promise<Outcome<BiteView>> {
   return pies.takeBite(input);
+}
+
+export async function putBackSpread(input: Asked<PutBackSpreadInput>): Promise<Outcome<null>> {
+  return pies.putBackSpread(input);
+}
+
+export async function putBackBite(input: Asked<PutBackBiteInput>): Promise<Outcome<null>> {
+  return pies.putBackBite(input);
+}
+
+export async function moveBite(input: Asked<MoveBiteInput>): Promise<Outcome<BiteView>> {
+  return pies.moveBite(input);
 }
 
 export async function stockStaple(input: Asked<StockStapleInput>): Promise<Outcome<StapleView>> {

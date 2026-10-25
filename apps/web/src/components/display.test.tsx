@@ -95,6 +95,19 @@ describe("Legend", () => {
     );
     expect(screen.getByText("Savings").nextSibling).toHaveTextContent(/^all left$/);
   });
+
+  it("tells a retired slice that still has bites, without focusing it", () => {
+    const slices = pieView.slices.map((slice) =>
+      slice.id === "wants" ? { ...slice, retired: true } : slice,
+    );
+
+    render(<Legend slices={slices} />);
+
+    expect(screen.getByText("Wants").nextSibling).toHaveTextContent(
+      "Retired · still has bites this month",
+    );
+    expect(screen.getByRole("button", { name: /^Wants/ })).toBeDisabled();
+  });
 });
 
 describe("StapleList", () => {
@@ -133,7 +146,7 @@ describe("StapleList", () => {
 
     const [rent, gym] = screen.getAllByRole("listitem");
 
-    expect(rent).toHaveTextContent("Rentabout half of Needs");
+    expect(rent).toHaveTextContent("Rent1/2 (Needs)");
     expect(gym).toHaveTextContent("GymEnds after October");
     expect(screen.getAllByRole("button", { name: /Options/ })).toHaveLength(1);
   });
@@ -239,7 +252,7 @@ describe("BiteList", () => {
 
     const items = screen.getAllByRole("listitem");
 
-    expect(items[0]).toHaveTextContent("Shoes3/4 of Wants");
+    expect(items[0]).toHaveTextContent("Shoes3/4 (Wants)");
     expect(within(items[1] ?? document.body).getByText("Something")).toBeInTheDocument();
   });
 

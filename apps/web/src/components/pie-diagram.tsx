@@ -65,6 +65,9 @@ export function PieDiagram({
         )}
       </defs>
       {slices.map((slice, index) => {
+        // A retired slice takes no share of the plate.
+        if (slice.retired) return null;
+
         const span = slice.to - slice.from;
         const leftUntil = slice.from + span * slice.left;
         // Staples take the end of the slice; pace runs over what they leave.

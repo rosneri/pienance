@@ -1,17 +1,32 @@
 import {
   describeAppetite,
+  describeReslice,
   Month,
   PieError,
   viewAppetite,
+  viewBite,
+  viewCarryOffer,
   viewPie,
+  viewReslice,
   viewShelf,
   viewStaple,
   viewWeighing,
   type AppetiteSentence,
   type BakePieInput,
+  type BiteView,
+  type CarryOfferView,
+  type CarryOverInput,
   type DropStapleInput,
+  type MoveBiteInput,
   type Pienance,
+  type Pie,
   type PieView,
+  type PutBackBiteInput,
+  type PutBackSpreadInput,
+  type ReslicePreview,
+  type ResliceInput,
+  type ResliceView,
+  type SweepChoice,
   type ShelfMonthView,
   type StapleView,
   type StockStapleInput,
@@ -41,6 +56,11 @@ export interface StatementReading extends StatementPreview {
 
 /** What a signed-in person sends; who they are comes from their session. */
 export type Asked<T> = Omit<T, "ownerId">;
+
+/** A bite to take now, or spread over this many months from this one on. */
+export interface BiteToTake extends Asked<TakeBiteInput> {
+  readonly months?: number | undefined;
+}
 
 export interface PieActionsDeps {
   readonly app: Pienance;
@@ -98,6 +118,20 @@ export function pieActions(deps: PieActionsDeps) {
     if (!pie || !staple) throw new PieError("That staple is gone");
 
     return viewStaple(pie, staple, Month.of(deps.now()));
+  }
+
+  function thisMonth(pie: Pie): PieView {
+    const now = deps.now();
+
+    return viewPie(pie, { month: Month.of(now), gone: Month.of(now).gone(now) });
+  }
+
+  async function thisMonthsBite(ownerId: string, biteId: string): Promise<BiteView> {
+    const pie = await deps.app.servePie(ownerId);
+
+    if (!pie) throw new PieError("Bake a pie first");
+
+    return viewBite(pie, pie.bite(biteId));
   }
 
   return {
@@ -160,6 +194,84 @@ export function pieActions(deps: PieActionsDeps) {
       });
     },
 
+    /** Last month's leftover, while this month can still carry it; null otherwise. */
+    async readCarryOffer(): Promise<CarryOfferView | null> {
+      const ownerId = await deps.owner();
+      const offer = ownerId ? await deps.app.readCarryOffer({ ownerId }) : null;
+
+      return offer ? viewCarryOffer(offer) : null;
+    },
+
+    carryOver(input: Asked<CarryOverInput>): Promise<Outcome<PieView>> {
+      return attempt(async (ownerId) => {
+        const pie = await deps.app.carryOver({ ...input, ownerId });
+
+        deps.track({ name: "carry.carried", properties: {} }, ownerId);
+        deps.refresh();
+
+        return thisMonth(pie);
+      });
+    },
+
+    dropCarry(): Promise<Outcome<PieView>> {
+      return attempt(async (ownerId) => {
+        const pie = await deps.app.dropCarry({ ownerId });
+
+        deps.track({ name: "carry.dropped", properties: {} }, ownerId);
+        deps.refresh();
+
+        return thisMonth(pie);
+      });
+    },
+
+    /** Turns rounding bites up on, changes it, or turns it off. */
+    setSweep(input: SweepChoice): Promise<Outcome<PieView>> {
+      return attempt(async (ownerId) => {
+        const pie = await deps.app.setSweep({ ...input, ownerId });
+
+        deps.track({ name: "sweep.set", properties: { on: pie.sweep !== undefined } }, ownerId);
+        deps.refresh();
+
+        return thisMonth(pie);
+      });
+    },
+
+    /** What the re-slice form starts from, or null without a pie. */
+    async readReslice(): Promise<ResliceView | null> {
+      const ownerId = await deps.owner();
+      const pie = ownerId ? await deps.app.servePie(ownerId) : null;
+
+      return pie ? viewReslice(pie) : null;
+    },
+
+    reslicePie(input: Asked<ResliceInput>): Promise<Outcome<PieView>> {
+      return attempt(async (ownerId) => {
+        const pie = await deps.app.reslicePie({ ...input, ownerId });
+        const now = deps.now();
+
+        deps.track(
+          {
+            name: "pie.resliced",
+            properties: {
+              slices: pie.liveSlices.length,
+              retired: pie.slices.length - pie.liveSlices.length,
+            },
+          },
+          ownerId,
+        );
+        deps.refresh();
+
+        return viewPie(pie, { month: Month.of(now), gone: Month.of(now).gone(now) });
+      });
+    },
+
+    /** One sentence on how this month's bites would sit in the re-sliced pie. */
+    previewReslice(input: Asked<ResliceInput>): Promise<Outcome<ReslicePreview>> {
+      return attempt(async (ownerId) =>
+        describeReslice(await deps.app.previewReslice({ ...input, ownerId })),
+      );
+    },
+
     weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<WeighingView>> {
       return attempt(async (ownerId) => {
         const weighing = await deps.app.weighBite({ ...input, ownerId });
@@ -170,14 +282,56 @@ export function pieActions(deps: PieActionsDeps) {
       });
     },
 
-    takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<string>> {
+    takeBite({ months, ...input }: BiteToTake): Promise<Outcome<BiteView>> {
       return attempt(async (ownerId) => {
-        const bite = await deps.app.takeBite({ ...input, ownerId });
+        const bite =
+          months === undefined
+            ? await deps.app.takeBite({ ...input, ownerId })
+            : await deps.app.takeSpread({ ...input, months, ownerId });
 
-        deps.track({ name: "bite.taken", properties: {} }, ownerId);
+        deps.track(
+          months === undefined
+            ? { name: "bite.taken", properties: {} }
+            : { name: "spread.taken", properties: { months } },
+          ownerId,
+        );
         deps.refresh();
 
-        return bite.id;
+        return thisMonthsBite(ownerId, bite.id);
+      });
+    },
+
+    /** Puts back this month's part of a spread and every later one. */
+    putBackSpread(input: Asked<PutBackSpreadInput>): Promise<Outcome<null>> {
+      return attempt(async (ownerId) => {
+        await deps.app.putBackSpread({ ...input, ownerId });
+
+        deps.track({ name: "spread.put-back", properties: {} }, ownerId);
+        deps.refresh();
+
+        return null;
+      });
+    },
+
+    putBackBite(input: Asked<PutBackBiteInput>): Promise<Outcome<null>> {
+      return attempt(async (ownerId) => {
+        await deps.app.putBackBite({ ...input, ownerId });
+
+        deps.track({ name: "bite.put-back", properties: {} }, ownerId);
+        deps.refresh();
+
+        return null;
+      });
+    },
+
+    moveBite(input: Asked<MoveBiteInput>): Promise<Outcome<BiteView>> {
+      return attempt(async (ownerId) => {
+        const bite = await deps.app.moveBite({ ...input, ownerId });
+
+        deps.track({ name: "bite.moved", properties: {} }, ownerId);
+        deps.refresh();
+
+        return thisMonthsBite(ownerId, bite.id);
       });
     },
 

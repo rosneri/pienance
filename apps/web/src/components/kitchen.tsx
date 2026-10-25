@@ -1,6 +1,6 @@
 "use client";
 
-import type { PieView, StapleView } from "@pienance/core";
+import { describeSwept, type PieView, type StapleView } from "@pienance/core";
 import { useState } from "react";
 import type { PieActions } from "@/server/pie-actions";
 import { BiteComposer } from "./bite-composer";
@@ -16,9 +16,20 @@ export function Kitchen({
   actions,
 }: {
   pie: PieView;
-  actions: Pick<PieActions, "weighBite" | "takeBite" | "stockStaple" | "dropStaple">;
+  actions: Pick<
+    PieActions,
+    | "weighBite"
+    | "takeBite"
+    | "putBackBite"
+    | "putBackSpread"
+    | "moveBite"
+    | "stockStaple"
+    | "dropStaple"
+  >;
 }) {
   const [changing, setChanging] = useState<StapleView | null>(null);
+  // Nothing more is eaten from a retired slice.
+  const live = pie.slices.filter((slice) => !slice.retired);
 
   return (
     <div className="grid content-start gap-10 lg:gap-16">
@@ -32,9 +43,12 @@ export function Kitchen({
         bites={pie.bites}
         empty={discovery}
         importable
+        swept={describeSwept(pie)}
+        slices={live}
+        actions={actions}
         composer={
           <BiteComposer
-            slices={pie.slices}
+            slices={live}
             currency={pie.currency}
             actions={actions}
             changing={changing}
