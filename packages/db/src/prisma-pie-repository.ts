@@ -79,18 +79,28 @@ export class PrismaPieRepository implements PieRepository {
           update: data,
         });
       }),
-      // Bites are immutable: only new ones need writing.
-      this.db.bite.createMany({
-        data: pie.bites.map((bite) => ({
-          id: bite.id,
-          sliceId: bite.sliceId,
-          currency: bite.amount.currency.code,
-          amountMinor: BigInt(bite.amount.minor),
-          note: bite.note,
-          eatenAt: bite.eatenAt,
-        })),
-        skipDuplicates: true,
-      }),
+      ...(pie.putBackIds().length > 0
+        ? [
+            this.db.bite.deleteMany({
+              where: { id: { in: [...pie.putBackIds()] }, slice: { pieId: pie.id } },
+            }),
+          ]
+        : []),
+      // A bite only changes when it is moved into another slice.
+      ...pie.bites.map((bite) =>
+        this.db.bite.upsert({
+          where: { id: bite.id },
+          create: {
+            id: bite.id,
+            sliceId: bite.sliceId,
+            currency: bite.amount.currency.code,
+            amountMinor: BigInt(bite.amount.minor),
+            note: bite.note,
+            eatenAt: bite.eatenAt,
+          },
+          update: { sliceId: bite.sliceId },
+        }),
+      ),
       // A staple only changes when it is dropped, which sets `until`.
       ...pie.staples.map((staple) => {
         const until = staple.until?.start ?? null;

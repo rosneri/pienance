@@ -4,8 +4,11 @@ import { ownerOf } from "@pienance/auth";
 import type {
   AppetiteSentence,
   BakePieInput,
+  BiteView,
   DropStapleInput,
+  MoveBiteInput,
   PieView,
+  PutBackBiteInput,
   ShelfMonthView,
   StapleView,
   StockStapleInput,
@@ -60,8 +63,16 @@ export async function weighBite(input: Asked<WeighBiteInput>): Promise<Outcome<W
   return pies.weighBite(input);
 }
 
-export async function takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<string>> {
+export async function takeBite(input: Asked<TakeBiteInput>): Promise<Outcome<BiteView>> {
   return pies.takeBite(input);
+}
+
+export async function putBackBite(input: Asked<PutBackBiteInput>): Promise<Outcome<null>> {
+  return pies.putBackBite(input);
+}
+
+export async function moveBite(input: Asked<MoveBiteInput>): Promise<Outcome<BiteView>> {
+  return pies.moveBite(input);
 }
 
 export async function stockStaple(input: Asked<StockStapleInput>): Promise<Outcome<StapleView>> {

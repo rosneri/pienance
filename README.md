@@ -17,6 +17,8 @@ It answers two questions:
 | **Bite**       | An expense, taken from one slice.                                      |
 | **Bake**       | Create the pie from a monthly income.                                  |
 | **Weigh**      | Consider a bite without taking it: how big is it, what would be left?  |
+| **Put back**   | Remove one of this month's bites, as if it was never taken.            |
+| **Move**       | Take one of this month's bites out of its slice and into another.      |
 | **Verdict**    | `fits`, `tight` (leaves only crumbs) or `overflows` (more than left).  |
 | **Serving**    | A slice with how much of it is eaten and left this month.              |
 | **Leftover**   | What is left of the whole pie this month.                              |

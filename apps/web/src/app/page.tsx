@@ -27,6 +27,8 @@ import { auth, clock } from "@/pienance";
 import {
   bakePie,
   dropStaple,
+  moveBite,
+  putBackBite,
   readAppetite,
   readPie,
   readShelf,
@@ -47,6 +49,8 @@ const actions = {
   bakePie,
   weighBite,
   takeBite,
+  putBackBite,
+  moveBite,
   stockStaple,
   dropStaple,
   readStatement,

@@ -16,7 +16,10 @@ export function Kitchen({
   actions,
 }: {
   pie: PieView;
-  actions: Pick<PieActions, "weighBite" | "takeBite" | "stockStaple" | "dropStaple">;
+  actions: Pick<
+    PieActions,
+    "weighBite" | "takeBite" | "putBackBite" | "moveBite" | "stockStaple" | "dropStaple"
+  >;
 }) {
   const [changing, setChanging] = useState<StapleView | null>(null);
 
@@ -32,6 +35,8 @@ export function Kitchen({
         bites={pie.bites}
         empty={discovery}
         importable
+        slices={pie.slices}
+        actions={actions}
         composer={
           <BiteComposer
             slices={pie.slices}

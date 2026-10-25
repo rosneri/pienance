@@ -89,6 +89,39 @@ describe("pie actions", () => {
     ]);
   });
 
+  it("takes a bite and answers with it, then puts it back or moves it", async () => {
+    const { as, refreshes, tracked } = kitchen();
+    const ada = as("ada");
+    const baked = await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+    const [needs, wants] = baked.ok ? baked.value.slices.map((slice) => slice.id) : [];
+    const taken = await ada.takeBite({ sliceId: wants!, amount: "90", note: "Shoes" });
+
+    expect(taken.ok && [taken.value.note, taken.value.portionWords, taken.value.sliceName]).toEqual(
+      ["Shoes", "about a tenth", "Wants"],
+    );
+
+    const biteId = taken.ok ? taken.value.id : "";
+    const moved = await ada.moveBite({ biteId, sliceId: needs! });
+
+    expect(moved.ok && [moved.value.sliceName, moved.value.portionWords]).toEqual([
+      "Needs",
+      "a sliver",
+    ]);
+    expect(await ada.putBackBite({ biteId })).toEqual({ ok: true, value: null });
+    expect((await ada.readPie())?.bites).toEqual([]);
+    expect(await ada.putBackBite({ biteId })).toEqual({
+      ok: false,
+      error: "That bite is not in this month's pie.",
+    });
+    expect(refreshes).toHaveLength(4);
+    expect(tracked.map(({ event }) => event.name)).toEqual([
+      "pie.baked",
+      "bite.taken",
+      "bite.moved",
+      "bite.put-back",
+    ]);
+  });
+
   it("returns domain errors as values", async () => {
     const { as } = kitchen();
     const ada = as("ada");

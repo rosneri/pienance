@@ -195,4 +195,47 @@ describe("Pie", () => {
       expect(pieOf([], [rent]).portionOfStaple(rent).ratio).toBe(0.5);
     });
   });
+
+  describe("putting back and moving bites", () => {
+    it("puts a bite back, as if it was never taken", () => {
+      const shoes = bite("wants", 100);
+      const pie = pieOf([bite("needs", 100), shoes]);
+
+      pie.putBack(shoes.id);
+
+      expect(pie.bites).not.toContain(shoes);
+      expect(pie.servings()[1]?.eaten.ratio).toBe(0);
+      expect(pie.leftover().ratio).toBe(0.9);
+      expect(pie.putBackIds()).toEqual([shoes.id]);
+    });
+
+    it("moves a bite, changing only its slice", () => {
+      const shoes = { ...bite("wants", 100), note: "Shoes" };
+      const pie = pieOf([shoes]);
+
+      const moved = pie.move(shoes.id, "needs");
+
+      expect(moved).toEqual({ ...shoes, sliceId: "needs" });
+      expect(pie.bite(shoes.id)).toEqual(moved);
+      expect(pie.servings().map((serving) => serving.eaten.ratio)).toEqual([0.2, 0]);
+    });
+
+    it("moves a bite into its own slice without a change", () => {
+      const shoes = bite("wants", 100);
+      const pie = pieOf([shoes]);
+
+      expect(pie.move(shoes.id, "wants")).toBe(shoes);
+      expect(pie.bites).toEqual([shoes]);
+    });
+
+    it("refuses unknown bites and slices", () => {
+      const shoes = bite("wants", 100);
+      const pie = pieOf([shoes]);
+
+      expect(() => pie.putBack("nope")).toThrow("That bite is not in this month's pie.");
+      expect(() => pie.move("nope", "needs")).toThrow("That bite is not in this month's pie.");
+      expect(() => pie.move(shoes.id, "dessert")).toThrow(PieError);
+      expect(pie.putBackIds()).toEqual([]);
+    });
+  });
 });
