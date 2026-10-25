@@ -6,6 +6,7 @@ import type {
   BakePieInput,
   DropStapleInput,
   PieView,
+  RecutPieInput,
   ShelfMonthView,
   StapleView,
   StockStapleInput,
@@ -78,6 +79,14 @@ export async function readStatement(upload: StatementUpload): Promise<Outcome<St
 
 export async function takeBites(input: Asked<TakeBitesInput>): Promise<Outcome<TakenBites>> {
   return pies.takeBites(input);
+}
+
+export async function recutPie(input: Asked<RecutPieInput>): Promise<Outcome<PieView>> {
+  return pies.recutPie(input);
+}
+
+export async function resetPie(): Promise<Outcome<null>> {
+  return pies.resetPie();
 }
 
 export async function signUp(details: SignUpDetails): Promise<Outcome<null>> {

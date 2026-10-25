@@ -1,7 +1,7 @@
 import { currencyOf, Money, Pie, Proportion } from "../domain";
 import type { Ports } from "./ports";
 
-/** The well-known 50/30/20 split, a sensible start until slices become editable. */
+/** The well-known 50/30/20 split, a sensible start; `recutPie` makes the slices one's own. */
 const defaultSlices = [
   { name: "Needs", share: 0.5 },
   { name: "Wants", share: 0.3 },

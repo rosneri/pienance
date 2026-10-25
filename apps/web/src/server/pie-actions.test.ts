@@ -124,6 +124,7 @@ describe("pie actions", () => {
         throw new Error("database is down");
       },
       save: async () => undefined,
+      remove: async () => undefined,
     };
 
     await expect(
@@ -380,5 +381,43 @@ describe("pie actions", () => {
       ok: false,
       error: "Sign in first.",
     });
+  });
+
+  it("recuts the pie into the person's own slices", async () => {
+    const { as, refreshes, tracked } = kitchen();
+    const ada = as("ada");
+    const baked = await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+    const needs = baked.ok ? (baked.value.slices[0]?.id ?? "") : "";
+
+    const outcome = await ada.recutPie({
+      slices: [
+        { id: needs, name: "Home", percent: "60" },
+        { name: "Fun", percent: "40" },
+      ],
+    });
+
+    expect(outcome.ok && outcome.value.slices.map((slice) => slice.name)).toEqual(["Home", "Fun"]);
+    expect(refreshes).toHaveLength(2);
+    expect(tracked.at(-1)).toEqual({
+      event: { name: "pie.recut", properties: { slices: 2 } },
+      ownerId: "ada",
+    });
+    expect(await ada.recutPie({ slices: [{ name: "All", percent: "99" }] })).toEqual({
+      ok: false,
+      error: "Slices must add up to 100%, got 99%",
+    });
+  });
+
+  it("resets only the signed-in person's pie", async () => {
+    const { as, tracked } = kitchen();
+
+    await as("ada").bakePie({ monthlyIncome: "3000", currency: "EUR" });
+    await as("grace").bakePie({ monthlyIncome: "2000", currency: "EUR" });
+
+    expect(await as(null).resetPie()).toEqual({ ok: false, error: "Sign in first." });
+    expect(await as("ada").resetPie()).toEqual({ ok: true, value: null });
+    expect(await as("ada").readPie()).toBeNull();
+    expect(await as("grace").readPie()).not.toBeNull();
+    expect(tracked.at(-1)?.event).toEqual({ name: "pie.reset", properties: {} });
   });
 });

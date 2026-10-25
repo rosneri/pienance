@@ -13,9 +13,11 @@ It answers two questions:
 | Term           | Meaning                                                                |
 | -------------- | ---------------------------------------------------------------------- |
 | **Pie**        | The monthly income. The aggregate root.                                |
-| **Slice**      | A named share of the pie (Needs 50%, Wants 30%, Savings 20%).          |
+| **Slice**      | A named share of the pie; Needs 50%, Wants 30%, Savings 20% to start.  |
 | **Bite**       | An expense, taken from one slice.                                      |
 | **Bake**       | Create the pie from a monthly income.                                  |
+| **Recut**      | Cut the pie into one's own slices: rename, resize, add or remove.      |
+| **Reset**      | Start over: the pie goes, with every month of bites and staples.       |
 | **Weigh**      | Consider a bite without taking it: how big is it, what would be left?  |
 | **Verdict**    | `fits`, `tight` (leaves only crumbs) or `overflows` (more than left).  |
 | **Serving**    | A slice with how much of it is eaten and left this month.              |
@@ -115,7 +117,7 @@ system is stamped in `packages/ui/src/styles/globals.css`, using shadcn's token 
 The web app registers [WebMCP](https://github.com/webmachinelearning/webmcp) tools so in-browser
 agents can use pienance directly: `bake_pie` before a pie exists, then `read_pie`, `weigh_bite`
 (read-only) and `take_bite`, plus `read_statement` (read-only) and `take_bites` to import a bank
-statement. They call the same server actions as the UI, so the page stays in sync.
+statement, `recut_pie` to change the slices and `reset_pie` to start over. They call the same server actions as the UI, so the page stays in sync.
 
 ## Importing statements
 
@@ -129,7 +131,8 @@ day order and decimal mark. Only when the rules are unsure, or to suggest a slic
 does the `Advisor` port ask a decision model through the AI SDK's `experimental_decide` and the
 [Vercel AI Gateway](https://vercel.com/docs/ai-gateway): Jev (`typesafe-ai/jev`) for now, to be
 replaced with Cloudflare's Clef once the gateway serves it (`apps/web/src/import/decision-advisor.ts`).
-Only the first rows and the distinct notes are sent. Without gateway access (no
+A note the person already took from a slice in the last three months goes to that slice
+again, so imports follow their own slicing; only the other notes, and the first rows, are sent. Without gateway access (no
 `AI_GATEWAY_API_KEY` locally), the rules work alone. Re-importing a statement skips the bites
 already taken. A statement over the limits (2,000 lines or 2M characters) is cut
 on the server to its first lines that fit, and the page says how many it read. Files over 3.5 MB

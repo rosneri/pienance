@@ -7,11 +7,16 @@ import { Kitchen } from "./kitchen";
 
 const refused = async () => ({ ok: false, error: "Not now" }) as const;
 
-const actions: Pick<PieActions, "weighBite" | "takeBite" | "stockStaple" | "dropStaple"> = {
+const actions: Pick<
+  PieActions,
+  "weighBite" | "takeBite" | "stockStaple" | "dropStaple" | "recutPie" | "resetPie"
+> = {
   weighBite: refused,
   takeBite: refused,
   stockStaple: refused,
   dropStaple: refused,
+  recutPie: refused,
+  resetPie: refused,
 };
 
 describe("Kitchen", () => {
@@ -21,6 +26,8 @@ describe("Kitchen", () => {
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
       "Every month",
       "Eaten this month",
+      "Slices",
+      "Start over",
     ]);
 
     const [first] = screen.getAllByRole("list").at(-1)!.querySelectorAll("li");

@@ -3,6 +3,8 @@ import { dropStaple } from "./drop-staple";
 import type { Ports } from "./ports";
 import { readAppetite } from "./read-appetite";
 import { readStatement } from "./read-statement";
+import { recutPie } from "./recut-pie";
+import { resetPie } from "./reset-pie";
 import { servePie } from "./serve-pie";
 import { shelvePie } from "./shelve-pie";
 import { stockStaple } from "./stock-staple";
@@ -19,6 +21,8 @@ export type { Advisor, Ports, Rows } from "./ports";
 export type { DraftBite, ReadStatementInput, StatementPreview } from "./read-statement";
 
 export type { ReadAppetiteInput, SliceAppetite } from "./read-appetite";
+
+export type { RecutPieInput, SliceCutInput } from "./recut-pie";
 
 export type { Shelved, ShelvePieInput } from "./shelve-pie";
 
@@ -37,6 +41,8 @@ export {
   dropStaple,
   readAppetite,
   readStatement,
+  recutPie,
+  resetPie,
   servePie,
   shelvePie,
   stockStaple,
@@ -58,6 +64,8 @@ export function pienance(ports: Ports) {
     readAppetite: readAppetite(ports),
     readStatement: readStatement(ports),
     takeBites: takeBites(ports),
+    recutPie: recutPie(ports),
+    resetPie: resetPie(ports),
   };
 }
 

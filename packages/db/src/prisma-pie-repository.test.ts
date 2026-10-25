@@ -168,4 +168,45 @@ describe("PrismaPieRepository (Postgres)", () => {
 
     expect((await pies.find("ada", october))?.staples).toEqual([]);
   });
+
+  it("recuts a pie: a removed slice goes with its bites, kept ones keep theirs", async () => {
+    const pie = bakeFor("ada");
+
+    for (const sliceId of ["pie-ada-needs", "pie-ada-wants"]) {
+      pie.take({
+        id: `${sliceId}-bite`,
+        sliceId,
+        amount: Money.parse("1000", yen),
+        note: sliceId,
+        eatenAt: new Date(Date.UTC(2026, 9, 3)),
+      });
+    }
+
+    await pies.save(pie);
+    await pies.save(
+      pie.recut([
+        { id: "pie-ada-needs", name: "Home", share: Proportion.of(0.6) },
+        { id: "pie-ada-travel", name: "Travel", share: Proportion.of(0.4) },
+      ]),
+    );
+
+    const found = await pies.find("ada", october);
+
+    expect(found?.slices.map((slice) => [slice.name, slice.share.ratio])).toEqual([
+      ["Home", 0.6],
+      ["Travel", 0.4],
+    ]);
+    expect(found?.bites.map((bite) => bite.id)).toEqual(["pie-ada-needs-bite"]);
+    expect(await database.prisma.bite.count()).toBe(1);
+  });
+
+  it("removes only the owner's pies", async () => {
+    await pies.save(bakeFor("ada"));
+    await pies.save(bakeFor("grace"));
+
+    await pies.remove("ada");
+
+    expect(await pies.find("ada", october)).toBeNull();
+    expect(await pies.find("grace", october)).not.toBeNull();
+  });
 });

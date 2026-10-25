@@ -70,6 +70,10 @@ export class PrismaPieRepository implements PieRepository {
         create: { id: pie.id, ownerId: pie.ownerId, createdAt: pie.bakedAt, ...income },
         update: income,
       }),
+      // A slice the pie no longer has goes, with its bites and staples (cascade).
+      this.db.slice.deleteMany({
+        where: { pieId: pie.id, id: { notIn: pie.slices.map((slice) => slice.id) } },
+      }),
       ...pie.slices.map((slice, position) => {
         const data = { name: slice.name, share: slice.share.ratio, position };
 
@@ -110,5 +114,9 @@ export class PrismaPieRepository implements PieRepository {
         });
       }),
     ]);
+  }
+
+  async remove(ownerId: string): Promise<void> {
+    await this.db.pie.deleteMany({ where: { ownerId } });
   }
 }

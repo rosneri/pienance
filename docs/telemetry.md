@@ -254,6 +254,8 @@ counted too.
 | Event            | Properties                 |
 | ---------------- | -------------------------- |
 | `pie.baked`      | `currency`                 |
+| `pie.recut`      | `slices` (count)           |
+| `pie.reset`      | —                          |
 | `bite.weighed`   | `verdict`                  |
 | `bite.taken`     | —                          |
 | `staple.stocked` | `replaced`                 |

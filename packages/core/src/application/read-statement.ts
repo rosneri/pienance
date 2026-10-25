@@ -40,6 +40,32 @@ const notTransactions = "This file does not look like a list of transactions";
 /** The most bites one statement may hold: a few months of a busy account. */
 export const mostBites = 2_000;
 
+/** How many months back an import looks for the slices the person chose before. */
+const remembered = 3;
+
+/** The slice each note was last taken from, over the last few months, by the person's own choice. */
+async function slicedBefore(
+  ports: Ports,
+  ownerId: string,
+  known: ReadonlySet<string>,
+): Promise<Map<string, string>> {
+  const months = [Month.of(ports.now())];
+
+  while (months.length < remembered) months.push(months.at(-1)!.previous());
+
+  const pies = await Promise.all(months.map((month) => ports.pies.find(ownerId, month)));
+  const sliceOf = new Map<string, string>();
+
+  // Oldest first, so the latest choice wins.
+  for (const pie of pies.toReversed()) {
+    for (const bite of pie?.bites ?? []) {
+      if (known.has(bite.sliceId)) sliceOf.set(bite.note, bite.sliceId);
+    }
+  }
+
+  return sliceOf;
+}
+
 /** Reads a bank statement into draft bites, each with a suggested slice, without taking any. */
 export function readStatement(ports: Ports) {
   return async (input: ReadStatementInput): Promise<StatementPreview> => {
@@ -63,10 +89,22 @@ export function readStatement(ports: Ports) {
       throw new PieError(`That is over ${mostBites} bites: import a few months at a time`);
     }
 
-    const notes = [...new Set(reading.spends.map((spend) => spend.note))];
-    const suggested = await ports.advisor.slicesFor(notes, pie.slices);
-    const sliceOf = new Map(notes.map((note, index) => [note, suggested[index]]));
     const known = new Set(pie.slices.map((slice) => slice.id));
+    const sliceOf = await slicedBefore(ports, input.ownerId, known);
+
+    // Only notes the person never sliced go to the advisor.
+    const notes = [...new Set(reading.spends.map((spend) => spend.note))].filter(
+      (note) => !sliceOf.has(note),
+    );
+
+    const suggested = await ports.advisor.slicesFor(notes, pie.slices);
+
+    for (const [index, note] of notes.entries()) {
+      const sliceId = suggested[index];
+
+      if (sliceId) sliceOf.set(note, sliceId);
+    }
+
     const fallback = pie.slices[0]?.id ?? "";
     const names = input.rows[layout.skipRows - 1] ?? [];
 

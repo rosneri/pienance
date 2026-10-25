@@ -144,6 +144,28 @@ export class Pie {
   }
 
   /**
+   * The same pie cut into other slices: kept slices keep their bites and staples, a removed
+   * slice takes everything eaten from it along.
+   */
+  recut(slices: readonly Slice[]): Pie {
+    const names = new Set(slices.map((slice) => slice.name.toLowerCase()));
+
+    if (names.size < slices.length) throw new PieError("Each slice needs its own name");
+
+    const kept = new Set(slices.map((slice) => slice.id));
+
+    return Pie.bake({
+      id: this.id,
+      ownerId: this.ownerId,
+      income: this.income,
+      slices,
+      bakedAt: this.bakedAt,
+      bites: this.eaten.filter((bite) => kept.has(bite.sliceId)),
+      staples: this.pantry.filter((staple) => kept.has(staple.sliceId)),
+    });
+  }
+
+  /**
    * Stops a staple: `month` still counts it, since it is likely paid already. Dropped in
    * the month it was stocked, it never counted, so a mistake is one tap to undo.
    */

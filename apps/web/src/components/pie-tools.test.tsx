@@ -116,6 +116,18 @@ function fakeActions(): PieActions & { calls: string[] } {
         },
       };
     },
+    recutPie: async (input) => {
+      calls.push(
+        `recut ${input.slices.map((slice) => `${slice.id ?? "new"}:${slice.name}:${slice.percent}`).join(" ")}`,
+      );
+
+      return { ok: true, value: { ...pieView, slices: [{ ...pieView.slices[0]!, name: "Home" }] } };
+    },
+    resetPie: async () => {
+      calls.push("reset");
+
+      return { ok: true, value: null };
+    },
     takeBites: async (input) => {
       calls.push(
         ...input.bites.map((bite) => `take ${bite.eatenOn} ${bite.sliceId} ${bite.amount}`),
@@ -170,6 +182,8 @@ describe("PieTools (WebMCP)", () => {
       "read_pie",
       "read_shelf",
       "read_statement",
+      "recut_pie",
+      "reset_pie",
       "stock_staple",
       "take_bite",
       "take_bites",
@@ -287,5 +301,28 @@ describe("PieTools (WebMCP)", () => {
     unmount();
 
     expect(tools.size).toBe(0);
+  });
+
+  it("recuts the pie, keeping slices by their current name, and starts over", async () => {
+    const actions = fakeActions();
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(
+      await tool("recut_pie").execute({
+        slices: [
+          { name: "Home", percent: 60, was: "Needs" },
+          { name: "Wants", percent: 30 },
+          { name: "Travel", percent: 10 },
+        ],
+      }),
+    ).toBe("The pie is now cut into Home.");
+    expect(await tool("reset_pie").execute({})).toBe(
+      "Everything is deleted. Bake a new pie to start over.",
+    );
+    expect(actions.calls).toEqual([
+      `recut ${pieView.slices[0]!.id}:Home:60 ${pieView.slices[1]!.id}:Wants:30 new:Travel:10`,
+      "reset",
+    ]);
   });
 });

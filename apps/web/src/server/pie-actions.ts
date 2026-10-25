@@ -12,6 +12,7 @@ import {
   type DropStapleInput,
   type Pienance,
   type PieView,
+  type RecutPieInput,
   type ShelfMonthView,
   type StapleView,
   type StockStapleInput,
@@ -248,6 +249,32 @@ export function pieActions(deps: PieActionsDeps) {
         deps.refresh();
 
         return view;
+      });
+    },
+
+    /** Cuts the pie into the person's own slices. */
+    recutPie(input: Asked<RecutPieInput>): Promise<Outcome<PieView>> {
+      return attempt(async (ownerId) => {
+        const pie = await deps.app.recutPie({ ...input, ownerId });
+        const now = deps.now();
+        const month = Month.of(now);
+
+        deps.track({ name: "pie.recut", properties: { slices: pie.slices.length } }, ownerId);
+        deps.refresh();
+
+        return viewPie(pie, { month, gone: month.gone(now) });
+      });
+    },
+
+    /** Starts over: the pie and everything eaten from it are gone. */
+    resetPie(): Promise<Outcome<null>> {
+      return attempt(async (ownerId) => {
+        await deps.app.resetPie(ownerId);
+
+        deps.track({ name: "pie.reset", properties: {} }, ownerId);
+        deps.refresh();
+
+        return null;
       });
     },
   };

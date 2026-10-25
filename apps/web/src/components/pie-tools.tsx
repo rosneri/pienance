@@ -332,6 +332,68 @@ export function PieTools({
       options,
     );
 
+    void modelContext.registerTool(
+      {
+        name: "recut_pie",
+        title: "Change the slices",
+        description:
+          "Cuts the pie into the user's own slices: rename, resize, add or remove them. Give every slice the pie should have, in whole percents adding up to 100. A slice left out is removed with everything eaten from it, in every month, so confirm with the user first. Statements are then sliced into these.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            slices: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string", description: "The slice's name." },
+                  percent: { type: "number", description: "Its whole percent of the pie." },
+                  was: {
+                    type: "string",
+                    enum: slices.map((slice) => slice.name),
+                    description: "The current slice it keeps or renames; leave out for a new one.",
+                  },
+                },
+                required: ["name", "percent"],
+              },
+            },
+          },
+          required: ["slices"],
+        } as const,
+        async execute(input) {
+          const outcome = await actions.recutPie({
+            slices: input.slices.map((slice) => {
+              const kept = slices.find((current) => current.name === (slice.was ?? slice.name));
+
+              return { id: kept?.id, name: slice.name, percent: String(slice.percent) };
+            }),
+          });
+
+          return outcome.ok
+            ? `The pie is now cut into ${outcome.value.slices.map((slice) => slice.name).join(", ")}.`
+            : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "reset_pie",
+        title: "Start over",
+        description:
+          "Deletes the user's pie with every bite and staple, in every month, so they can bake a new one. It cannot be undone: only use it when the user explicitly asks to reset their data.",
+        async execute() {
+          const outcome = await actions.resetPie();
+
+          return outcome.ok
+            ? "Everything is deleted. Bake a new pie to start over."
+            : outcome.error;
+        },
+      },
+      options,
+    );
+
     return () => controller.abort();
   }, [pie, past, actions]);
 

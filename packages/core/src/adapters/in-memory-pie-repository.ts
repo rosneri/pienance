@@ -25,7 +25,15 @@ export class InMemoryPieRepository implements PieRepository {
     const same = stored?.id === pie.id;
     const biteIds = new Set(pie.bites.map((bite) => bite.id));
     const stapleIds = new Set(pie.staples.map((staple) => staple.id));
-    const keptStaples: readonly Staple[] = same ? stored.staples : [];
+    const sliceIds = new Set(pie.slices.map((slice) => slice.id));
+
+    const keptBites = (same ? stored.bites : []).filter(
+      (bite) => !biteIds.has(bite.id) && sliceIds.has(bite.sliceId),
+    );
+
+    const keptStaples: readonly Staple[] = (same ? stored.staples : []).filter(
+      (staple) => !stapleIds.has(staple.id) && sliceIds.has(staple.sliceId),
+    );
 
     this.pies.set(
       pie.ownerId,
@@ -35,12 +43,13 @@ export class InMemoryPieRepository implements PieRepository {
         income: pie.income,
         slices: pie.slices,
         bakedAt: pie.bakedAt,
-        bites: [
-          ...(same ? stored.bites : []).filter((bite) => !biteIds.has(bite.id)),
-          ...pie.bites,
-        ],
-        staples: [...keptStaples.filter((staple) => !stapleIds.has(staple.id)), ...pie.staples],
+        bites: [...keptBites, ...pie.bites],
+        staples: [...keptStaples, ...pie.staples],
       }),
     );
+  }
+
+  async remove(ownerId: string): Promise<void> {
+    this.pies.delete(ownerId);
   }
 }
