@@ -3,6 +3,7 @@ import { Fraunces, Geist } from "next/font/google";
 import type { ReactNode } from "react";
 import "@pienance/ui/globals.css";
 import { Telemetry } from "@/components/telemetry";
+import { themeScript } from "@/components/theme";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -30,7 +31,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${geist.variable}`}>
+    // The theme script may set data-theme before React hydrates.
+    <html lang="en" className={`${fraunces.variable} ${geist.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         {children}
         <Telemetry />

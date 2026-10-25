@@ -10,28 +10,34 @@ It answers two questions:
 
 ## Ubiquitous language
 
-| Term           | Meaning                                                                |
-| -------------- | ---------------------------------------------------------------------- |
-| **Pie**        | The monthly income. The aggregate root.                                |
-| **Slice**      | A named share of the pie; Needs 50%, Wants 30%, Savings 20% to start.  |
-| **Bite**       | An expense, taken from one slice.                                      |
-| **Bake**       | Create the pie from a monthly income.                                  |
-| **Recut**      | Cut the pie into one's own slices: rename, resize, add or remove.      |
-| **Reset**      | Start over: the pie goes, with every month of bites and staples.       |
-| **Weigh**      | Consider a bite without taking it: how big is it, what would be left?  |
-| **Verdict**    | `fits`, `tight` (leaves only crumbs) or `overflows` (more than left).  |
-| **Serving**    | A slice with how much of it is eaten and left this month.              |
-| **Leftover**   | What is left of the whole pie this month.                              |
-| **Staple**     | A bite that comes back every month, e.g. rent from Needs.              |
-| **Pantry**     | All of a pie's staples.                                                |
-| **Pace**       | How fast a slice is eaten compared with how much of the month is gone. |
-| **Shelf**      | The past months of a pie, each shown as its own small pie.             |
-| **Appetite**   | How much of a slice is usually eaten by the end of a month.            |
-| **Overview**   | The whole pie at once: every slice, staple and bite.                   |
-| **Focus**      | A single view of the pie through one cut, told in a sentence.          |
-| **Cut**        | How a focus slices the pie: a slice, every month or one time.          |
-| **Proportion** | A ratio, said _roughly_ ("about a quarter") or, for bites, as "5/9".   |
-| **Statement**  | A bank's CSV or Excel export, in any layout; its spends become bites.  |
+| Term           | Meaning                                                                                                               |
+| -------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **Pie**        | The monthly income. The aggregate root.                                                                               |
+| **Slice**      | A named share of the pie (Needs 50%, Wants 30%, Savings 20%).                                                         |
+| **Bite**       | An expense, taken from one slice.                                                                                     |
+| **Bake**       | Create the pie from a monthly income.                                                                                 |
+| **Weigh**      | Consider a bite without taking it: how big is it, what would be left?                                                 |
+| **Put back**   | Remove one of this month's bites, as if it was never taken.                                                           |
+| **Move**       | Take one of this month's bites out of its slice and into another.                                                     |
+| **Reset**      | Start over: the pie goes, with every month of bites and staples.                                                      |
+| **Re-slice**   | Change the pie's income or its slices (names, shares, adding, retiring).                                              |
+| **Retired**    | A removed slice: it keeps its past bites but no longer takes a share.                                                 |
+| **Spread**     | One expense split into equal bites over several months, starting now.                                                 |
+| **Carry**      | Last month's leftover, added to one slice of this month's pie.                                                        |
+| **Sweep**      | The difference between a bite and its rounded-up amount, put into one slice.                                          |
+| **Verdict**    | `fits`, `tight` (leaves only crumbs) or `overflows` (more than left).                                                 |
+| **Serving**    | A slice with how much of it is eaten and left this month.                                                             |
+| **Leftover**   | What is left of the whole pie this month.                                                                             |
+| **Staple**     | A bite that comes back every month, e.g. rent from Needs.                                                             |
+| **Pantry**     | All of a pie's staples.                                                                                               |
+| **Pace**       | How fast a slice is eaten compared with how much of the month is gone.                                                |
+| **Shelf**      | The past months of a pie, each shown as its own small pie.                                                            |
+| **Appetite**   | How much of a slice is usually eaten by the end of a month.                                                           |
+| **Overview**   | The whole pie at once: every slice, staple and bite.                                                                  |
+| **Focus**      | A single view of the pie through one cut, told in a sentence.                                                         |
+| **Cut**        | How a focus slices the pie: a slice, every month or one time.                                                         |
+| **Proportion** | A ratio. A part of a slice is a simple fraction, "1/30 (Wants)"; the rest is said _roughly_ ("about a quarter left"). |
+| **Statement**  | A bank's CSV or Excel export, in any layout; its spends become draft bites.                                           |
 
 These words are used as-is in code, UI, agent tools and conversation.
 
@@ -117,7 +123,7 @@ system is stamped in `packages/ui/src/styles/globals.css`, using shadcn's token 
 The web app registers [WebMCP](https://github.com/webmachinelearning/webmcp) tools so in-browser
 agents can use pienance directly: `bake_pie` before a pie exists, then `read_pie`, `weigh_bite`
 (read-only) and `take_bite`, plus `read_statement` (read-only) and `take_bites` to import a bank
-statement, `recut_pie` to change the slices and `reset_pie` to start over. They call the same server actions as the UI, so the page stays in sync.
+statement, and `reset_pie` to start over. They call the same server actions as the UI, so the page stays in sync.
 
 ## Importing statements
 

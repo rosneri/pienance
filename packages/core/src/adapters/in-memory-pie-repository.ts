@@ -1,52 +1,82 @@
-import { isActiveIn, type Month, Pie, type PieRepository, type Staple } from "../domain";
+import {
+  isActiveIn,
+  type Bite,
+  type Carry,
+  type Money,
+  type Month,
+  Pie,
+  type PieRepository,
+  type Slice,
+  type Staple,
+  type Sweep,
+} from "../domain";
+
+/** What is kept of a pie: every month's bites and staples, not just one month's. */
+interface Stored {
+  readonly id: string;
+  readonly income: Money;
+  readonly slices: readonly Slice[];
+  readonly bakedAt: Date;
+  readonly bites: readonly Bite[];
+  readonly staples: readonly Staple[];
+  /** Each month's carry, by month ("2026-10"). */
+  readonly carries: ReadonlyMap<string, Carry>;
+  readonly sweep: Sweep | undefined;
+}
 
 /** For tests and running the app without a database. Keeps one pie per owner. */
 export class InMemoryPieRepository implements PieRepository {
-  private readonly pies = new Map<string, Pie>();
+  private readonly pies = new Map<string, Stored>();
 
   async find(ownerId: string, month: Month): Promise<Pie | null> {
-    const pie = this.pies.get(ownerId);
+    const stored = this.pies.get(ownerId);
 
-    if (!pie) return null;
+    if (!stored) return null;
 
     return Pie.bake({
-      id: pie.id,
+      id: stored.id,
       ownerId,
-      income: pie.income,
-      slices: pie.slices,
-      bakedAt: pie.bakedAt,
-      bites: pie.bites.filter((bite) => month.contains(bite.eatenAt)),
-      staples: pie.staples.filter((staple) => isActiveIn(staple, month)),
+      income: stored.income,
+      slices: stored.slices,
+      bakedAt: stored.bakedAt,
+      month,
+      bites: stored.bites.filter((bite) => month.contains(bite.eatenAt)),
+      staples: stored.staples.filter((staple) => isActiveIn(staple, month)),
+      carry: stored.carries.get(month.toString()),
+      sweep: stored.sweep,
     });
   }
 
   async save(pie: Pie): Promise<void> {
     const stored = this.pies.get(pie.ownerId);
     const same = stored?.id === pie.id;
-    const biteIds = new Set(pie.bites.map((bite) => bite.id));
+    const bites = [...pie.bites, ...pie.laterBites];
+    const biteIds = new Set([...bites.map((bite) => bite.id), ...pie.putBackIds()]);
+    const putBackSpreads = new Set(pie.putBackSpreadIds());
     const stapleIds = new Set(pie.staples.map((staple) => staple.id));
-    const sliceIds = new Set(pie.slices.map((slice) => slice.id));
+    const carries = new Map(same ? stored.carries : []);
 
-    const keptBites = (same ? stored.bites : []).filter(
-      (bite) => !biteIds.has(bite.id) && sliceIds.has(bite.sliceId),
-    );
+    if (pie.carry) carries.set(pie.month.toString(), pie.carry);
+    else if (pie.carryDropped()) carries.delete(pie.month.toString());
 
-    const keptStaples: readonly Staple[] = (same ? stored.staples : []).filter(
-      (staple) => !stapleIds.has(staple.id) && sliceIds.has(staple.sliceId),
-    );
+    // A spread put back goes from the served month on; its earlier parts stay.
+    const kept = (bite: Bite) =>
+      !biteIds.has(bite.id) &&
+      !(bite.spread && putBackSpreads.has(bite.spread.id) && bite.eatenAt >= pie.month.start);
 
-    this.pies.set(
-      pie.ownerId,
-      Pie.bake({
-        id: pie.id,
-        ownerId: pie.ownerId,
-        income: pie.income,
-        slices: pie.slices,
-        bakedAt: pie.bakedAt,
-        bites: [...keptBites, ...pie.bites],
-        staples: [...keptStaples, ...pie.staples],
-      }),
-    );
+    this.pies.set(pie.ownerId, {
+      id: pie.id,
+      income: pie.income,
+      slices: pie.slices,
+      bakedAt: pie.bakedAt,
+      bites: [...(same ? stored.bites : []).filter(kept), ...bites],
+      staples: [
+        ...(same ? stored.staples : []).filter((staple) => !stapleIds.has(staple.id)),
+        ...pie.staples,
+      ],
+      carries,
+      sweep: pie.sweep,
+    });
   }
 
   async remove(ownerId: string): Promise<void> {

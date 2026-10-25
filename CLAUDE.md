@@ -14,7 +14,9 @@ Staple, Pantry, Pace, Shelf, Appetite, Overview, Focus, Cut) in code, UI and age
 - Use cases are `useCase(ports)(input)`; wiring happens only in a composition root
   (`apps/web/src/pienance.ts`).
 - Money goes through `Money` (Dinero.js underneath) with an ISO 4217 `Currency`; never do money
-  arithmetic with plain numbers. Ratios are `Proportion`; users see `roughly(proportion)`.
+  arithmetic with plain numbers. Ratios are `Proportion`. A part of a slice (a bite, a staple, a
+  sweep, a weighing) is shown as `portionOf(asFraction(p), slice)`, e.g. "1/30 (Wants)"; what is
+  left of the pie or a slice is said `roughly(p)` ("about a quarter left").
 - Server actions return `Outcome<T>` values instead of throwing expected errors.
 - DDD, SOLID, KISS and YAGNI: add only what a feature needs now, keep it easy to extend.
 - Lint is oxlint with the vendored anti-slop rules (`tools/oxlint/anti-slop`); fix findings,

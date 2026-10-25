@@ -27,7 +27,16 @@ const bite = (sliceId: string, amount: number): Bite => ({
 });
 
 const pieOf = (bites: Bite[] = [], staples: Staple[] = []) =>
-  Pie.bake({ id: "pie", ownerId: "ada", income: eur(1000), slices, bakedAt, bites, staples });
+  Pie.bake({
+    id: "pie",
+    ownerId: "ada",
+    income: eur(1000),
+    slices,
+    bakedAt,
+    month: october,
+    bites,
+    staples,
+  });
 
 const october = Month.of(bakedAt);
 
@@ -48,6 +57,7 @@ describe("Pie", () => {
         income: eur(1000),
         slices: slices.slice(0, 1),
         bakedAt,
+        month: october,
       }),
     ).toThrow(PieError);
   });
@@ -193,6 +203,307 @@ describe("Pie", () => {
       const rent = staple("needs", 250);
 
       expect(pieOf([], [rent]).portionOfStaple(rent).ratio).toBe(0.5);
+    });
+  });
+
+  describe("putting back and moving bites", () => {
+    it("puts a bite back, as if it was never taken", () => {
+      const shoes = bite("wants", 100);
+      const pie = pieOf([bite("needs", 100), shoes]);
+
+      pie.putBack(shoes.id);
+
+      expect(pie.bites).not.toContain(shoes);
+      expect(pie.servings()[1]?.eaten.ratio).toBe(0);
+      expect(pie.leftover().ratio).toBe(0.9);
+      expect(pie.putBackIds()).toEqual([shoes.id]);
+    });
+
+    it("moves a bite, changing only its slice", () => {
+      const shoes = { ...bite("wants", 100), note: "Shoes" };
+      const pie = pieOf([shoes]);
+
+      const moved = pie.move(shoes.id, "needs");
+
+      expect(moved).toEqual({ ...shoes, sliceId: "needs" });
+      expect(pie.bite(shoes.id)).toEqual(moved);
+      expect(pie.servings().map((serving) => serving.eaten.ratio)).toEqual([0.2, 0]);
+    });
+
+    it("moves a bite into its own slice without a change", () => {
+      const shoes = bite("wants", 100);
+      const pie = pieOf([shoes]);
+
+      expect(pie.move(shoes.id, "wants")).toBe(shoes);
+      expect(pie.bites).toEqual([shoes]);
+    });
+
+    it("refuses unknown bites and slices", () => {
+      const shoes = bite("wants", 100);
+      const pie = pieOf([shoes]);
+
+      expect(() => pie.putBack("nope")).toThrow("That bite is not in this month's pie.");
+      expect(() => pie.move("nope", "needs")).toThrow("That bite is not in this month's pie.");
+      expect(() => pie.move(shoes.id, "dessert")).toThrow(PieError);
+      expect(pie.putBackIds()).toEqual([]);
+    });
+  });
+
+  describe("re-slicing", () => {
+    const retiredWants = { id: "wants", name: "Wants", share: Proportion.none, retired: true };
+
+    it("keeps the id and every bite, with a new income and shares", () => {
+      const shoes = bite("wants", 100);
+      const pie = pieOf([shoes]);
+
+      const resliced = pie.reslice({
+        income: eur(2000),
+        slices: [
+          { id: "needs", name: "Needs", share: Proportion.of(0.75) },
+          { id: "wants", name: "Wants", share: Proportion.of(0.25) },
+        ],
+      });
+
+      expect(resliced.id).toBe("pie");
+      expect(resliced.bites).toEqual([shoes]);
+      expect(resliced.portionOf(shoes).ratio).toBe(0.2);
+    });
+
+    it("refuses shares that do not add up to the whole pie", () => {
+      expect(() =>
+        pieOf().reslice({ slices: [{ id: "needs", name: "Needs", share: Proportion.of(0.95) }] }),
+      ).toThrow("Slices must add up to the whole pie, got 95%");
+    });
+
+    it("retires a slice: no share, no serving once empty, its bites against the whole pie", () => {
+      const shoes = bite("wants", 100);
+      const needsOnly = [{ id: "needs", name: "Needs", share: Proportion.whole }, retiredWants];
+
+      const withBites = pieOf([shoes]).reslice({ slices: needsOnly });
+
+      expect(withBites.sizeOf(retiredWants).minor).toBe(0);
+      expect(withBites.portionOf(shoes).ratio).toBe(0.1);
+      expect(withBites.leftover().ratio).toBe(0.9);
+      expect(withBites.servings().map((serving) => [serving.slice.id, serving.retired])).toEqual([
+        ["needs", false],
+        ["wants", true],
+      ]);
+      expect(pieOf().reslice({ slices: needsOnly }).servings()).toHaveLength(1);
+    });
+
+    it("takes nothing more from a retired slice", () => {
+      const pie = pieOf([bite("needs", 10)]).reslice({
+        slices: [{ id: "needs", name: "Needs", share: Proportion.whole }, retiredWants],
+      });
+
+      const retired = "Wants is retired. Pick another slice.";
+
+      expect(() => pie.weigh({ sliceId: "wants", amount: eur(1) })).toThrow(retired);
+      expect(() => pie.take(bite("wants", 1))).toThrow(retired);
+      expect(() => pie.stock(staple("wants", 1))).toThrow(retired);
+      expect(() => pie.move(pie.bites[0]!.id, "wants")).toThrow(retired);
+    });
+
+    it("keeps at least one live slice", () => {
+      expect(() =>
+        pieOf().reslice({
+          slices: [{ id: "needs", name: "Needs", share: Proportion.none, retired: true }],
+        }),
+      ).toThrow(PieError);
+    });
+
+    it("refuses to retire a slice with an active staple", () => {
+      expect(() =>
+        pieOf([], [staple("wants", 100)]).reslice({
+          slices: [{ id: "needs", name: "Needs", share: Proportion.whole }, retiredWants],
+        }),
+      ).toThrow("Stop Wants's staples first.");
+    });
+
+    it.each([
+      ["", "Every slice needs a name."],
+      ["needs", "Two slices are called needs."],
+      ["A name far longer than thirty letters", "keep slice names to 30 letters"],
+    ])("refuses the name %j", (name, error) => {
+      expect(() =>
+        pieOf().reslice({
+          slices: [
+            { id: "needs", name: "Needs", share: Proportion.of(0.5) },
+            { id: "wants", name, share: Proportion.of(0.5) },
+          ],
+        }),
+      ).toThrow(error);
+    });
+
+    it("refuses an income of nothing", () => {
+      expect(() => pieOf().reslice({ income: eur(0), slices })).toThrow(
+        "The income needs to be above zero",
+      );
+    });
+  });
+
+  describe("spreading", () => {
+    it("weighs this month's part, and the whole amount now", () => {
+      const weighing = pieOf().weigh({ sliceId: "wants", amount: eur(600), months: 6 });
+
+      expect(weighing.ofSlice.ratio).toBe(0.2);
+      expect(weighing.verdict).toBe("fits");
+      expect(weighing.spread?.months).toBe(6);
+      expect(weighing.spread?.whole.verdict).toBe("overflows");
+    });
+
+    it("finds the fewest months over which a bite fits, or none", () => {
+      const pie = pieOf([bite("wants", 400)]);
+
+      expect(pie.fewestMonthsToFit({ sliceId: "wants", amount: eur(300) })).toBe(3);
+      expect(pie.fewestMonthsToFit({ sliceId: "wants", amount: eur(90_000) })).toBeNull();
+    });
+
+    it("refuses months outside 2 to 24", () => {
+      expect(() => pieOf().weigh({ sliceId: "wants", amount: eur(10), months: 30 })).toThrow(
+        "Spread it over 2 to 24 months.",
+      );
+    });
+
+    it("keeps later parts apart from the month's bites, and refuses earlier ones", () => {
+      const pie = pieOf();
+      const later = { ...bite("wants", 50), eatenAt: october.next().start };
+
+      pie.take(later);
+
+      expect(pie.bites).toEqual([]);
+      expect(pie.laterBites).toEqual([later]);
+      expect(pie.leftover().ratio).toBe(1);
+      expect(() => pie.take({ ...bite("wants", 5), eatenAt: october.previous().start })).toThrow(
+        "That bite belongs to an earlier month.",
+      );
+    });
+
+    it("puts back this month's part and the later ones", () => {
+      const spread = { id: "laptop", part: 1, of: 2 };
+      const now = { ...bite("wants", 50), spread };
+
+      const next = {
+        ...bite("wants", 50),
+        eatenAt: october.next().start,
+        spread: { ...spread, part: 2 },
+      };
+
+      const pie = pieOf([now, next, bite("needs", 5)]);
+
+      pie.putBackSpread("laptop");
+
+      expect(pie.bites.map((eaten) => eaten.sliceId)).toEqual(["needs"]);
+      expect(pie.laterBites).toEqual([]);
+      expect(pie.putBackSpreadIds()).toEqual(["laptop"]);
+      expect(() => pie.putBackSpread("laptop")).toThrow("That bite is not in this month's pie.");
+    });
+  });
+
+  describe("carrying last month's leftover", () => {
+    it("makes its slice bigger and the whole pie the income plus the carry", () => {
+      const pie = pieOf([bite("wants", 100)]);
+
+      pie.carryOver({ sliceId: "needs", amount: eur(500) });
+
+      expect(pie.whole.minor).toBe(150_000);
+      expect(pie.sizeOf(slices[0]!).minor).toBe(100_000);
+      expect(pie.sizeOf(slices[1]!).minor).toBe(50_000);
+      expect(pie.servings().map((serving) => serving.ofPie.ratio)).toEqual([2 / 3, 1 / 3]);
+      expect(pie.leftover().ratio).toBeCloseTo(1 - 100 / 1500);
+      expect(pie.leftoverMoney().minor).toBe(140_000);
+    });
+
+    it("carries nothing from an overspent month", () => {
+      expect(pieOf([bite("wants", 1200)]).leftoverMoney().minor).toBe(0);
+    });
+
+    it("carries once, into a live slice, and can be undone", () => {
+      const pie = pieOf();
+
+      expect(() => pie.carryOver({ sliceId: "dessert", amount: eur(5) })).toThrow(PieError);
+      expect(() => pie.carryOver({ sliceId: "needs", amount: eur(0) })).toThrow(
+        "There is nothing to carry.",
+      );
+
+      pie.carryOver({ sliceId: "needs", amount: eur(5) });
+
+      expect(() => pie.carryOver({ sliceId: "wants", amount: eur(5) })).toThrow(
+        "Already carried this month.",
+      );
+
+      pie.dropCarry();
+
+      expect(pie.carry).toBeUndefined();
+      expect(pie.carryDropped()).toBe(true);
+      expect(pie.whole.minor).toBe(100_000);
+    });
+
+    it("refuses to retire the slice holding the carry", () => {
+      const pie = pieOf();
+
+      pie.carryOver({ sliceId: "wants", amount: eur(5) });
+
+      expect(() =>
+        pie.reslice({
+          slices: [
+            { id: "needs", name: "Needs", share: Proportion.whole },
+            { id: "wants", name: "Wants", share: Proportion.none, retired: true },
+          ],
+        }),
+      ).toThrow("Undo the carry first.");
+    });
+  });
+
+  describe("sweeping", () => {
+    const sweepInto = (pie: Pie) => pie.setSweep({ sliceId: "wants", step: eur(1) });
+
+    it("sweeps what rounding a bite up leaves, but not into its own slice or on a whole step", () => {
+      const pie = pieOf();
+
+      expect(pie.sweepOf({ sliceId: "needs", amount: eur(4.3) })).toBeUndefined();
+
+      sweepInto(pie);
+
+      expect(pie.sweepOf({ sliceId: "needs", amount: eur(4.3) })?.amount.toDecimal()).toBe("0.70");
+      expect(pie.sweepOf({ sliceId: "wants", amount: eur(4.3) })).toBeUndefined();
+      expect(pie.sweepOf({ sliceId: "needs", amount: eur(4) })).toBeUndefined();
+    });
+
+    it("counts each sweep once: from its slice, and against the whole pie", () => {
+      const lunch = {
+        ...bite("needs", 4.3),
+        swept: { sliceId: "wants", amount: eur(0.7) },
+      };
+
+      const pie = pieOf([lunch]);
+
+      expect(pie.servings().map((serving) => serving.eaten.ratio)).toEqual([0.0086, 0.0014]);
+      expect(pie.leftover().ratio).toBeCloseTo(0.995);
+
+      pie.putBack(lunch.id);
+
+      expect(pie.leftover().ratio).toBe(1);
+    });
+
+    it("refuses a retired or unknown slice, and retiring the sweep's slice", () => {
+      const pie = pieOf();
+
+      expect(() => pie.setSweep({ sliceId: "dessert", step: eur(1) })).toThrow(PieError);
+      expect(() => pie.setSweep({ sliceId: "wants", step: eur(0) })).toThrow(
+        "A sweep needs a step above zero.",
+      );
+
+      sweepInto(pie);
+
+      expect(() =>
+        pie.reslice({
+          slices: [
+            { id: "needs", name: "Needs", share: Proportion.whole },
+            { id: "wants", name: "Wants", share: Proportion.none, retired: true },
+          ],
+        }),
+      ).toThrow("Turn the sweep off first.");
     });
   });
 });

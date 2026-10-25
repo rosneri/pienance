@@ -10,17 +10,22 @@ datasource db {
 // ── Pies ─────────────────────────────────────────────────
 
 model Pie {
-  id          String   @id
+  id             String   @id
   /// The user the pie belongs to
-  ownerId     String
-  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId        String
+  owner          User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   /// ISO 4217 code, e.g. "EUR"
-  currency    String
+  currency       String
   /// In the currency's minor units (cents, yen, fils…)
-  incomeMinor BigInt
+  incomeMinor    BigInt
   /// When the pie was baked: the first month on its shelf
-  createdAt   DateTime @default(now())
-  slices      Slice[]
+  createdAt      DateTime @default(now())
+  /// Rounding bites up: the slice the difference goes into, when on
+  sweepSliceId   String?
+  /// Rounding bites up: the step, in the currency's minor units
+  sweepStepMinor BigInt?
+  slices         Slice[]
+  carries        Carry[]
 
   @@index([ownerId, createdAt])
 }
@@ -33,22 +38,35 @@ model Slice {
   /// Ratio of the pie, 0..1
   share    Float
   position Int
+  /// Removed from the pie: keeps its past bites, takes no share
+  retired  Boolean  @default(false)
   bites    Bite[]
   staples  Staple[]
+  carries  Carry[]
 
   @@index([pieId])
 }
 
 model Bite {
-  id          String   @id
-  sliceId     String
-  slice       Slice    @relation(fields: [sliceId], references: [id], onDelete: Cascade)
-  currency    String
-  amountMinor BigInt
-  note        String
-  eatenAt     DateTime
+  id           String   @id
+  sliceId      String
+  slice        Slice    @relation(fields: [sliceId], references: [id], onDelete: Cascade)
+  currency     String
+  amountMinor  BigInt
+  note         String
+  eatenAt      DateTime
+  /// One expense split into equal monthly bites: they share this id
+  spreadId     String?
+  /// Which part of the spread, from 1
+  spreadPart   Int?
+  /// How many parts the spread has
+  spreadOf     Int?
+  /// Rounding the bite up swept this much into this slice, when above zero
+  sweptSliceId String?
+  sweptMinor   BigInt?
 
   @@index([sliceId, eatenAt])
+  @@index([spreadId])
 }
 
 /// A bite that comes back every month.
@@ -151,4 +169,20 @@ model Jwks {
   crv        String?
 
   @@map("jwks")
+}
+
+/// Last month's leftover, added to one slice of a month's pie.
+model Carry {
+  id          String   @id
+  pieId       String
+  pie         Pie      @relation(fields: [pieId], references: [id], onDelete: Cascade)
+  sliceId     String
+  slice       Slice    @relation(fields: [sliceId], references: [id], onDelete: Cascade)
+  /// First day of the month the carry is added to
+  month       DateTime
+  currency    String
+  amountMinor BigInt
+
+  @@unique([pieId, month])
+  @@index([sliceId])
 }

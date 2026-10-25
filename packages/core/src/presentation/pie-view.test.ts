@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { currencyOf, Money, Month, Pie, Proportion } from "../domain";
 import { viewPie, viewWeighing } from "./pie-view";
+import { viewReslice } from "./reslice-view";
 import { viewAppetite, viewShelf } from "./shelf-view";
 
 const eur = (amount: number) => Money.parse(String(amount), currencyOf("EUR"));
@@ -16,6 +17,7 @@ const pie = Pie.bake({
     { id: "wants", name: "Wants", share: Proportion.of(0.5) },
   ],
   bakedAt: new Date(Date.UTC(2026, 9, 1)),
+  month: october,
   bites: [
     {
       id: "coffee",
@@ -34,10 +36,20 @@ describe("viewPie", () => {
 
   it("lays slices around the pie with what is left", () => {
     expect(viewPie(pie, { month: october }).slices).toEqual([
-      { id: "needs", name: "Needs", from: 0, to: 0.5, left: 1, leftWords: "all", stapled: 0 },
+      {
+        id: "needs",
+        name: "Needs",
+        retired: false,
+        from: 0,
+        to: 0.5,
+        left: 1,
+        leftWords: "all",
+        stapled: 0,
+      },
       {
         id: "wants",
         name: "Wants",
+        retired: false,
         from: 0.5,
         to: 1,
         left: 0.75,
@@ -47,7 +59,7 @@ describe("viewPie", () => {
     ]);
   });
 
-  it("describes bites roughly", () => {
+  it("tells bites as fractions", () => {
     expect(viewPie(pie, { month: october }).bites).toEqual([
       {
         id: "coffee",
@@ -60,15 +72,15 @@ describe("viewPie", () => {
     ]);
   });
 
-  it("describes a weighing roughly", () => {
+  it("tells a weighing as fractions", () => {
     const view = viewWeighing(pie.weigh({ sliceId: "wants", amount: eur(100) }));
     expect(view).toEqual({
       sliceName: "Wants",
       portion: "1/5",
-      ofSlice: "about a fifth",
-      ofLeftover: "about a quarter",
-      ofPie: "about a tenth",
-      leftAfter: "about half",
+      ofSlice: "1/5",
+      ofLeftover: "1/4",
+      ofPie: "1/10",
+      leftAfter: "5/9",
       stapled: "nothing",
       verdict: "fits",
     });
@@ -103,6 +115,7 @@ describe("viewPie", () => {
       income: eur(1000),
       slices: [{ id: "needs", name: "Needs", share: Proportion.whole }],
       bakedAt: october.start,
+      month: october,
       bites: [
         { id: "lunch", sliceId: "needs", amount: eur(100), note: "", eatenAt: october.start },
       ],
@@ -126,6 +139,7 @@ describe("viewPie", () => {
       income: eur(1000),
       slices: [{ id: "needs", name: "Needs", share: Proportion.whole }],
       bakedAt: october.start,
+      month: october,
       staples: [
         { id: "rent", sliceId: "needs", amount: eur(650), note: "Rent", since: october },
         {
@@ -155,7 +169,7 @@ describe("viewPie", () => {
         sliceId: "needs",
         note: "Rent",
         sliceName: "Needs",
-        portionWords: "about two thirds",
+        portion: "2/3",
         amount: "650.00",
         stockedThisMonth: true,
       },
@@ -164,7 +178,7 @@ describe("viewPie", () => {
         sliceId: "needs",
         note: "Gym",
         sliceName: "Needs",
-        portionWords: "a crumb",
+        portion: "1/25",
         amount: "40.00",
         stockedThisMonth: false,
         endsAfter: "October",
@@ -230,5 +244,57 @@ describe("focuses", () => {
       ["recurrence:every-month", "recurrence", "nothing", []],
       ["recurrence:one-time", "recurrence", "about a tenth", ["coffee"]],
     ]);
+  });
+
+  it("draws no wedge and no pace for a retired slice that still has bites", () => {
+    const resliced = pie.reslice({
+      slices: [
+        { id: "needs", name: "Needs", share: Proportion.whole },
+        { id: "wants", name: "Wants", share: Proportion.none, retired: true },
+      ],
+    });
+
+    const view = viewPie(resliced, { month: october, gone: Proportion.of(0.5) });
+    const wants = view.slices.find((slice) => slice.name === "Wants");
+
+    expect(wants).toMatchObject({ retired: true, from: 1, to: 1 });
+    expect(wants?.pace).toBeUndefined();
+    expect(view.bites.map((bite) => bite.sliceName)).toEqual(["the pie"]);
+    expect(view.focuses.map((focus) => focus.name)).not.toContain("Wants");
+  });
+
+  it("starts the re-slice form from the live slices", () => {
+    expect(viewReslice(pie)).toEqual({
+      currency: "EUR",
+      income: "1000.00",
+      slices: [
+        { id: "needs", name: "Needs", percent: 50, eaten: false, stocked: false },
+        { id: "wants", name: "Wants", percent: 50, eaten: true, stocked: false },
+      ],
+      sweepSteps: ["1.00", "5.00", "10.00"],
+    });
+  });
+
+  it("draws a slice holding a carry wider than its share, and names the carry", () => {
+    const carried = Pie.bake({
+      id: "pie",
+      ownerId: "ada",
+      income: eur(1000),
+      slices: [
+        { id: "needs", name: "Needs", share: Proportion.of(0.5) },
+        { id: "savings", name: "Savings", share: Proportion.of(0.5) },
+      ],
+      bakedAt: october.previous().start,
+      month: october,
+      carry: { sliceId: "savings", amount: eur(1000) },
+    });
+
+    const view = viewPie(carried, { month: october });
+
+    expect(view.slices.map((slice) => [slice.from, slice.to])).toEqual([
+      [0, 0.25],
+      [0.25, 1],
+    ]);
+    expect(view.carry).toEqual({ sliceId: "savings", sliceName: "Savings", from: "September" });
   });
 });

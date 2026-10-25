@@ -1,10 +1,20 @@
 /** Product events, named in the ubiquitous language. Never carry amounts or incomes. */
 export type ProductEvent =
   | { readonly name: "pie.baked"; readonly properties: { readonly currency: string } }
-  | { readonly name: "pie.recut"; readonly properties: { readonly slices: number } }
   | { readonly name: "pie.reset"; readonly properties: Readonly<Record<string, never>> }
+  | {
+      readonly name: "pie.resliced";
+      readonly properties: { readonly slices: number; readonly retired: number };
+    }
   | { readonly name: "bite.weighed"; readonly properties: { readonly verdict: string } }
   | { readonly name: "bite.taken"; readonly properties: Readonly<Record<string, never>> }
+  | { readonly name: "bite.put-back"; readonly properties: Readonly<Record<string, never>> }
+  | { readonly name: "bite.moved"; readonly properties: Readonly<Record<string, never>> }
+  | { readonly name: "spread.taken"; readonly properties: { readonly months: number } }
+  | { readonly name: "carry.carried"; readonly properties: Readonly<Record<string, never>> }
+  | { readonly name: "carry.dropped"; readonly properties: Readonly<Record<string, never>> }
+  | { readonly name: "sweep.set"; readonly properties: { readonly on: boolean } }
+  | { readonly name: "spread.put-back"; readonly properties: Readonly<Record<string, never>> }
   | { readonly name: "staple.stocked"; readonly properties: { readonly replaced: boolean } }
   | { readonly name: "staple.dropped"; readonly properties: { readonly removed: boolean } }
   | {

@@ -12,6 +12,7 @@ import { redirect } from "next/navigation";
 import { Appetite } from "@/components/appetite";
 import { BakeForm } from "@/components/bake-form";
 import { BiteList } from "@/components/bite-list";
+import { CarryNote, CarryOffer } from "@/components/carry-offer";
 import { Headline } from "@/components/headline";
 import { Kitchen } from "@/components/kitchen";
 import { Legend } from "@/components/legend";
@@ -27,13 +28,22 @@ import { StapleList } from "@/components/staple-list";
 import { auth, clock } from "@/pienance";
 import {
   bakePie,
+  carryOver,
+  dropCarry,
   dropStaple,
+  moveBite,
+  previewReslice,
+  putBackBite,
+  putBackSpread,
   readAppetite,
+  readCarryOffer,
   readPie,
+  readReslice,
   readShelf,
   readStatement,
-  recutPie,
+  reslicePie,
   resetPie,
+  setSweep,
   signOut,
   stockStaple,
   takeBite,
@@ -45,16 +55,25 @@ export const dynamic = "force-dynamic";
 
 const actions = {
   readPie,
+  setSweep,
+  readCarryOffer,
+  carryOver,
+  dropCarry,
+  readReslice,
+  reslicePie,
+  previewReslice,
   readShelf,
   readAppetite,
   bakePie,
   weighBite,
   takeBite,
+  putBackBite,
+  putBackSpread,
+  moveBite,
   stockStaple,
   dropStaple,
   readStatement,
   takeBites,
-  recutPie,
   resetPie,
 };
 
@@ -71,9 +90,11 @@ export default async function Home({
   // readPie falls back to this month, so any other month served is a past one.
   const past = pie !== null && pie.gone === undefined;
 
-  const [shelf, appetite] = await Promise.all([
+  const [shelf, appetite, carryOffer] = await Promise.all([
     pie ? readShelf(pie.month) : [],
     pie && !past ? readAppetite() : [],
+    // Only this month can carry, and only until it did.
+    pie && !past && !pie.carry ? readCarryOffer() : null,
   ]);
 
   const pace = pie && describePace(pie);
@@ -82,7 +103,7 @@ export default async function Home({
 
   return (
     <PageFrame>
-      <Masthead month={month} signOut={signOut} />
+      <Masthead month={month} signOut={signOut} reslice={pie !== null && !past} />
 
       <main className="grid gap-10 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:items-start lg:gap-16">
         {pie ? (
@@ -106,13 +127,15 @@ export default async function Home({
                   : describeLeftover(pie.leftoverWords)}
               </Headline>
               {pace && <p className="-mt-3 max-w-[60ch] text-muted-foreground">{pace}</p>}
+              {!past && <CarryOffer offer={carryOffer} slices={pie.slices} actions={actions} />}
               <PieDiagram
                 slices={pie.slices}
                 label={`What is left of each slice in ${month}${goneWords}`}
                 interactive
                 {...(pie.gone !== undefined && { gone: pie.gone })}
               />
-              <Legend slices={pie.slices} />
+              <Legend slices={pie.slices} carry={pie.carry} />
+              {pie.carry && <CarryNote carry={pie.carry} {...(!past && { actions })} />}
               <FocusStory pie={pie} />
               <Shelf months={shelf} />
               {shelf.length > 0 && !past && <Appetite sentences={appetite} />}

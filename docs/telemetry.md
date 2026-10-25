@@ -251,17 +251,24 @@ the event to its trace) and writes it in `after()`, once the response is sent. S
 are authoritative and immune to ad blockers. WebMCP tools call the same actions, so agent use is
 counted too.
 
-| Event            | Properties                 |
-| ---------------- | -------------------------- |
-| `pie.baked`      | `currency`                 |
-| `pie.recut`      | `slices` (count)           |
-| `pie.reset`      | —                          |
-| `bite.weighed`   | `verdict`                  |
-| `bite.taken`     | —                          |
-| `staple.stocked` | `replaced`                 |
-| `staple.dropped` | `removed`                  |
-| `statement.read` | `bites` (count), `trimmed` |
-| `bites.taken`    | `taken`, `duplicates`      |
+| Event             | Properties                   |
+| ----------------- | ---------------------------- |
+| `pie.baked`       | `currency`                   |
+| `pie.resliced`    | `slices`, `retired` (counts) |
+| `pie.reset`       | —                            |
+| `bite.weighed`    | `verdict`                    |
+| `bite.taken`      | —                            |
+| `bite.put-back`   | —                            |
+| `bite.moved`      | —                            |
+| `spread.taken`    | `months`                     |
+| `spread.put-back` | —                            |
+| `carry.carried`   | —                            |
+| `carry.dropped`   | —                            |
+| `sweep.set`       | `on`                         |
+| `staple.stocked`  | `replaced`                   |
+| `staple.dropped`  | `removed`                    |
+| `statement.read`  | `bites` (count), `trimmed`   |
+| `bites.taken`     | `taken`, `duplicates`        |
 
 ### 5.4 Browser: clickstream and web vitals
 

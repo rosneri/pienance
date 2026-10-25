@@ -5,6 +5,9 @@ import { startTestDatabase, type TestDatabase } from "./testing/test-database";
 
 const october = Month.of(new Date(Date.UTC(2026, 9, 15)));
 
+/** Pies are seeded from September, so October's bites ride along as later ones. */
+const september = october.previous();
+
 const yen = currencyOf("JPY");
 
 let database: TestDatabase;
@@ -33,6 +36,7 @@ function bakeFor(ownerId: string, id = `pie-${ownerId}`, bakedAt = new Date()) {
     id,
     ownerId,
     bakedAt,
+    month: september,
     income: Money.parse("450000", yen),
     slices: [
       { id: `${id}-needs`, name: "Needs", share: Proportion.of(0.5) },
@@ -84,6 +88,153 @@ describe("PrismaPieRepository (Postgres)", () => {
     await pies.save(pie);
 
     expect((await pies.find("ada", october))?.bites).toHaveLength(1);
+  });
+
+  it("forgets a put back bite and keeps a moved one in its new slice", async () => {
+    const pie = bakeFor("ada");
+
+    const bite = (id: string, eatenAt: Date) => ({
+      id,
+      sliceId: "pie-ada-wants",
+      amount: Money.parse("1200", yen),
+      note: id,
+      eatenAt,
+    });
+
+    pie.take(bite("september", new Date(Date.UTC(2026, 8, 30))));
+    pie.take(bite("ramen", new Date(Date.UTC(2026, 9, 3))));
+    pie.take(bite("typo", new Date(Date.UTC(2026, 9, 4))));
+    await pies.save(pie);
+
+    const served = await pies.find("ada", october);
+
+    served?.putBack("typo");
+    served?.move("ramen", "pie-ada-needs");
+    await pies.save(served!);
+
+    expect(
+      (await pies.find("ada", october))?.bites.map((found) => [
+        found.id,
+        found.sliceId,
+        found.amount.minor,
+      ]),
+    ).toEqual([["ramen", "pie-ada-needs", 1200]]);
+    expect(
+      (await pies.find("ada", Month.of(new Date(Date.UTC(2026, 8, 30)))))?.bites.map(
+        (found) => found.id,
+      ),
+    ).toEqual(["september"]);
+  });
+
+  it("re-slices in place, keeping retired slices with their bites", async () => {
+    const pie = bakeFor("ada");
+
+    pie.take({
+      id: "ramen",
+      sliceId: "pie-ada-wants",
+      amount: Money.parse("1200", yen),
+      note: "Ramen",
+      eatenAt: new Date(Date.UTC(2026, 9, 3)),
+    });
+    await pies.save(pie);
+    await pies.save(
+      pie.reslice({
+        income: Money.parse("500000", yen),
+        slices: [
+          { id: "pie-ada-needs", name: "Rent", share: Proportion.whole },
+          { id: "pie-ada-wants", name: "Wants", share: Proportion.none, retired: true },
+        ],
+      }),
+    );
+
+    const found = await pies.find("ada", october);
+
+    expect(found?.id).toBe("pie-ada");
+    expect(found?.income.minor).toBe(500_000);
+    expect(
+      found?.slices.map((slice) => [slice.name, slice.share.ratio, Boolean(slice.retired)]),
+    ).toEqual([
+      ["Rent", 1, false],
+      ["Wants", 0, true],
+    ]);
+    expect(found?.bites.map((bite) => bite.id)).toEqual(["ramen"]);
+  });
+
+  it("keeps each part of a spread in its month, and puts back the rest", async () => {
+    const pie = bakeFor("ada");
+
+    const part = (n: number, eatenAt: Date) => ({
+      id: `laptop-${n}`,
+      sliceId: "pie-ada-wants",
+      amount: Money.parse("1000", yen),
+      note: "Laptop",
+      eatenAt,
+      spread: { id: "laptop", part: n, of: 3 },
+    });
+
+    pie.take(part(1, september.start));
+    pie.take(part(2, october.start));
+    pie.take(part(3, october.next().start));
+    await pies.save(pie);
+
+    const served = await pies.find("ada", october);
+
+    expect(served?.bites.map((bite) => bite.spread)).toEqual([{ id: "laptop", part: 2, of: 3 }]);
+
+    served?.putBackSpread("laptop");
+    await pies.save(served!);
+
+    expect((await pies.find("ada", september))?.bites.map((bite) => bite.id)).toEqual(["laptop-1"]);
+    expect((await pies.find("ada", october))?.bites).toEqual([]);
+    expect((await pies.find("ada", october.next()))?.bites).toEqual([]);
+  });
+
+  it("keeps one carry a month, and forgets it once undone", async () => {
+    await pies.save(bakeFor("ada"));
+
+    const served = await pies.find("ada", october);
+
+    served?.carryOver({ sliceId: "pie-ada-wants", amount: Money.parse("5000", yen) });
+    await pies.save(served!);
+
+    const carried = await pies.find("ada", october);
+
+    expect(carried?.carry?.amount.minor).toBe(5000);
+    expect(carried?.whole.minor).toBe(455_000);
+    expect((await pies.find("ada", september))?.carry).toBeUndefined();
+
+    carried?.dropCarry();
+    await pies.save(carried!);
+
+    expect((await pies.find("ada", october))?.carry).toBeUndefined();
+  });
+
+  it("keeps the sweep setting and each bite's sweep", async () => {
+    const pie = bakeFor("ada");
+
+    pie.setSweep({ sliceId: "pie-ada-needs", step: Money.parse("100", yen) });
+    pie.take({
+      id: "ramen",
+      sliceId: "pie-ada-wants",
+      amount: Money.parse("1230", yen),
+      note: "Ramen",
+      eatenAt: october.start,
+      swept: { sliceId: "pie-ada-needs", amount: Money.parse("70", yen) },
+    });
+    await pies.save(pie);
+
+    const found = await pies.find("ada", october);
+
+    expect(found?.sweep?.step.minor).toBe(100);
+    expect(found?.bites[0]?.swept?.amount.minor).toBe(70);
+
+    found?.setSweep(undefined);
+    await pies.save(found!);
+
+    const off = await pies.find("ada", october);
+
+    expect(off?.sweep).toBeUndefined();
+    expect(off?.bites[0]?.swept?.amount.minor).toBe(70);
   });
 
   it("serves only the bites of the asked month", async () => {
@@ -167,37 +318,6 @@ describe("PrismaPieRepository (Postgres)", () => {
     await pies.save(pie);
 
     expect((await pies.find("ada", october))?.staples).toEqual([]);
-  });
-
-  it("recuts a pie: a removed slice goes with its bites, kept ones keep theirs", async () => {
-    const pie = bakeFor("ada");
-
-    for (const sliceId of ["pie-ada-needs", "pie-ada-wants"]) {
-      pie.take({
-        id: `${sliceId}-bite`,
-        sliceId,
-        amount: Money.parse("1000", yen),
-        note: sliceId,
-        eatenAt: new Date(Date.UTC(2026, 9, 3)),
-      });
-    }
-
-    await pies.save(pie);
-    await pies.save(
-      pie.recut([
-        { id: "pie-ada-needs", name: "Home", share: Proportion.of(0.6) },
-        { id: "pie-ada-travel", name: "Travel", share: Proportion.of(0.4) },
-      ]),
-    );
-
-    const found = await pies.find("ada", october);
-
-    expect(found?.slices.map((slice) => [slice.name, slice.share.ratio])).toEqual([
-      ["Home", 0.6],
-      ["Travel", 0.4],
-    ]);
-    expect(found?.bites.map((bite) => bite.id)).toEqual(["pie-ada-needs-bite"]);
-    expect(await database.prisma.bite.count()).toBe(1);
   });
 
   it("removes only the owner's pies", async () => {

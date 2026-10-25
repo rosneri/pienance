@@ -89,7 +89,8 @@ export function readStatement(ports: Ports) {
       throw new PieError(`That is over ${mostBites} bites: import a few months at a time`);
     }
 
-    const known = new Set(pie.slices.map((slice) => slice.id));
+    // Retired slices take no new bites, so only live ones are remembered or suggested.
+    const known = new Set(pie.liveSlices.map((slice) => slice.id));
     const sliceOf = await slicedBefore(ports, input.ownerId, known);
 
     // Only notes the person never sliced go to the advisor.
@@ -97,7 +98,7 @@ export function readStatement(ports: Ports) {
       (note) => !sliceOf.has(note),
     );
 
-    const suggested = await ports.advisor.slicesFor(notes, pie.slices);
+    const suggested = await ports.advisor.slicesFor(notes, pie.liveSlices);
 
     for (const [index, note] of notes.entries()) {
       const sliceId = suggested[index];
@@ -105,7 +106,7 @@ export function readStatement(ports: Ports) {
       if (sliceId) sliceOf.set(note, sliceId);
     }
 
-    const fallback = pie.slices[0]?.id ?? "";
+    const fallback = pie.liveSlices[0]?.id ?? "";
     const names = input.rows[layout.skipRows - 1] ?? [];
 
     return {
