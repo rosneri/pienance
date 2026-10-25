@@ -272,6 +272,7 @@ describe("focuses", () => {
         { id: "needs", name: "Needs", percent: 50, eaten: false, stocked: false },
         { id: "wants", name: "Wants", percent: 50, eaten: true, stocked: false },
       ],
+      sweepSteps: ["1.00", "5.00", "10.00"],
     });
   });
 

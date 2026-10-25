@@ -10,32 +10,33 @@ It answers two questions:
 
 ## Ubiquitous language
 
-| Term           | Meaning                                                                  |
-| -------------- | ------------------------------------------------------------------------ |
-| **Pie**        | The monthly income. The aggregate root.                                  |
-| **Slice**      | A named share of the pie (Needs 50%, Wants 30%, Savings 20%).            |
-| **Bite**       | An expense, taken from one slice.                                        |
-| **Bake**       | Create the pie from a monthly income.                                    |
-| **Weigh**      | Consider a bite without taking it: how big is it, what would be left?    |
-| **Put back**   | Remove one of this month's bites, as if it was never taken.              |
-| **Move**       | Take one of this month's bites out of its slice and into another.        |
-| **Re-slice**   | Change the pie's income or its slices (names, shares, adding, retiring). |
-| **Retired**    | A removed slice: it keeps its past bites but no longer takes a share.    |
-| **Spread**     | One expense split into equal bites over several months, starting now.    |
-| **Carry**      | Last month's leftover, added to one slice of this month's pie.           |
-| **Verdict**    | `fits`, `tight` (leaves only crumbs) or `overflows` (more than left).    |
-| **Serving**    | A slice with how much of it is eaten and left this month.                |
-| **Leftover**   | What is left of the whole pie this month.                                |
-| **Staple**     | A bite that comes back every month, e.g. rent from Needs.                |
-| **Pantry**     | All of a pie's staples.                                                  |
-| **Pace**       | How fast a slice is eaten compared with how much of the month is gone.   |
-| **Shelf**      | The past months of a pie, each shown as its own small pie.               |
-| **Appetite**   | How much of a slice is usually eaten by the end of a month.              |
-| **Overview**   | The whole pie at once: every slice, staple and bite.                     |
-| **Focus**      | A single view of the pie through one cut, told in a sentence.            |
-| **Cut**        | How a focus slices the pie: a slice, every month or one time.            |
-| **Proportion** | A ratio, said _roughly_ ("about a quarter") or, for bites, as "5/9".     |
-| **Statement**  | A bank's CSV export, in any layout; its spends become draft bites.       |
+| Term           | Meaning                                                                      |
+| -------------- | ---------------------------------------------------------------------------- |
+| **Pie**        | The monthly income. The aggregate root.                                      |
+| **Slice**      | A named share of the pie (Needs 50%, Wants 30%, Savings 20%).                |
+| **Bite**       | An expense, taken from one slice.                                            |
+| **Bake**       | Create the pie from a monthly income.                                        |
+| **Weigh**      | Consider a bite without taking it: how big is it, what would be left?        |
+| **Put back**   | Remove one of this month's bites, as if it was never taken.                  |
+| **Move**       | Take one of this month's bites out of its slice and into another.            |
+| **Re-slice**   | Change the pie's income or its slices (names, shares, adding, retiring).     |
+| **Retired**    | A removed slice: it keeps its past bites but no longer takes a share.        |
+| **Spread**     | One expense split into equal bites over several months, starting now.        |
+| **Carry**      | Last month's leftover, added to one slice of this month's pie.               |
+| **Sweep**      | The difference between a bite and its rounded-up amount, put into one slice. |
+| **Verdict**    | `fits`, `tight` (leaves only crumbs) or `overflows` (more than left).        |
+| **Serving**    | A slice with how much of it is eaten and left this month.                    |
+| **Leftover**   | What is left of the whole pie this month.                                    |
+| **Staple**     | A bite that comes back every month, e.g. rent from Needs.                    |
+| **Pantry**     | All of a pie's staples.                                                      |
+| **Pace**       | How fast a slice is eaten compared with how much of the month is gone.       |
+| **Shelf**      | The past months of a pie, each shown as its own small pie.                   |
+| **Appetite**   | How much of a slice is usually eaten by the end of a month.                  |
+| **Overview**   | The whole pie at once: every slice, staple and bite.                         |
+| **Focus**      | A single view of the pie through one cut, told in a sentence.                |
+| **Cut**        | How a focus slices the pie: a slice, every month or one time.                |
+| **Proportion** | A ratio, said _roughly_ ("about a quarter") or, for bites, as "5/9".         |
+| **Statement**  | A bank's CSV export, in any layout; its spends become draft bites.           |
 
 These words are used as-is in code, UI, agent tools and conversation.
 

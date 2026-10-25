@@ -263,6 +263,7 @@ counted too.
 | `spread.put-back` | —                            |
 | `carry.carried`   | —                            |
 | `carry.dropped`   | —                            |
+| `sweep.set`       | `on`                         |
 | `staple.stocked`  | `replaced`                   |
 | `staple.dropped`  | `removed`                    |
 | `statement.read`  | `bites` (count), `trimmed`   |

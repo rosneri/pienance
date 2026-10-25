@@ -26,6 +26,7 @@ export function BiteList({
   empty = "Not a crumb yet.",
   composer,
   importable = false,
+  swept = null,
   slices = noSlices,
   actions,
 }: {
@@ -36,6 +37,8 @@ export function BiteList({
   composer?: ReactNode;
   /** Links to importing a bank statement, for this month's bites. */
   importable?: boolean;
+  /** "Swept this month: a sliver of Savings.", when bites were rounded up. */
+  swept?: string | null;
   /** Where a bite can be moved to. */
   slices?: readonly SliceView[];
   /** Without them (a month that is over) the rows are read-only. */
@@ -233,6 +236,7 @@ export function BiteList({
           {focused && bites.length > 0 ? `Nothing here for ${focused.name}.` : empty}
         </p>
       )}
+      {swept && <p className="text-sm text-muted-foreground">{swept}</p>}
       {importable && (
         <Link
           href="/import"

@@ -1,4 +1,4 @@
-import { isVoid, type Pie } from "../domain";
+import { isVoid, sweepSteps, type Pie } from "../domain";
 
 /** A live slice as the re-slice form starts it. */
 export interface ResliceSliceView {
@@ -18,6 +18,10 @@ export interface ResliceView {
   /** As a person would type it, e.g. "3000.00". */
   readonly income: string;
   readonly slices: readonly ResliceSliceView[];
+  /** Rounding bites up, when it is on: into which slice, and to the next what, as typed. */
+  readonly sweep?: { readonly sliceId: string; readonly step: string };
+  /** The steps the pie's currency offers, as typed. */
+  readonly sweepSteps: readonly string[];
 }
 
 export function viewReslice(pie: Pie): ResliceView {
@@ -35,5 +39,9 @@ export function viewReslice(pie: Pie): ResliceView {
         counted.some((staple) => staple.sliceId === slice.id),
       stocked: counted.some((staple) => staple.sliceId === slice.id && !staple.until),
     })),
+    ...(pie.sweep && {
+      sweep: { sliceId: pie.sweep.sliceId, step: pie.sweep.step.toDecimal() },
+    }),
+    sweepSteps: sweepSteps(pie.currency).map((step) => step.toDecimal()),
   };
 }

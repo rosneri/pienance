@@ -6,7 +6,8 @@ import { Masthead } from "@/components/masthead";
 import { PageFrame } from "@/components/page-frame";
 import { ResliceForm } from "@/components/reslice-form";
 import { auth, clock } from "@/pienance";
-import { previewReslice, readReslice, saveReslice, signOut } from "../actions";
+import { SweepForm } from "@/components/sweep-form";
+import { previewReslice, readReslice, saveReslice, setSweep, signOut } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,7 @@ export default async function Reslice() {
           Change what comes in, or how it is cut. This month&rsquo;s bites stay where they are.
         </p>
         <ResliceForm view={view} actions={actions} />
+        <SweepForm view={view} setSweep={setSweep} />
       </main>
     </PageFrame>
   );

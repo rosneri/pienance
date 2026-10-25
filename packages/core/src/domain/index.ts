@@ -24,6 +24,8 @@ export { Proportion } from "./proportion";
 
 export { spreadMonths, spreadOver, type SpreadPart } from "./spread";
 
+export { sweepSteps, sweptBy, type Sweep } from "./sweep";
+
 export { asFraction, roughly } from "./rough-size";
 
 export { sliceNameLimit, type Slice } from "./slice";

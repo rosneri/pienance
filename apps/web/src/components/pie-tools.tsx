@@ -12,10 +12,13 @@ import {
   describePastLeftover,
   describeShelfMonth,
   describeStaple,
+  describeSweep,
+  describeSwept,
   describeWeighing,
   droppedCarrySentence,
   putBackSentence,
   spreadMonths,
+  viewSweepSteps,
   type PieView,
   type SliceView,
 } from "@pienance/core";
@@ -137,6 +140,10 @@ export function PieTools({
             month: served.monthName,
             currency: served.currency,
             ...(served.carry && { carry: describeCarry(served.carry) }),
+            ...(served.sweep && {
+              sweep: `Bites round up to the next ${served.sweep.step} into ${served.sweep.sliceName}.`,
+            }),
+            ...(served.swept.length > 0 && { swept: describeSwept(served) }),
             ...(offer && { carryOffer: describeCarryOffer(offer) }),
             slices: served.slices.map(describeSlice),
             staples: inView(served.staples, focus?.stapleIds).map((staple) => ({
@@ -243,9 +250,12 @@ export function PieTools({
 
           if (!outcome.ok) return outcome.error;
 
+          const { swept } = outcome.value;
+          const sweep = swept ? ` Swept ${swept.words} into ${swept.sliceName}.` : "";
+
           return input.months === undefined
-            ? `Recorded ${input.note} in ${input.slice}.`
-            : `Recorded ${input.note} in ${input.slice}, over ${input.months} months.`;
+            ? `Recorded ${input.note} in ${input.slice}.${sweep}`
+            : `Recorded ${input.note} in ${input.slice}, over ${input.months} months.${sweep}`;
         },
       },
       options,
@@ -316,6 +326,8 @@ export function PieTools({
       },
       options,
     );
+
+    const steps = viewSweepSteps(pie.currency);
 
     const resliceSchema = {
       type: "object",
@@ -418,6 +430,37 @@ export function PieTools({
           const outcome = await actions.dropCarry();
 
           return outcome.ok ? droppedCarrySentence : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "set_sweep",
+        title: "Round expenses up into a slice",
+        description:
+          "Turns on rounding every expense up to the next step, counting the difference as eaten from one slice (usually Savings); or turns it off with off: true. Past expenses keep what they swept.",
+        inputSchema: {
+          type: "object",
+          properties: {
+            slice: biteProperties.slice,
+            step: {
+              type: "string",
+              enum: steps,
+              description: `Round up to the next this many ${pie.currency}.`,
+            },
+            off: { type: "boolean", description: "Turn rounding up off." },
+          },
+        } as const,
+        async execute(input) {
+          const outcome = await actions.setSweep(
+            input.off || !input.slice || !input.step
+              ? { off: true }
+              : { sliceId: sliceIdOf(input.slice), step: input.step },
+          );
+
+          return outcome.ok ? describeSweep(outcome.value) : outcome.error;
         },
       },
       options,

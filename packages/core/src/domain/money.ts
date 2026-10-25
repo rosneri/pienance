@@ -105,6 +105,15 @@ export class Money {
     return Proportion.between(this.minor, whole.minor);
   }
 
+  /** Rounded up to the next whole step: 4.30 to the next 1 is 5.00. A whole step stays. */
+  roundUpTo(step: Money): Money {
+    this.assertSameCurrency(step);
+
+    if (step.minor <= 0) throw new RangeError("A step needs to be above zero");
+
+    return Money.ofMinor(Math.ceil(this.minor / step.minor) * step.minor, this.currency);
+  }
+
   /** Splits without losing a single minor unit, in the given proportions. */
   split(shares: readonly Proportion[]): Money[] {
     // Integer weights keep the parts in the currency's own scale.

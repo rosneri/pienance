@@ -4,7 +4,11 @@ import {
   freeEatenOf,
   isVoid,
   paceOf,
+  currencyOf,
+  Money,
   roughly,
+  sweepSteps,
+  sweptBy,
   type Bite,
   type Month,
   type Pace,
@@ -54,6 +58,8 @@ export interface BiteView {
   /** The same, in rough words, e.g. "about half". */
   readonly portionWords: string;
   readonly eatenAt: string;
+  /** What rounding it up swept, and into which slice, e.g. "a crumb" of "Savings". */
+  readonly swept?: { readonly sliceName: string; readonly words: string };
   /** Part of a spread: which one, e.g. "2 of 6", and how many parts are still to come. */
   readonly spread?: { readonly id: string; readonly words: string; readonly toCome: number };
 }
@@ -84,6 +90,10 @@ export interface PieView {
   readonly staples: readonly StapleView[];
   /** Every single view besides this overview: each slice, every month, one time. */
   readonly focuses: readonly FocusView[];
+  /** Rounding bites up, when it is on: into which slice, and to the next what. */
+  readonly sweep?: { readonly sliceId: string; readonly sliceName: string; readonly step: string };
+  /** What this month's sweeps add up to, per slice they went into. */
+  readonly swept: readonly { readonly sliceName: string; readonly words: string }[];
   /** Last month's leftover, carried into one slice: which, and from which month. */
   readonly carry?: { readonly sliceId: string; readonly sliceName: string; readonly from: string };
   /** How much of the month is gone, between 0 and 1. Only while the month is running. */
@@ -128,6 +138,14 @@ export function viewPie(pie: Pie, served: Served): PieView {
       .filter((staple) => !isVoid(staple))
       .map((staple) => viewStaple(pie, staple, served.month)),
     focuses: viewFocuses(pie),
+    ...(pie.sweep && {
+      sweep: {
+        sliceId: pie.sweep.sliceId,
+        sliceName: pie.slice(pie.sweep.sliceId).name,
+        step: pie.sweep.step.toDecimal(),
+      },
+    }),
+    swept: viewSwept(pie),
     ...(pie.carry && {
       carry: {
         sliceId: pie.carry.sliceId,
@@ -184,6 +202,12 @@ export function viewBite(pie: Pie, bite: Bite): BiteView {
     portion: asFraction(portion),
     portionWords: roughly(portion),
     eatenAt: bite.eatenAt.toISOString(),
+    ...(bite.swept && {
+      swept: {
+        sliceName: pie.slice(bite.swept.sliceId).name,
+        words: roughly(bite.swept.amount.proportionOf(pie.sizeOf(pie.slice(bite.swept.sliceId)))),
+      },
+    }),
     ...(bite.spread && {
       spread: {
         id: bite.spread.id,
@@ -241,4 +265,43 @@ export function viewCarryOffer(offer: { month: Month; leftover: Proportion }): C
     monthName: monthName(offer.month),
     leftoverWords: roughly(offer.leftover),
   };
+}
+
+/** This month's sweeps, added up per slice they went into, against that slice's size. */
+function viewSwept(pie: Pie): PieView["swept"] {
+  const bySlice = new Map<string, Money>();
+
+  for (const { swept } of pie.bites) {
+    if (!swept) continue;
+
+    const sofar = bySlice.get(swept.sliceId);
+
+    bySlice.set(swept.sliceId, sofar ? sofar.plus(swept.amount) : swept.amount);
+  }
+
+  return [...bySlice].map(([sliceId, amount]) => {
+    const slice = pie.slice(sliceId);
+
+    return { sliceName: slice.name, words: roughly(amount.proportionOf(pie.sizeOf(slice))) };
+  });
+}
+
+/** An example bite and what it sweeps, as exact amounts: rounding is where numbers help. */
+export interface SweepExample {
+  readonly bite: string;
+  readonly swept: string;
+}
+
+export function sweepExample(currencyCode: string, step: string): SweepExample {
+  const currency = currencyOf(currencyCode);
+  const stepMoney = Money.parse(step, currency);
+  // 4.3 steps: a bite that is plainly not on a whole step.
+  const bite = Money.ofMinor(Math.round((stepMoney.minor * 43) / 10), currency);
+
+  return { bite: bite.toDecimal(), swept: sweptBy(bite, stepMoney).toDecimal() };
+}
+
+/** The steps a pie in this currency offers, as typed. */
+export function viewSweepSteps(currencyCode: string): string[] {
+  return sweepSteps(currencyOf(currencyCode)).map((step) => step.toDecimal());
 }

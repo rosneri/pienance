@@ -1,6 +1,6 @@
 "use client";
 
-import type { PieView, StapleView } from "@pienance/core";
+import { describeSwept, type PieView, type StapleView } from "@pienance/core";
 import { useState } from "react";
 import type { PieActions } from "@/server/pie-actions";
 import { BiteComposer } from "./bite-composer";
@@ -43,6 +43,7 @@ export function Kitchen({
         bites={pie.bites}
         empty={discovery}
         importable
+        swept={describeSwept(pie)}
         slices={live}
         actions={actions}
         composer={

@@ -15,6 +15,7 @@ import type {
   ResliceInput,
   ReslicePreview,
   ResliceView,
+  SweepChoice,
   ShelfMonthView,
   StapleView,
   StockStapleInput,
@@ -75,6 +76,10 @@ export async function carryOver(input: Asked<CarryOverInput>): Promise<Outcome<P
 
 export async function dropCarry(): Promise<Outcome<PieView>> {
   return pies.dropCarry();
+}
+
+export async function setSweep(input: SweepChoice): Promise<Outcome<PieView>> {
+  return pies.setSweep(input);
 }
 
 export async function readReslice(): Promise<ResliceView | null> {

@@ -222,6 +222,29 @@ describe("pie actions", () => {
     ]);
   });
 
+  it("sweeps bites into a slice once on, answering the take with it", async () => {
+    const { as, tracked } = kitchen();
+    const ada = as("ada");
+    const baked = await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+    const [needs, , savings] = baked.ok ? baked.value.slices.map((slice) => slice.id) : [];
+    const swept = await ada.setSweep({ sliceId: savings!, step: "1" });
+
+    expect(swept.ok && swept.value.sweep).toEqual({
+      sliceId: savings,
+      sliceName: "Savings",
+      step: "1.00",
+    });
+
+    const taken = await ada.takeBite({ sliceId: needs!, amount: "4.30", note: "Lunch" });
+
+    expect(taken.ok && taken.value.swept).toEqual({ sliceName: "Savings", words: "a crumb" });
+    expect((await ada.readPie())?.swept).toEqual([{ sliceName: "Savings", words: "a crumb" }]);
+    expect(tracked.find(({ event }) => event.name === "sweep.set")?.event).toEqual({
+      name: "sweep.set",
+      properties: { on: true },
+    });
+  });
+
   it("returns domain errors as values", async () => {
     const { as } = kitchen();
     const ada = as("ada");

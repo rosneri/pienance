@@ -369,6 +369,42 @@ describe("use cases", () => {
     });
   });
 
+  describe("sweeping", () => {
+    it("records each bite's sweep, and keeps it when the step changes or stops", async () => {
+      const { app } = kitchen();
+      const pie = await app.bakePie({ ownerId: "ada", monthlyIncome: "3000", currency: "EUR" });
+      const [needs, wants, savings] = pie.slices.map((slice) => slice.id);
+
+      await app.setSweep({ ownerId: "ada", sliceId: savings!, step: "1" });
+
+      const lunch = await app.takeBite({
+        ownerId: "ada",
+        sliceId: needs!,
+        amount: "4.30",
+        note: "Lunch",
+      });
+
+      const parts = await app.takeSpread({
+        ownerId: "ada",
+        sliceId: wants!,
+        amount: "10.50",
+        note: "Game",
+        months: 2,
+      });
+
+      expect(lunch.swept?.amount.toDecimal()).toBe("0.70");
+      expect(parts.swept?.amount.toDecimal()).toBe("0.75");
+
+      await app.setSweep({ ownerId: "ada", sliceId: savings!, step: "10" });
+      await app.setSweep({ ownerId: "ada", off: true });
+
+      const served = await app.servePie("ada");
+
+      expect(served?.sweep).toBeUndefined();
+      expect(served?.bites.map((bite) => bite.swept?.amount.toDecimal())).toEqual(["0.70", "0.75"]);
+    });
+  });
+
   describe("staples", () => {
     async function stocked() {
       const { app, clock } = kitchen();

@@ -15,6 +15,8 @@ import {
   describeReslice,
   describeShelfMonth,
   describeSlice,
+  describeSweep,
+  describeSwept,
   describeStaple,
   describeTaken,
   describeVerdict,
@@ -30,6 +32,19 @@ const weighing = {
   leftAfter: "about half",
   stapled: "nothing",
 } as const;
+
+/** A pie view with nothing in it but what a test gives. */
+const pieViewFor = (view: Pick<PieView, "swept"> & Partial<PieView>): PieView => ({
+  currency: "EUR",
+  month: "2026-10",
+  monthName: "October",
+  leftoverWords: "all",
+  slices: [],
+  bites: [],
+  staples: [],
+  focuses: [],
+  ...view,
+});
 
 describe("sentences", () => {
   it("offers, carries and tells a carry", () => {
@@ -64,6 +79,19 @@ describe("sentences", () => {
       verdict: "overflows",
       sentence: "Wants would be all eaten.",
     });
+  });
+
+  it("tells the sweep, and what this month swept", () => {
+    const view = { swept: [{ sliceName: "Savings", words: "a sliver" }] } as const;
+
+    expect(describeSwept(pieViewFor(view))).toBe("Swept this month: a sliver of Savings.");
+    expect(describeSwept(pieViewFor({ swept: [] }))).toBeNull();
+    expect(
+      describeSweep(
+        pieViewFor({ swept: [], sweep: { sliceId: "s", sliceName: "Savings", step: "1.00" } }),
+      ),
+    ).toBe("Bites now round up to the next 1.00 into Savings.");
+    expect(describeSweep(pieViewFor({ swept: [] }))).toBe("The sweep is off. Past sweeps stay.");
   });
 
   it("restates a bite after taking or moving it", () => {
@@ -172,6 +200,7 @@ describe("sentences", () => {
       bites: [],
       staples: [],
       focuses: [],
+      swept: [],
       gone,
       goneWords: gone < 0.04 ? "a crumb" : "about a third",
     });
@@ -240,6 +269,7 @@ describe("sentences", () => {
       bites: [],
       staples: [],
       focuses: [],
+      swept: [],
       gone: 1 / 3,
       goneWords: "about a third",
     };
@@ -314,6 +344,7 @@ describe("sentences", () => {
       bites: [],
       staples: [],
       focuses: [],
+      swept: [],
       gone: 1 / 3,
       goneWords: "about a third",
     };

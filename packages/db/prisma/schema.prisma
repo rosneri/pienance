@@ -10,18 +10,22 @@ datasource db {
 // ── Pies ─────────────────────────────────────────────────
 
 model Pie {
-  id          String   @id
+  id             String   @id
   /// The user the pie belongs to
-  ownerId     String
-  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId        String
+  owner          User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   /// ISO 4217 code, e.g. "EUR"
-  currency    String
+  currency       String
   /// In the currency's minor units (cents, yen, fils…)
-  incomeMinor BigInt
+  incomeMinor    BigInt
   /// When the pie was baked: the first month on its shelf
-  createdAt   DateTime @default(now())
-  slices      Slice[]
-  carries     Carry[]
+  createdAt      DateTime @default(now())
+  /// Rounding bites up: the slice the difference goes into, when on
+  sweepSliceId   String?
+  /// Rounding bites up: the step, in the currency's minor units
+  sweepStepMinor BigInt?
+  slices         Slice[]
+  carries        Carry[]
 
   @@index([ownerId, createdAt])
 }
@@ -44,19 +48,22 @@ model Slice {
 }
 
 model Bite {
-  id          String   @id
-  sliceId     String
-  slice       Slice    @relation(fields: [sliceId], references: [id], onDelete: Cascade)
-  currency    String
-  amountMinor BigInt
-  note        String
-  eatenAt     DateTime
+  id           String   @id
+  sliceId      String
+  slice        Slice    @relation(fields: [sliceId], references: [id], onDelete: Cascade)
+  currency     String
+  amountMinor  BigInt
+  note         String
+  eatenAt      DateTime
   /// One expense split into equal monthly bites: they share this id
-  spreadId    String?
+  spreadId     String?
   /// Which part of the spread, from 1
-  spreadPart  Int?
+  spreadPart   Int?
   /// How many parts the spread has
-  spreadOf    Int?
+  spreadOf     Int?
+  /// Rounding the bite up swept this much into this slice, when above zero
+  sweptSliceId String?
+  sweptMinor   BigInt?
 
   @@index([sliceId, eatenAt])
   @@index([spreadId])

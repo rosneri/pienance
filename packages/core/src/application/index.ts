@@ -9,6 +9,7 @@ import { readAppetite } from "./read-appetite";
 import { readStatement } from "./read-statement";
 import { previewReslice, reslicePie } from "./reslice-pie";
 import { servePie } from "./serve-pie";
+import { setSweep } from "./set-sweep";
 import { shelvePie } from "./shelve-pie";
 import { stockStaple } from "./stock-staple";
 import { takeBite } from "./take-bite";
@@ -35,6 +36,8 @@ export type { DraftBite, ReadStatementInput, StatementPreview } from "./read-sta
 export type { ReadAppetiteInput, SliceAppetite } from "./read-appetite";
 
 export type { ResliceInput } from "./reslice-pie";
+
+export type { SetSweepInput, SweepChoice } from "./set-sweep";
 
 export type { Shelved, ShelvePieInput } from "./shelve-pie";
 
@@ -66,6 +69,7 @@ export {
   readStatement,
   reslicePie,
   servePie,
+  setSweep,
   shelvePie,
   stockStaple,
   takeBite,
@@ -90,6 +94,7 @@ export function pienance(ports: Ports) {
     readCarryOffer: readCarryOffer(ports),
     carryOver: carryOver(ports),
     dropCarry: dropCarry(ports),
+    setSweep: setSweep(ports),
     stockStaple: stockStaple(ports),
     dropStaple: dropStaple(ports),
     shelvePie: shelvePie(ports),

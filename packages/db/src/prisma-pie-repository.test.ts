@@ -209,6 +209,34 @@ describe("PrismaPieRepository (Postgres)", () => {
     expect((await pies.find("ada", october))?.carry).toBeUndefined();
   });
 
+  it("keeps the sweep setting and each bite's sweep", async () => {
+    const pie = bakeFor("ada");
+
+    pie.setSweep({ sliceId: "pie-ada-needs", step: Money.parse("100", yen) });
+    pie.take({
+      id: "ramen",
+      sliceId: "pie-ada-wants",
+      amount: Money.parse("1230", yen),
+      note: "Ramen",
+      eatenAt: october.start,
+      swept: { sliceId: "pie-ada-needs", amount: Money.parse("70", yen) },
+    });
+    await pies.save(pie);
+
+    const found = await pies.find("ada", october);
+
+    expect(found?.sweep?.step.minor).toBe(100);
+    expect(found?.bites[0]?.swept?.amount.minor).toBe(70);
+
+    found?.setSweep(undefined);
+    await pies.save(found!);
+
+    const off = await pies.find("ada", october);
+
+    expect(off?.sweep).toBeUndefined();
+    expect(off?.bites[0]?.swept?.amount.minor).toBe(70);
+  });
+
   it("serves only the bites of the asked month", async () => {
     const pie = bakeFor("ada");
 

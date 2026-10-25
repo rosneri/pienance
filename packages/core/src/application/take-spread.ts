@@ -25,8 +25,10 @@ export function takeSpread(ports: Ports) {
     const parts = spreadOver(Money.parse(input.amount, pie.currency), input.months);
     let month = pie.month;
 
+    // Every part sweeps on its own, with the step in force now.
     const bites = parts.map((amount, index): Bite => {
       const eatenAt = index === 0 ? now : (month = month.next()).start;
+      const swept = pie.sweepOf({ sliceId: input.sliceId, amount });
 
       return {
         id: ports.newId(),
@@ -35,6 +37,7 @@ export function takeSpread(ports: Ports) {
         note: input.note.trim(),
         eatenAt,
         spread: { id: spreadId, part: index + 1, of: parts.length },
+        ...(swept && { swept }),
       };
     });
 
