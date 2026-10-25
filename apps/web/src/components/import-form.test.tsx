@@ -2,6 +2,7 @@ import type { TakeBitesInput, TakenBites } from "@pienance/core";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
+import { utils, write } from "xlsx";
 import type { Outcome } from "@/server/outcome";
 import type { Asked, StatementReading, StatementUpload } from "@/server/pie-actions";
 import { pieView } from "@/testing/fixtures";
@@ -32,7 +33,7 @@ const file = new File(["Date,Description,Amount\n02/10/2026,Coffee,-3.00"], "sta
 
 /** Uploads the statement and waits until it is read, when the fields are enabled again. */
 async function uploadStatement(user: ReturnType<typeof userEvent.setup>) {
-  await user.upload(screen.getByLabelText("Statement (CSV)"), file);
+  await user.upload(screen.getByLabelText("Statement (CSV or Excel)"), file);
   await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(/Found|look like/));
 }
 
@@ -62,7 +63,7 @@ describe("ImportForm", () => {
   it("reads a chosen file and lists its bites with suggested slices", async () => {
     const { uploads, user } = setup();
 
-    await user.upload(screen.getByLabelText("Statement (CSV)"), file);
+    await user.upload(screen.getByLabelText("Statement (CSV or Excel)"), file);
 
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(
@@ -74,14 +75,32 @@ describe("ImportForm", () => {
     expect(screen.getByLabelText("Description")).toHaveValue("description");
   });
 
+  it("reads the first sheet of an Excel file as CSV", async () => {
+    const { uploads, user } = setup();
+    const book = utils.book_new();
+
+    utils.book_append_sheet(
+      book,
+      utils.aoa_to_sheet([
+        ["Date", "Description", "Amount"],
+        [new Date(2026, 9, 2), "Coffee", -3],
+      ]),
+    );
+
+    await user.upload(
+      screen.getByLabelText("Statement (CSV or Excel)"),
+      new File([write(book, { type: "array", bookType: "xlsx" })], "statement.xlsx"),
+    );
+
+    await waitFor(() => expect(uploads).toHaveLength(1));
+    expect(uploads[0]).toEqual({ csv: "Date,Description,Amount\r\n2026-10-02,Coffee,-3" });
+  });
+
   it("takes the bites with the slices the person chose", async () => {
     const { takes, user } = setup();
 
-    await user.upload(screen.getByLabelText("Statement (CSV)"), file);
-    await user.selectOptions(
-      await screen.findByLabelText("Slice for Rent on 2026-10-03"),
-      "Savings",
-    );
+    await uploadStatement(user);
+    await user.selectOptions(screen.getByLabelText("Slice for Rent on 2026-10-03"), "Savings");
     await user.click(screen.getByRole("button", { name: "Take 3 bites" }));
 
     await waitFor(() =>
@@ -120,7 +139,7 @@ describe("ImportForm", () => {
     const { uploads, user } = setup();
     const huge = new File(["x".repeat(3_500_001)], "huge.csv", { type: "text/csv" });
 
-    await user.upload(screen.getByLabelText("Statement (CSV)"), huge);
+    await user.upload(screen.getByLabelText("Statement (CSV or Excel)"), huge);
 
     expect(await screen.findByRole("status")).toHaveTextContent(
       "This file is over 3.5 MB: export fewer months.",
@@ -134,7 +153,7 @@ describe("ImportForm", () => {
       error: "This file does not look like a list of transactions",
     });
 
-    await user.upload(screen.getByLabelText("Statement (CSV)"), file);
+    await user.upload(screen.getByLabelText("Statement (CSV or Excel)"), file);
 
     await waitFor(() =>
       expect(screen.getByRole("status")).toHaveTextContent(

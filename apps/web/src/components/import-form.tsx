@@ -15,6 +15,7 @@ import { Input } from "@pienance/ui/components/input";
 import { NativeSelect, NativeSelectOption } from "@pienance/ui/components/native-select";
 import { useState, useTransition } from "react";
 import { largestUpload } from "@/import/lines";
+import { isSpreadsheet, spreadsheetTypes } from "@/import/spreadsheet-types";
 import type { PieActions, StatementReading } from "@/server/pie-actions";
 import { Answer } from "./answer";
 import { currencySymbol } from "./currency-symbol";
@@ -82,8 +83,18 @@ function summaryOf(preview: StatementReading): string {
   }. Check each slice, then take them.`;
 }
 
+/** A statement's text: a CSV as it is, a spreadsheet's first sheet as CSV. */
+async function textOf(file: File): Promise<string | null> {
+  if (!isSpreadsheet(file.name)) return file.text();
+
+  // SheetJS is large: only load it for spreadsheets.
+  const { csvOf } = await import("@/import/spreadsheet");
+
+  return csvOf(await file.arrayBuffer());
+}
+
 /**
- * Imports a bank's CSV export: reads it, lets the person fix how it was read
+ * Imports a bank's CSV or Excel export: reads it, lets the person fix how it was read
  * and which slice each bite eats from, then takes the bites.
  */
 export function ImportForm({
@@ -130,7 +141,22 @@ export function ImportForm({
       return;
     }
 
-    const text = await file.text();
+    const text = await textOf(file);
+
+    if (text === null) {
+      setSaid({ tone: "error", sentence: "This workbook has no sheet to read." });
+
+      return;
+    }
+
+    if (text.length > largestUpload) {
+      setSaid({
+        tone: "error",
+        sentence: "This sheet is over 3.5 MB as text: export fewer months.",
+      });
+
+      return;
+    }
 
     setCsv(text);
     read(text);
@@ -180,18 +206,19 @@ export function ImportForm({
           Bring in a statement.
         </h1>
         <p className="max-w-[60ch] text-muted-foreground">
-          Export a CSV from your bank, in any layout. pienance finds the money that left, suggests a
-          slice for each bite, and lets you check everything before it is taken. To do so, an AI
-          model sees what each bite was and, for unfamiliar layouts, the first few rows.
+          Export a CSV or Excel file from your bank, in any layout. pienance finds the money that
+          left, suggests a slice for each bite, and lets you check everything before it is taken. To
+          do so, an AI model sees what each bite was and, for unfamiliar layouts, the first few
+          rows.
         </p>
       </div>
 
       <Field className="max-w-md">
-        <FieldLabel htmlFor="statement">Statement (CSV)</FieldLabel>
+        <FieldLabel htmlFor="statement">Statement (CSV or Excel)</FieldLabel>
         <Input
           id="statement"
           type="file"
-          accept=".csv,text/csv,text/plain"
+          accept={[".csv", "text/csv", "text/plain", ...spreadsheetTypes].join(",")}
           disabled={pending}
           onChange={(event) => void choose(event.currentTarget.files?.[0])}
           className="h-12 py-2.5"

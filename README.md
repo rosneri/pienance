@@ -29,7 +29,7 @@ It answers two questions:
 | **Focus**      | A single view of the pie through one cut, told in a sentence.          |
 | **Cut**        | How a focus slices the pie: a slice, every month or one time.          |
 | **Proportion** | A ratio, said _roughly_ ("about a quarter") or, for bites, as "5/9".   |
-| **Statement**  | A bank's CSV export, in any layout; its spends become draft bites.     |
+| **Statement**  | A bank's CSV or Excel export, in any layout; its spends become bites.  |
 
 These words are used as-is in code, UI, agent tools and conversation.
 
@@ -119,7 +119,10 @@ statement. They call the same server actions as the UI, so the page stays in syn
 
 ## Importing statements
 
-`/import` takes a CSV export from any bank. [Papa Parse](https://www.papaparse.com) splits the
+`/import` takes a CSV or spreadsheet (`.xlsx`, `.xls`, `.ods`) export from any bank. A
+spreadsheet's first sheet is turned into CSV in the browser by [SheetJS](https://sheetjs.com)
+(loaded only for spreadsheets; installed from its own CDN, as npm only has an old release), with
+dates as `2026-10-03` (`apps/web/src/import/spreadsheet.ts`). [Papa Parse](https://www.papaparse.com) splits the
 file (any delimiter, quoting, line endings); then `@pienance/core` guesses the layout by rules
 (`guessLayout`): preamble rows, which column is the day, amount, money out/in or description,
 day order and decimal mark. Only when the rules are unsure, or to suggest a slice for each bite,
