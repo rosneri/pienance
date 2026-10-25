@@ -139,6 +139,10 @@ export async function takeBites(input: Asked<TakeBitesInput>): Promise<Outcome<T
   return pies.takeBites(input);
 }
 
+export async function resetPie(): Promise<Outcome<null>> {
+  return pies.resetPie();
+}
+
 export async function signUp(details: SignUpDetails): Promise<Outcome<null>> {
   const outcome = await accounts().signUp(details);
 

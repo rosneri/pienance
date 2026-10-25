@@ -78,4 +78,8 @@ export class InMemoryPieRepository implements PieRepository {
       sweep: pie.sweep,
     });
   }
+
+  async remove(ownerId: string): Promise<void> {
+    this.pies.delete(ownerId);
+  }
 }

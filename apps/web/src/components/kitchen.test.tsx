@@ -14,6 +14,7 @@ const actions: Parameters<typeof Kitchen>[0]["actions"] = {
   moveBite: refused,
   stockStaple: refused,
   dropStaple: refused,
+  resetPie: refused,
 };
 
 describe("Kitchen", () => {
@@ -23,6 +24,7 @@ describe("Kitchen", () => {
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
       "Every month",
       "Eaten this month",
+      "Start over",
     ]);
 
     const [first] = screen.getAllByRole("list").at(-1)!.querySelectorAll("li");

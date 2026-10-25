@@ -101,6 +101,7 @@ export const pienance: Pienance = {
   readAppetite: traced("pienance.readAppetite", app.readAppetite),
   readStatement: traced("pienance.readStatement", app.readStatement),
   takeBites: traced("pienance.takeBites", app.takeBites),
+  resetPie: traced("pienance.resetPie", app.resetPie),
 };
 
 let authInstance: Auth | undefined;

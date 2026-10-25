@@ -198,4 +198,8 @@ export class PrismaPieRepository implements PieRepository {
       }),
     ]);
   }
+
+  async remove(ownerId: string): Promise<void> {
+    await this.db.pie.deleteMany({ where: { ownerId } });
+  }
 }

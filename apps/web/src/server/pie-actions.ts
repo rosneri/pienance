@@ -404,6 +404,18 @@ export function pieActions(deps: PieActionsDeps) {
         return view;
       });
     },
+
+    /** Starts over: the pie and everything eaten from it are gone. */
+    resetPie(): Promise<Outcome<null>> {
+      return attempt(async (ownerId) => {
+        await deps.app.resetPie(ownerId);
+
+        deps.track({ name: "pie.reset", properties: {} }, ownerId);
+        deps.refresh();
+
+        return null;
+      });
+    },
   };
 }
 

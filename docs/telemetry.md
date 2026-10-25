@@ -255,6 +255,7 @@ counted too.
 | ----------------- | ---------------------------- |
 | `pie.baked`       | `currency`                   |
 | `pie.resliced`    | `slices`, `retired` (counts) |
+| `pie.reset`       | —                            |
 | `bite.weighed`    | `verdict`                    |
 | `bite.taken`      | —                            |
 | `bite.put-back`   | —                            |

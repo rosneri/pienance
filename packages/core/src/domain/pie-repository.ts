@@ -6,4 +6,6 @@ export interface PieRepository {
   /** The owner's pie with only the bites eaten during `month`, or null if none was baked yet. */
   find(ownerId: string, month: Month): Promise<Pie | null>;
   save(pie: Pie): Promise<void>;
+  /** Removes the owner's pies, with every month of bites and staples. */
+  remove(ownerId: string): Promise<void>;
 }

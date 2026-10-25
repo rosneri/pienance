@@ -319,4 +319,14 @@ describe("PrismaPieRepository (Postgres)", () => {
 
     expect((await pies.find("ada", october))?.staples).toEqual([]);
   });
+
+  it("removes only the owner's pies", async () => {
+    await pies.save(bakeFor("ada"));
+    await pies.save(bakeFor("grace"));
+
+    await pies.remove("ada");
+
+    expect(await pies.find("ada", october)).toBeNull();
+    expect(await pies.find("grace", october)).not.toBeNull();
+  });
 });

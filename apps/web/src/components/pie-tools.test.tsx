@@ -172,6 +172,11 @@ function fakeActions(): PieActions & { calls: string[] } {
         },
       };
     },
+    resetPie: async () => {
+      calls.push("reset");
+
+      return { ok: true, value: null };
+    },
     takeBites: async (input) => {
       calls.push(
         ...input.bites.map((bite) => `take ${bite.eatenOn} ${bite.sliceId} ${bite.amount}`),
@@ -232,6 +237,7 @@ describe("PieTools (WebMCP)", () => {
       "read_pie",
       "read_shelf",
       "read_statement",
+      "reset_pie",
       "reslice_pie",
       "set_sweep",
       "stock_staple",
@@ -447,5 +453,16 @@ describe("PieTools (WebMCP)", () => {
     unmount();
 
     expect(tools.size).toBe(0);
+  });
+
+  it("starts over", async () => {
+    const actions = fakeActions();
+
+    render(<PieTools pie={pieView} actions={actions} />);
+
+    expect(await tool("reset_pie").execute({})).toBe(
+      "Everything is deleted. Bake a new pie to start over.",
+    );
+    expect(actions.calls).toEqual(["reset"]);
   });
 });

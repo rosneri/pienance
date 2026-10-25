@@ -63,6 +63,28 @@ describe("reading a statement", () => {
     expect(preview.bites.map((bite) => bite.sliceId)).toEqual([needs, needs, wants, wants]);
   });
 
+  it("slices a note the way the person sliced it before, without asking the advisor", async () => {
+    const asked: string[][] = [];
+
+    const { app, wants } = await kitchen({
+      ...noAdvice,
+      slicesFor: async (notes) => {
+        asked.push([...notes]);
+
+        return notes.map(() => null);
+      },
+    });
+
+    await app.takeBite({ ownerId: "ada", sliceId: wants, amount: "2.50", note: "Coffee" });
+
+    const preview = await app.readStatement({ ownerId: "ada", rows: statement });
+
+    expect(asked).toEqual([["Corner shop", "Rent"]]);
+    expect(
+      preview.bites.filter((bite) => bite.note === "Coffee").map((bite) => bite.sliceId),
+    ).toEqual([wants, wants]);
+  });
+
   it("asks the advisor for the layout only when the rules are unsure", async () => {
     const corrected: StatementLayout = {
       skipRows: 1,

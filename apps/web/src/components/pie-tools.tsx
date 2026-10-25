@@ -590,6 +590,23 @@ export function PieTools({
       options,
     );
 
+    void modelContext.registerTool(
+      {
+        name: "reset_pie",
+        title: "Start over",
+        description:
+          "Deletes the user's pie with every bite and staple, in every month, so they can bake a new one. It cannot be undone: only use it when the user explicitly asks to reset their data.",
+        async execute() {
+          const outcome = await actions.resetPie();
+
+          return outcome.ok
+            ? "Everything is deleted. Bake a new pie to start over."
+            : outcome.error;
+        },
+      },
+      options,
+    );
+
     return () => controller.abort();
   }, [pie, past, actions]);
 

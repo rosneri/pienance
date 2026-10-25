@@ -17,6 +17,7 @@ import { Headline } from "@/components/headline";
 import { Kitchen } from "@/components/kitchen";
 import { Legend } from "@/components/legend";
 import { Masthead } from "@/components/masthead";
+import { MonthNav } from "@/components/month-nav";
 import { PageFrame } from "@/components/page-frame";
 import { PieDiagram } from "@/components/pie-diagram";
 import { PieTools } from "@/components/pie-tools";
@@ -41,6 +42,7 @@ import {
   readShelf,
   readStatement,
   reslicePie,
+  resetPie,
   setSweep,
   signOut,
   stockStaple,
@@ -72,6 +74,7 @@ const actions = {
   dropStaple,
   readStatement,
   takeBites,
+  resetPie,
 };
 
 export default async function Home({
@@ -109,6 +112,7 @@ export default async function Home({
               className="grid min-w-0 content-start gap-6"
               aria-labelledby="leftover-heading"
             >
+              <MonthNav months={shelf} month={pie.month} />
               {past && (
                 <p className="text-muted-foreground">
                   You are looking at {pie.monthName}.{" "}
@@ -156,7 +160,8 @@ export default async function Home({
               <Headline id="bake-heading">Bake this month&rsquo;s pie.</Headline>
               <p className="max-w-[60ch] text-muted-foreground">
                 Tell pienance what comes in each month, in any currency. It cuts it into Needs,
-                Wants and Savings, then shows what is left as slices — never as a spreadsheet.
+                Wants and Savings — rename, resize or add your own once it is baked — then shows
+                what is left as slices, never as a spreadsheet.
               </p>
             </section>
             <BakeForm defaultCurrency="USD" bakePie={bakePie} />

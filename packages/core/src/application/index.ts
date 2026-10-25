@@ -7,6 +7,7 @@ import { putBackBite } from "./put-back-bite";
 import { putBackSpread } from "./put-back-spread";
 import { readAppetite } from "./read-appetite";
 import { readStatement } from "./read-statement";
+import { resetPie } from "./reset-pie";
 import { previewReslice, reslicePie } from "./reslice-pie";
 import { servePie } from "./serve-pie";
 import { setSweep } from "./set-sweep";
@@ -67,6 +68,7 @@ export {
   readAppetite,
   readCarryOffer,
   readStatement,
+  resetPie,
   reslicePie,
   servePie,
   setSweep,
@@ -101,6 +103,7 @@ export function pienance(ports: Ports) {
     readAppetite: readAppetite(ports),
     readStatement: readStatement(ports),
     takeBites: takeBites(ports),
+    resetPie: resetPie(ports),
   };
 }
 

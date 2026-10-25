@@ -19,6 +19,7 @@ It answers two questions:
 | **Weigh**      | Consider a bite without taking it: how big is it, what would be left?                                                 |
 | **Put back**   | Remove one of this month's bites, as if it was never taken.                                                           |
 | **Move**       | Take one of this month's bites out of its slice and into another.                                                     |
+| **Reset**      | Start over: the pie goes, with every month of bites and staples.                                                      |
 | **Re-slice**   | Change the pie's income or its slices (names, shares, adding, retiring).                                              |
 | **Retired**    | A removed slice: it keeps its past bites but no longer takes a share.                                                 |
 | **Spread**     | One expense split into equal bites over several months, starting now.                                                 |
@@ -36,7 +37,7 @@ It answers two questions:
 | **Focus**      | A single view of the pie through one cut, told in a sentence.                                                         |
 | **Cut**        | How a focus slices the pie: a slice, every month or one time.                                                         |
 | **Proportion** | A ratio. A part of a slice is a simple fraction, "1/30 (Wants)"; the rest is said _roughly_ ("about a quarter left"). |
-| **Statement**  | A bank's CSV export, in any layout; its spends become draft bites.                                                    |
+| **Statement**  | A bank's CSV or Excel export, in any layout; its spends become draft bites.                                           |
 
 These words are used as-is in code, UI, agent tools and conversation.
 
@@ -122,18 +123,22 @@ system is stamped in `packages/ui/src/styles/globals.css`, using shadcn's token 
 The web app registers [WebMCP](https://github.com/webmachinelearning/webmcp) tools so in-browser
 agents can use pienance directly: `bake_pie` before a pie exists, then `read_pie`, `weigh_bite`
 (read-only) and `take_bite`, plus `read_statement` (read-only) and `take_bites` to import a bank
-statement. They call the same server actions as the UI, so the page stays in sync.
+statement, and `reset_pie` to start over. They call the same server actions as the UI, so the page stays in sync.
 
 ## Importing statements
 
-`/import` takes a CSV export from any bank. [Papa Parse](https://www.papaparse.com) splits the
+`/import` takes a CSV or spreadsheet (`.xlsx`, `.xls`, `.ods`) export from any bank. A
+spreadsheet's first sheet is turned into CSV in the browser by [SheetJS](https://sheetjs.com)
+(loaded only for spreadsheets; installed from its own CDN, as npm only has an old release), with
+dates as `2026-10-03` (`apps/web/src/import/spreadsheet.ts`). [Papa Parse](https://www.papaparse.com) splits the
 file (any delimiter, quoting, line endings); then `@pienance/core` guesses the layout by rules
 (`guessLayout`): preamble rows, which column is the day, amount, money out/in or description,
 day order and decimal mark. Only when the rules are unsure, or to suggest a slice for each bite,
 does the `Advisor` port ask a decision model through the AI SDK's `experimental_decide` and the
 [Vercel AI Gateway](https://vercel.com/docs/ai-gateway): Jev (`typesafe-ai/jev`) for now, to be
 replaced with Cloudflare's Clef once the gateway serves it (`apps/web/src/import/decision-advisor.ts`).
-Only the first rows and the distinct notes are sent. Without gateway access (no
+A note the person already took from a slice in the last three months goes to that slice
+again, so imports follow their own slicing; only the other notes, and the first rows, are sent. Without gateway access (no
 `AI_GATEWAY_API_KEY` locally), the rules work alone. Re-importing a statement skips the bites
 already taken. A statement over the limits (2,000 lines or 2M characters) is cut
 on the server to its first lines that fit, and the page says how many it read. Files over 3.5 MB

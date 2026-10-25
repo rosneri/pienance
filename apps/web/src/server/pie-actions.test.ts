@@ -279,6 +279,7 @@ describe("pie actions", () => {
         throw new Error("database is down");
       },
       save: async () => undefined,
+      remove: async () => undefined,
     };
 
     await expect(
@@ -535,5 +536,18 @@ describe("pie actions", () => {
       ok: false,
       error: "Sign in first.",
     });
+  });
+
+  it("resets only the signed-in person's pie", async () => {
+    const { as, tracked } = kitchen();
+
+    await as("ada").bakePie({ monthlyIncome: "3000", currency: "EUR" });
+    await as("grace").bakePie({ monthlyIncome: "2000", currency: "EUR" });
+
+    expect(await as(null).resetPie()).toEqual({ ok: false, error: "Sign in first." });
+    expect(await as("ada").resetPie()).toEqual({ ok: true, value: null });
+    expect(await as("ada").readPie()).toBeNull();
+    expect(await as("grace").readPie()).not.toBeNull();
+    expect(tracked.at(-1)?.event).toEqual({ name: "pie.reset", properties: {} });
   });
 });

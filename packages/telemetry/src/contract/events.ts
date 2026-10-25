@@ -1,6 +1,7 @@
 /** Product events, named in the ubiquitous language. Never carry amounts or incomes. */
 export type ProductEvent =
   | { readonly name: "pie.baked"; readonly properties: { readonly currency: string } }
+  | { readonly name: "pie.reset"; readonly properties: Readonly<Record<string, never>> }
   | {
       readonly name: "pie.resliced";
       readonly properties: { readonly slices: number; readonly retired: number };
