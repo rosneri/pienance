@@ -114,7 +114,7 @@ function fakeActions(): PieActions & { calls: string[] } {
 
       return {
         ok: true,
-        value: { ...pieView.bites[0]!, sliceName: "Needs", portionWords: "about a tenth" },
+        value: { ...pieView.bites[0]!, sliceName: "Needs", portion: "1/10" },
       };
     },
     readReslice: async () => null,
@@ -246,7 +246,7 @@ describe("PieTools (WebMCP)", () => {
       "Savings",
     ]);
     expect(await tool("weigh_bite").execute({ amount: 80, slice: "Wants" })).toBe(
-      "Fits. It is about a fifth of your Wants slice and leaves about half of it.",
+      "Fits. It is about a fifth (Wants) and leaves about half of it.",
     );
     expect(await tool("take_bite").execute({ amount: 5, slice: "Needs", note: "Tea" })).toBe(
       "Bake a pie first",
@@ -263,12 +263,12 @@ describe("PieTools (WebMCP)", () => {
         "Savings: all left",
       ],
       staples: [
-        { id: "rent", staple: "Rent: about half of Needs" },
-        { id: "gym", staple: "Gym: a sliver of Wants, ends after October" },
+        { id: "rent", staple: "Rent: 1/2 (Needs)" },
+        { id: "gym", staple: "Gym: 1/27 (Wants), ends after October" },
       ],
       bites: [
         { id: "shoes", note: "Shoes", slice: "Wants", portion: "3/4" },
-        { id: "nameless", note: "Something", slice: "Needs", portion: "under 1/10" },
+        { id: "nameless", note: "Something", slice: "Needs", portion: "1/30" },
       ],
     });
     expect(await tool("put_back_bite").execute({ biteId: "shoes" })).toBe("Put back.");
@@ -276,10 +276,10 @@ describe("PieTools (WebMCP)", () => {
       "That bite is not in this month's pie.",
     );
     expect(await tool("move_bite").execute({ biteId: "shoes", slice: "Needs" })).toBe(
-      "Moved. It is about a tenth of Needs.",
+      "Moved. 1/10 (Needs).",
     );
     expect(await tool("stock_staple").execute({ amount: 1000, slice: "Needs", note: "Rent" })).toBe(
-      "Added. Rent takes about half of Needs every month.",
+      "Added. Rent: 1/2 (Needs) every month.",
     );
     expect(await tool("drop_staple").execute({ stapleId: "rent" })).toBe(
       "Stopped. Rent ends after October.",

@@ -64,10 +64,10 @@ describe("pie actions", () => {
       value: {
         sliceName: "Wants",
         portion: "1/4",
-        ofSlice: "about a quarter",
-        ofLeftover: "about a quarter",
-        ofPie: "a sliver",
-        leftAfter: "about three quarters",
+        ofSlice: "1/4",
+        ofLeftover: "1/4",
+        ofPie: "1/13",
+        leftAfter: "3/4",
         stapled: "nothing",
         verdict: "fits",
       },
@@ -96,17 +96,16 @@ describe("pie actions", () => {
     const [needs, wants] = baked.ok ? baked.value.slices.map((slice) => slice.id) : [];
     const taken = await ada.takeBite({ sliceId: wants!, amount: "90", note: "Shoes" });
 
-    expect(taken.ok && [taken.value.note, taken.value.portionWords, taken.value.sliceName]).toEqual(
-      ["Shoes", "about a tenth", "Wants"],
-    );
+    expect(taken.ok && [taken.value.note, taken.value.portion, taken.value.sliceName]).toEqual([
+      "Shoes",
+      "1/10",
+      "Wants",
+    ]);
 
     const biteId = taken.ok ? taken.value.id : "";
     const moved = await ada.moveBite({ biteId, sliceId: needs! });
 
-    expect(moved.ok && [moved.value.sliceName, moved.value.portionWords]).toEqual([
-      "Needs",
-      "a sliver",
-    ]);
+    expect(moved.ok && [moved.value.sliceName, moved.value.portion]).toEqual(["Needs", "1/17"]);
     expect(await ada.putBackBite({ biteId })).toEqual({ ok: true, value: null });
     expect((await ada.readPie())?.bites).toEqual([]);
     expect(await ada.putBackBite({ biteId })).toEqual({
@@ -237,8 +236,8 @@ describe("pie actions", () => {
 
     const taken = await ada.takeBite({ sliceId: needs!, amount: "4.30", note: "Lunch" });
 
-    expect(taken.ok && taken.value.swept).toEqual({ sliceName: "Savings", words: "a crumb" });
-    expect((await ada.readPie())?.swept).toEqual([{ sliceName: "Savings", words: "a crumb" }]);
+    expect(taken.ok && taken.value.swept).toEqual({ sliceName: "Savings", portion: "1/857" });
+    expect((await ada.readPie())?.swept).toEqual([{ sliceName: "Savings", portion: "1/857" }]);
     expect(tracked.find(({ event }) => event.name === "sweep.set")?.event).toEqual({
       name: "sweep.set",
       properties: { on: true },
@@ -338,7 +337,7 @@ describe("pie actions", () => {
       expect(outcome.ok && outcome.value).toMatchObject({
         note: "Rent",
         sliceName: "Needs",
-        portionWords: "about two thirds",
+        portion: "2/3",
         stockedThisMonth: true,
       });
       expect((await ada.readPie())?.slices[0]?.stapledWords).toBe("about two thirds");

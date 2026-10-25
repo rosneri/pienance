@@ -45,7 +45,7 @@ function Eaten({ moved, calls }: { moved: Outcome<BiteView>; calls: string[] }) 
 function setup(
   moved: Outcome<BiteView> = {
     ok: true,
-    value: { ...shoes!, sliceId: "needs", sliceName: "Needs", portionWords: "about a tenth" },
+    value: { ...shoes!, sliceId: "needs", sliceName: "Needs", portion: "1/10" },
   },
 ) {
   const calls: string[] = [];
@@ -76,7 +76,7 @@ describe("BiteList", () => {
     await user.click(screen.getByRole("button", { name: "Move to Needs" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("Moved. It is about a tenth of Needs."),
+      expect(screen.getByRole("status")).toHaveTextContent("Moved. 1/10 (Needs)."),
     );
     expect(calls).toEqual(["move shoes needs"]);
   });

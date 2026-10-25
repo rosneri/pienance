@@ -30,14 +30,30 @@ export function roughly(proportion: Proportion): string {
 /** Denominators up to ten keep a fraction readable at a glance. */
 const largestDenominator = 10;
 
+/** Below a tenth, or within a tenth of the whole, a unit fraction is clearer: 1/30, 29/30. */
+const edge = 1 / largestDenominator;
+
 /**
- * The nearest simple fraction, e.g. "5/9": still a proportion, never an amount.
- * The simplest fraction wins a tie, so "2/4" is always said as "1/2".
+ * A simple fraction, e.g. "5/9": still a proportion, never an amount. Small parts are told
+ * as one in so many ("1/30"), and nearly whole ones as all but one ("29/30"). The simplest
+ * fraction wins a tie, so "2/4" is always said as "1/2".
  */
 export function asFraction(proportion: Proportion): string {
   const { ratio } = proportion;
 
   if (!Number.isFinite(ratio)) return "more than all";
+
+  if (ratio === 0) return "nothing";
+
+  if (ratio === 1) return "all";
+
+  if (ratio < edge) return `1/${Math.round(1 / ratio)}`;
+
+  if (ratio < 1 && 1 - ratio < edge / 2) {
+    const denominator = Math.round(1 / (1 - ratio));
+
+    return `${denominator - 1}/${denominator}`;
+  }
 
   let best = { numerator: 0, denominator: 1, error: ratio };
 
@@ -48,9 +64,12 @@ export function asFraction(proportion: Proportion): string {
     if (error < best.error - 1e-9) best = { numerator, denominator, error };
   }
 
-  if (best.numerator === 0) return ratio === 0 ? "nothing" : `under 1/${largestDenominator}`;
-
   if (best.numerator === best.denominator) return "all";
 
   return `${best.numerator}/${best.denominator}`;
+}
+
+/** A part of a slice, as people read it: "1/30 (Wants)". */
+export function portionOf(fraction: string, sliceName: string): string {
+  return `${fraction} (${sliceName})`;
 }

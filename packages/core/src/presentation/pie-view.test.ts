@@ -59,7 +59,7 @@ describe("viewPie", () => {
     ]);
   });
 
-  it("describes bites roughly", () => {
+  it("tells bites as fractions", () => {
     expect(viewPie(pie, { month: october }).bites).toEqual([
       {
         id: "coffee",
@@ -67,21 +67,20 @@ describe("viewPie", () => {
         note: "Coffee",
         sliceName: "Wants",
         portion: "1/4",
-        portionWords: "about a quarter",
         eatenAt: "2026-10-01T00:00:00.000Z",
       },
     ]);
   });
 
-  it("describes a weighing roughly", () => {
+  it("tells a weighing as fractions", () => {
     const view = viewWeighing(pie.weigh({ sliceId: "wants", amount: eur(100) }));
     expect(view).toEqual({
       sliceName: "Wants",
       portion: "1/5",
-      ofSlice: "about a fifth",
-      ofLeftover: "about a quarter",
-      ofPie: "about a tenth",
-      leftAfter: "about half",
+      ofSlice: "1/5",
+      ofLeftover: "1/4",
+      ofPie: "1/10",
+      leftAfter: "5/9",
       stapled: "nothing",
       verdict: "fits",
     });
@@ -170,7 +169,7 @@ describe("viewPie", () => {
         sliceId: "needs",
         note: "Rent",
         sliceName: "Needs",
-        portionWords: "about two thirds",
+        portion: "2/3",
         amount: "650.00",
         stockedThisMonth: true,
       },
@@ -179,7 +178,7 @@ describe("viewPie", () => {
         sliceId: "needs",
         note: "Gym",
         sliceName: "Needs",
-        portionWords: "a crumb",
+        portion: "1/25",
         amount: "40.00",
         stockedThisMonth: false,
         endsAfter: "October",
