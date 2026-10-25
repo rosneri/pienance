@@ -10,10 +10,24 @@
 
 @import "tailwindcss";
 
+/* `dark:` follows the theme chosen in the footer, or the system when nothing is chosen. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
+
 @source "../../../../apps/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
 :root {
+  color-scheme: light;
   /* Cream paper and baked-crust ink. */
   --background: oklch(97% 0.012 80);
   --foreground: oklch(23% 0.02 50);
@@ -47,8 +61,30 @@
   --dur-long: 420ms;
 }
 
+/* Dark: chosen in the footer, or following the system when nothing is chosen. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --background: oklch(17% 0.014 55);
+  --foreground: oklch(94% 0.012 80);
+  --secondary: oklch(21% 0.016 55);
+  --muted: oklch(21% 0.016 55);
+  --muted-foreground: oklch(68% 0.016 70);
+  --accent: oklch(21% 0.016 55);
+  --destructive: oklch(66% 0.13 15);
+  --border: oklch(33% 0.016 55);
+  --input: oklch(33% 0.016 55);
+  --ring: oklch(70% 0.16 15);
+  --crust-1: oklch(80% 0.08 80);
+  --crust-2: oklch(70% 0.1 65);
+  --crust-3: oklch(60% 0.1 50);
+  --plate: oklch(26% 0.018 55);
+  --berry: oklch(66% 0.13 15);
+  --tight: oklch(74% 0.1 65);
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
     --background: oklch(17% 0.014 55);
     --foreground: oklch(94% 0.012 80);
     --secondary: oklch(21% 0.016 55);
