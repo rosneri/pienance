@@ -122,6 +122,53 @@ describe("pie actions", () => {
     ]);
   });
 
+  it("re-slices the pie, previewing first, and records only counts", async () => {
+    const { as, refreshes, tracked } = kitchen();
+    const ada = as("ada");
+
+    await ada.bakePie({ monthlyIncome: "3000", currency: "EUR" });
+
+    const view = await ada.readReslice();
+    const [needs, wants] = view?.slices ?? [];
+
+    expect(view?.slices.map((slice) => [slice.name, slice.percent])).toEqual([
+      ["Needs", 50],
+      ["Wants", 30],
+      ["Savings", 20],
+    ]);
+
+    await ada.takeBite({ sliceId: wants!.id, amount: "600", note: "Trip" });
+
+    const input = {
+      slices: [
+        { id: needs!.id, name: "Needs", percent: 80 },
+        { id: wants!.id, name: "Wants", percent: 20 },
+      ],
+    };
+
+    expect(await ada.previewReslice(input)).toEqual({
+      ok: true,
+      value: { verdict: "overflows", sentence: "Wants would be all eaten." },
+    });
+    expect(refreshes).toHaveLength(2);
+
+    const resliced = await ada.reslicePie(input);
+
+    expect(resliced.ok && resliced.value.slices.map((slice) => slice.name)).toEqual([
+      "Needs",
+      "Wants",
+    ]);
+    expect(refreshes).toHaveLength(3);
+    expect(tracked.at(-1)?.event).toEqual({
+      name: "pie.resliced",
+      properties: { slices: 2, retired: 1 },
+    });
+    expect(await ada.reslicePie({ slices: [{ name: "All", percent: 95 }] })).toEqual({
+      ok: false,
+      error: "Slices must add up to the whole pie, got 95%",
+    });
+  });
+
   it("returns domain errors as values", async () => {
     const { as } = kitchen();
     const ada = as("ada");

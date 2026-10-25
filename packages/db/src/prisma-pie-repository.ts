@@ -36,6 +36,7 @@ export class PrismaPieRepository implements PieRepository {
         id: slice.id,
         name: slice.name,
         share: Proportion.of(slice.share),
+        ...(slice.retired && { retired: true }),
       })),
       bites: row.slices
         .flatMap((slice) => slice.bites)
@@ -71,7 +72,12 @@ export class PrismaPieRepository implements PieRepository {
         update: income,
       }),
       ...pie.slices.map((slice, position) => {
-        const data = { name: slice.name, share: slice.share.ratio, position };
+        const data = {
+          name: slice.name,
+          share: slice.share.ratio,
+          position,
+          retired: Boolean(slice.retired),
+        };
 
         return this.db.slice.upsert({
           where: { id: slice.id },

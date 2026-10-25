@@ -22,6 +22,8 @@ export function Kitchen({
   >;
 }) {
   const [changing, setChanging] = useState<StapleView | null>(null);
+  // Nothing more is eaten from a retired slice.
+  const live = pie.slices.filter((slice) => !slice.retired);
 
   return (
     <div className="grid content-start gap-10 lg:gap-16">
@@ -35,11 +37,11 @@ export function Kitchen({
         bites={pie.bites}
         empty={discovery}
         importable
-        slices={pie.slices}
+        slices={live}
         actions={actions}
         composer={
           <BiteComposer
-            slices={pie.slices}
+            slices={live}
             currency={pie.currency}
             actions={actions}
             changing={changing}

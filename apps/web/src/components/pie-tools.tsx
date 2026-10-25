@@ -72,7 +72,8 @@ export function PieTools({
       return () => controller.abort();
     }
 
-    const { slices } = pie;
+    // Nothing more is eaten from a retired slice, so tools only offer the live ones.
+    const slices = pie.slices.filter((slice) => !slice.retired);
     const sliceIdOf = (name: string) => slices.find((slice) => slice.name === name)?.id ?? "";
 
     const biteProperties = {
@@ -260,6 +261,78 @@ export function PieTools({
       options,
     );
 
+    const resliceSchema = {
+      type: "object",
+      properties: {
+        monthlyIncome: {
+          type: "number",
+          description: `Money that comes in each month, in ${pie.currency}. Leave it out to keep it.`,
+        },
+        slices: {
+          type: "array",
+          description:
+            "Every slice the pie should have, in order. An existing name keeps its slice and bites, a new name adds a slice, and a slice left out is retired (it keeps this month's bites).",
+          items: {
+            type: "object",
+            properties: {
+              name: { type: "string", description: "The slice's name, up to 30 letters." },
+              percent: {
+                type: "number",
+                description: "Its share of the pie in steps of 5; all shares add up to 100.",
+              },
+            },
+            required: ["name", "percent"],
+          },
+        },
+      },
+      required: ["slices"],
+    } as const;
+
+    const resliceInput = (input: {
+      monthlyIncome?: number;
+      slices: readonly { name: string; percent: number }[];
+    }) => ({
+      ...(input.monthlyIncome !== undefined && { monthlyIncome: String(input.monthlyIncome) }),
+      slices: input.slices.map((slice) => ({
+        id: slices.find((known) => known.name === slice.name.trim())?.id,
+        name: slice.name,
+        percent: slice.percent,
+      })),
+    });
+
+    void modelContext.registerTool(
+      {
+        name: "preview_reslice",
+        title: "Preview new slices",
+        description:
+          "Tells how this month's expenses would sit in the pie with a new income or new slices, without changing anything.",
+        annotations: { readOnlyHint: true },
+        inputSchema: resliceSchema,
+        async execute(input) {
+          const outcome = await actions.previewReslice(resliceInput(input));
+
+          return outcome.ok ? outcome.value.sentence : outcome.error;
+        },
+      },
+      options,
+    );
+
+    void modelContext.registerTool(
+      {
+        name: "reslice_pie",
+        title: "Change the income or slices",
+        description:
+          "Changes the pie's monthly income or its slices (names, shares, adding, retiring) in place. Every expense stays. Preview it first with preview_reslice.",
+        inputSchema: resliceSchema,
+        async execute(input) {
+          const outcome = await actions.reslicePie(resliceInput(input));
+
+          return outcome.ok ? describeLeftover(outcome.value.leftoverWords) : outcome.error;
+        },
+      },
+      options,
+    );
+
     void modelContext.registerTool(
       {
         name: "read_statement",
@@ -391,5 +464,7 @@ export function PieTools({
 
 /** "Wants: about half left, going fast" */
 function describeSlice(slice: SliceView): string {
+  if (slice.retired) return `${slice.name}: retired, still has bites this month`;
+
   return `${slice.name}: ${slice.leftWords} left${slice.pace === "fast" ? ", going fast" : ""}`;
 }

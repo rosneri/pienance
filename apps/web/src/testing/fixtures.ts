@@ -10,6 +10,7 @@ export const pieView: PieView = {
     {
       id: "needs",
       name: "Needs",
+      retired: false,
       from: 0,
       to: 0.5,
       left: 0.4,
@@ -23,6 +24,7 @@ export const pieView: PieView = {
     {
       id: "wants",
       name: "Wants",
+      retired: false,
       from: 0.5,
       to: 0.8,
       left: 0.25,
@@ -35,6 +37,7 @@ export const pieView: PieView = {
     {
       id: "savings",
       name: "Savings",
+      retired: false,
       from: 0.8,
       to: 1,
       left: 1,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { currencyOf, Money, Month, Pie, Proportion } from "../domain";
 import { viewPie, viewWeighing } from "./pie-view";
+import { viewReslice } from "./reslice-view";
 import { viewAppetite, viewShelf } from "./shelf-view";
 
 const eur = (amount: number) => Money.parse(String(amount), currencyOf("EUR"));
@@ -34,10 +35,20 @@ describe("viewPie", () => {
 
   it("lays slices around the pie with what is left", () => {
     expect(viewPie(pie, { month: october }).slices).toEqual([
-      { id: "needs", name: "Needs", from: 0, to: 0.5, left: 1, leftWords: "all", stapled: 0 },
+      {
+        id: "needs",
+        name: "Needs",
+        retired: false,
+        from: 0,
+        to: 0.5,
+        left: 1,
+        leftWords: "all",
+        stapled: 0,
+      },
       {
         id: "wants",
         name: "Wants",
+        retired: false,
         from: 0.5,
         to: 1,
         left: 0.75,
@@ -231,5 +242,33 @@ describe("focuses", () => {
       ["recurrence:every-month", "recurrence", "nothing", []],
       ["recurrence:one-time", "recurrence", "about a tenth", ["coffee"]],
     ]);
+  });
+
+  it("draws no wedge and no pace for a retired slice that still has bites", () => {
+    const resliced = pie.reslice({
+      slices: [
+        { id: "needs", name: "Needs", share: Proportion.whole },
+        { id: "wants", name: "Wants", share: Proportion.none, retired: true },
+      ],
+    });
+
+    const view = viewPie(resliced, { month: october, gone: Proportion.of(0.5) });
+    const wants = view.slices.find((slice) => slice.name === "Wants");
+
+    expect(wants).toMatchObject({ retired: true, from: 1, to: 1 });
+    expect(wants?.pace).toBeUndefined();
+    expect(view.bites.map((bite) => bite.sliceName)).toEqual(["the pie"]);
+    expect(view.focuses.map((focus) => focus.name)).not.toContain("Wants");
+  });
+
+  it("starts the re-slice form from the live slices", () => {
+    expect(viewReslice(pie)).toEqual({
+      currency: "EUR",
+      income: "1000.00",
+      slices: [
+        { id: "needs", name: "Needs", percent: 50, eaten: false, stocked: false },
+        { id: "wants", name: "Wants", percent: 50, eaten: true, stocked: false },
+      ],
+    });
   });
 });

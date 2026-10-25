@@ -27,7 +27,7 @@ export function readAppetite(ports: Ports) {
 
     if (!pie || shelf.length < months) return [];
 
-    return pie.slices.flatMap((slice) => {
+    return pie.liveSlices.flatMap((slice) => {
       const eaten = shelf.flatMap(({ pie: past }): Proportion[] => {
         const serving = past.servings().find((candidate) => candidate.slice.id === slice.id);
 

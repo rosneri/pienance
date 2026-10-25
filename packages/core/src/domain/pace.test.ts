@@ -5,6 +5,7 @@ import { Proportion } from "./proportion";
 
 const serving = (eaten: number, stapled = 0): Serving => ({
   slice: { id: "wants", name: "Wants", share: Proportion.of(1) },
+  retired: false,
   eaten: Proportion.of(eaten),
   left: Proportion.of(eaten).complement(),
   stapled: Proportion.of(stapled),

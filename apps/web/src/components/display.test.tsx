@@ -95,6 +95,19 @@ describe("Legend", () => {
     );
     expect(screen.getByText("Savings").nextSibling).toHaveTextContent(/^all left$/);
   });
+
+  it("tells a retired slice that still has bites, without focusing it", () => {
+    const slices = pieView.slices.map((slice) =>
+      slice.id === "wants" ? { ...slice, retired: true } : slice,
+    );
+
+    render(<Legend slices={slices} />);
+
+    expect(screen.getByText("Wants").nextSibling).toHaveTextContent(
+      "Retired · still has bites this month",
+    );
+    expect(screen.getByRole("button", { name: /^Wants/ })).toBeDisabled();
+  });
 });
 
 describe("StapleList", () => {

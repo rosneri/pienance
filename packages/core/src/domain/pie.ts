@@ -3,7 +3,7 @@ import type { Currency } from "./currency";
 import { Money } from "./money";
 import type { Month } from "./month";
 import { Proportion } from "./proportion";
-import type { Slice } from "./slice";
+import { sliceNameLimit, type Slice } from "./slice";
 import { isVoid, type Staple } from "./staple";
 import type { Verdict, Weighing } from "./weighing";
 
@@ -12,6 +12,8 @@ const tightThreshold = Proportion.of(0.1);
 
 export interface Serving {
   readonly slice: Slice;
+  /** A retired slice has no size: its bites only count against the whole pie. */
+  readonly retired: boolean;
   readonly eaten: Proportion;
   readonly left: Proportion;
   /** How much of the slice its staples take. Already part of `eaten`. */
@@ -71,7 +73,16 @@ export class Pie {
     /** The staples active in the served month: the pie counts every one it holds. */
     staples?: readonly Staple[];
   }): Pie {
-    if (props.slices.length === 0) throw new PieError("A pie needs at least one slice");
+    if (!props.slices.some((slice) => !slice.retired)) {
+      throw new PieError("A pie needs at least one slice");
+    }
+
+    if (props.slices.some((slice) => slice.retired && slice.share.ratio > 0)) {
+      throw new PieError("A retired slice takes no share");
+    }
+
+    assertNames(props.slices);
+
     const totalShare = props.slices.reduce((sum, slice) => sum + slice.share.ratio, 0);
 
     if (Math.abs(totalShare - 1) > 0.001) {
@@ -82,11 +93,48 @@ export class Pie {
 
     const pie = new Pie(props.id, props.ownerId, props.income, props.slices, props.bakedAt, [], []);
 
-    for (const bite of props.bites ?? []) pie.take(bite);
+    // What was eaten stays, even from a slice retired since.
+    for (const bite of props.bites ?? []) pie.hold(bite);
 
-    for (const staple of props.staples ?? []) pie.stock(staple);
+    for (const staple of props.staples ?? []) pie.shelve(staple);
 
     return pie;
+  }
+
+  /**
+   * The same pie with a new income or new slices; every bite and staple stays. A slice left
+   * out of `slices` must already be marked retired, so its past bites keep a home.
+   */
+  reslice(props: { income?: Money; slices: readonly Slice[] }): Pie {
+    const income = props.income ?? this.income;
+
+    this.assertInCurrency(income);
+
+    if (!income.isMoreThan(Money.zero(this.currency))) {
+      throw new PieError("The income needs to be above zero");
+    }
+
+    for (const slice of props.slices) {
+      const before = this.slices.find((candidate) => candidate.id === slice.id);
+
+      const active = this.pantry.some(
+        (staple) => staple.sliceId === slice.id && !staple.until && !isVoid(staple),
+      );
+
+      if (slice.retired && !before?.retired && active) {
+        throw new PieError(`Stop ${before?.name ?? slice.name}'s staples first.`);
+      }
+    }
+
+    return Pie.bake({
+      id: this.id,
+      ownerId: this.ownerId,
+      income,
+      slices: props.slices,
+      bakedAt: this.bakedAt,
+      bites: this.eaten,
+      staples: this.pantry,
+    });
   }
 
   get currency(): Currency {
@@ -101,6 +149,11 @@ export class Pie {
     return this.pantry;
   }
 
+  /** The slices that take a share: retired ones are left out. */
+  get liveSlices(): readonly Slice[] {
+    return this.slices.filter((slice) => !slice.retired);
+  }
+
   slice(sliceId: string): Slice {
     const slice = this.slices.find((candidate) => candidate.id === sliceId);
 
@@ -113,7 +166,7 @@ export class Pie {
   weigh(candidate: BiteCandidate): Weighing {
     this.assertInCurrency(candidate.amount);
 
-    const slice = this.slice(candidate.sliceId);
+    const slice = this.liveSlice(candidate.sliceId);
     const size = this.sizeOf(slice);
     const leftover = size.minus(this.eatenFrom(slice));
     const leftAfter = leftover.minus(candidate.amount);
@@ -130,9 +183,8 @@ export class Pie {
   }
 
   take(bite: Bite): void {
-    this.assertInCurrency(bite.amount);
-    this.slice(bite.sliceId);
-    this.eaten.push(bite);
+    this.liveSlice(bite.sliceId);
+    this.hold(bite);
   }
 
   /** One of the served month's bites. */
@@ -154,9 +206,9 @@ export class Pie {
   move(biteId: string, sliceId: string): Bite {
     const bite = this.bite(biteId);
 
-    this.slice(sliceId);
-
     if (bite.sliceId === sliceId) return bite;
+
+    this.liveSlice(sliceId);
 
     const moved = { ...bite, sliceId };
 
@@ -172,14 +224,8 @@ export class Pie {
 
   /** Adds a staple to the pantry. */
   stock(staple: Staple): void {
-    this.assertInCurrency(staple.amount);
-    this.slice(staple.sliceId);
-
-    if (!staple.amount.isMoreThan(Money.zero(this.currency))) {
-      throw new PieError("A staple needs an amount above zero");
-    }
-
-    this.pantry.push(staple);
+    this.liveSlice(staple.sliceId);
+    this.shelve(staple);
   }
 
   /**
@@ -207,27 +253,41 @@ export class Pie {
     this.restock({ ...old, until: staple.since.isAfter(old.since) ? staple.since : old.since });
   }
 
-  /** How much of its slice a bite took. */
+  /** How much of its slice a bite took; of the whole pie, for a retired slice. */
   portionOf(bite: Bite): Proportion {
-    return bite.amount.proportionOf(this.sizeOf(this.slice(bite.sliceId)));
+    return bite.amount.proportionOf(this.wholeOf(this.slice(bite.sliceId)));
   }
 
-  /** How much of its slice a staple takes each month. */
+  /** How much of its slice a staple takes each month; of the whole pie, for a retired slice. */
   portionOfStaple(staple: Staple): Proportion {
-    return staple.amount.proportionOf(this.sizeOf(this.slice(staple.sliceId)));
+    return staple.amount.proportionOf(this.wholeOf(this.slice(staple.sliceId)));
   }
 
+  /** Every live slice, and a retired one only while something was eaten from it this month. */
   servings(): Serving[] {
-    return this.slices.map((slice) => {
-      const size = this.sizeOf(slice);
-      const eaten = this.eatenFrom(slice).proportionOf(size);
+    return this.slices.flatMap((slice): Serving[] => {
+      const eatenFrom = this.eatenFrom(slice);
 
-      return {
-        slice,
-        eaten,
-        left: eaten.complement(),
-        stapled: this.stapledFrom(slice).proportionOf(size),
-      };
+      if (slice.retired) {
+        if (!eatenFrom.isMoreThan(Money.zero(this.currency))) return [];
+
+        const none = Proportion.none;
+
+        return [{ slice, retired: true, eaten: none, left: none, stapled: none }];
+      }
+
+      const size = this.sizeOf(slice);
+      const eaten = eatenFrom.proportionOf(size);
+
+      return [
+        {
+          slice,
+          retired: false,
+          eaten,
+          left: eaten.complement(),
+          stapled: this.stapledFrom(slice).proportionOf(size),
+        },
+      ];
     });
   }
 
@@ -252,6 +312,36 @@ export class Pie {
   /** How much money a slice holds. */
   sizeOf(slice: Slice): Money {
     return this.sizes.get(slice.id) ?? Money.zero(this.currency);
+  }
+
+  private wholeOf(slice: Slice): Money {
+    return slice.retired ? this.income : this.sizeOf(slice);
+  }
+
+  /** A slice that can still be eaten from. */
+  private liveSlice(sliceId: string): Slice {
+    const slice = this.slice(sliceId);
+
+    if (slice.retired) throw new PieError(`${slice.name} is retired. Pick another slice.`);
+
+    return slice;
+  }
+
+  private hold(bite: Bite): void {
+    this.assertInCurrency(bite.amount);
+    this.slice(bite.sliceId);
+    this.eaten.push(bite);
+  }
+
+  private shelve(staple: Staple): void {
+    this.assertInCurrency(staple.amount);
+    this.slice(staple.sliceId);
+
+    if (!staple.amount.isMoreThan(Money.zero(this.currency))) {
+      throw new PieError("A staple needs an amount above zero");
+    }
+
+    this.pantry.push(staple);
   }
 
   private eatenFrom(slice: Slice): Money {
@@ -293,6 +383,25 @@ export class Pie {
     if (!amount.isIn(this.currency)) {
       throw new PieError(`This pie is in ${this.currency.code}, not ${amount.currency.code}`);
     }
+  }
+}
+
+/** Names are trimmed by the caller: here they must be there, short, and told apart. */
+function assertNames(slices: readonly Slice[]): void {
+  const seen = new Set<string>();
+
+  for (const { name } of slices) {
+    if (name.trim() === "") throw new PieError("Every slice needs a name.");
+
+    if (name.length > sliceNameLimit) {
+      throw new PieError(`${name} is too long: keep slice names to ${sliceNameLimit} letters.`);
+    }
+
+    const key = name.trim().toLowerCase();
+
+    if (seen.has(key)) throw new PieError(`Two slices are called ${name}.`);
+
+    seen.add(key);
   }
 }
 

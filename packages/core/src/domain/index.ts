@@ -22,7 +22,7 @@ export { Proportion } from "./proportion";
 
 export { asFraction, roughly } from "./rough-size";
 
-export type { Slice } from "./slice";
+export { sliceNameLimit, type Slice } from "./slice";
 
 export { isActiveIn, isVoid, type Staple } from "./staple";
 
